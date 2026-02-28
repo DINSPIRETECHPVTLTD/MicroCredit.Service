@@ -8,6 +8,20 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
+static void WriteStartupError(Exception ex)
+{
+    try
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "MicroCredit");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "startup-failure.txt");
+        File.WriteAllText(path, $"{DateTime.UtcNow:O}{Environment.NewLine}{ex}{Environment.NewLine}{ex.StackTrace}");
+    }
+    catch { /* best-effort only */ }
+}
+
+try
+{
 var builder = WebApplication.CreateBuilder(args);
 
 SerilogProvider.Configure(builder.Configuration);
@@ -66,4 +80,12 @@ try
 finally
 {
     Log.CloseAndFlush();
+}
+}
+catch (Exception ex)
+{
+    WriteStartupError(ex);
+    if (Log.Logger != null)
+        Log.Fatal(ex, "Application failed to start");
+    throw;
 }
