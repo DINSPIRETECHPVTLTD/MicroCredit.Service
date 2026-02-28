@@ -6,4 +6,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\MicroCredit.Domain\MicroCredit.Domain.csproj" />
+    <ProjectReference Include="..\MicroCredit.Infrastructure\MicroCredit.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Mappings\ApplicationModel\" />
+    <Folder Include="Model\User\" />
+  </ItemGroup>
+
 </Project>
