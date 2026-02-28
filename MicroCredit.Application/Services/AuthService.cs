@@ -1,6 +1,6 @@
 using MicroCredit.Application.Interfaces;
+using MicroCredit.Application.Mappings.DomianEntity;
 using MicroCredit.Application.Model.Auth;
-using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces;
 
 namespace MicroCredit.Application.Services;
@@ -26,18 +26,6 @@ public class AuthService : IAuthService
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return null;
 
-        var token = _jwtTokenGenerator.GenerateToken(user);
-        var userType = user.Level == UserLevel.Org ? "Organization" : "Branch";
-
-        return new AuthResponse
-        {
-            Token = token,
-            UserType = userType,
-            UserId = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Role = user.Role.ToString()
-        };
+        return user.ToAuthResponse(_jwtTokenGenerator.GenerateToken(user));
     }
 }

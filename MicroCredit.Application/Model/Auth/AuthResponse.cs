@@ -1,4 +1,6 @@
-﻿namespace MicroCredit.Application.Model.Auth;
+﻿using MicroCredit.Application.Model.Organization;
+
+namespace MicroCredit.Application.Model.Auth;
 
 public class AuthResponse
 {
@@ -9,4 +11,5 @@ public class AuthResponse
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
+    public required OrgResponse Organization { get; set; }
 }
