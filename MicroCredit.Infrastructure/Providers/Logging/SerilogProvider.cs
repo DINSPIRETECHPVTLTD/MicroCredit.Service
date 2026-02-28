@@ -16,16 +16,20 @@ public static class SerilogProvider
     /// </summary>
     public static void Configure(IConfiguration configuration)
     {
-        var logsDirectory = "logs";
-        Directory.CreateDirectory(logsDirectory);
+        // Resolve logs directory: try "logs" first, fallback to temp so app can start even without write permission in app dir
+        var logsDirectory = GetOrCreateLogsDirectory();
 
         var loggerConfig = new LoggerConfiguration()
-            .ReadFrom.Configuration(configuration)
-            .WriteTo.File(
+            .ReadFrom.Configuration(configuration);
+
+        if (!string.IsNullOrEmpty(logsDirectory))
+        {
+            loggerConfig = loggerConfig.WriteTo.File(
                 path: Path.Combine(logsDirectory, "errors-.txt"),
                 restrictedToMinimumLevel: LogEventLevel.Error,
                 rollingInterval: RollingInterval.Day,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {Message}{NewLine}{Exception}");
+        }
 
         var emailSection = configuration.GetSection("Email");
         var emailFrom = emailSection["From"];
@@ -65,19 +69,50 @@ public static class SerilogProvider
             }
             catch (Exception ex)
             {
-                try
+                if (!string.IsNullOrEmpty(logsDirectory))
                 {
-                    File.AppendAllText(
-                        Path.Combine(logsDirectory, "serilog-self.log"),
-                        $"{DateTime.UtcNow:O} Email sink failed: {ex}{Environment.NewLine}");
-                }
-                catch
-                {
-                    // ignore logging failures
+                    try
+                    {
+                        File.AppendAllText(
+                            Path.Combine(logsDirectory, "serilog-self.log"),
+                            $"{DateTime.UtcNow:O} Email sink failed: {ex}{Environment.NewLine}");
+                    }
+                    catch { /* ignore */ }
                 }
             }
         }
 
         Log.Logger = loggerConfig.CreateLogger();
+    }
+
+    /// <summary>
+    /// Gets or creates a writable logs directory. Tries "logs" then temp. Returns null if neither is writable (app can still start).
+    /// </summary>
+    private static string? GetOrCreateLogsDirectory()
+    {
+        var candidates = new[]
+        {
+            "logs",
+            Path.Combine(Path.GetTempPath(), "MicroCredit", "logs")
+        };
+
+        foreach (var dir in candidates)
+        {
+            try
+            {
+                Directory.CreateDirectory(dir);
+                return dir;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                continue;
+            }
+            catch (IOException)
+            {
+                continue;
+            }
+        }
+
+        return null;
     }
 }
