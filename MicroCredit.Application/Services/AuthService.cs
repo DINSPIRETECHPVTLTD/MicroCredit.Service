@@ -28,4 +28,28 @@ public class AuthService : IAuthService
 
         return user.ToAuthResponse(_jwtTokenGenerator.GenerateToken(user));
     }
+
+    public async Task<AuthResponse?> NavigateToBranchAsync(int userId, int branchId, CancellationToken cancellationToken = default)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+            return null;
+
+        var branch = await _unitOfWork.Branches.GetByIdAndOrgIdAsync(branchId, user.OrgId, cancellationToken);
+        if (branch == null)
+            return null;
+
+        var token = _jwtTokenGenerator.GenerateToken(user, branchId, "BRANCH");
+        return user.ToAuthResponse(token, branch);
+    }
+
+    public async Task<AuthResponse?> NavigateToOrgAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+            return null;
+
+        var token = _jwtTokenGenerator.GenerateToken(user, contextBranchId: null, "ORG");
+        return user.ToAuthResponse(token, contextBranch: null);
+    }
 }

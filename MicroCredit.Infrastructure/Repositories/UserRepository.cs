@@ -15,4 +15,11 @@ public class UserRepository : GenericRepository<User>, IUserRepository
             .Include(u => u.Organization)
             .FirstOrDefaultAsync(u => u.Email == email && !u.IsDeleted, cancellationToken);
     }
+
+    public async Task<User?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .Include(u => u.Organization)
+            .FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted, cancellationToken);
+    }
 }

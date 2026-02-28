@@ -19,9 +19,14 @@ public class JwtTokenGenerator : IJwtTokenGenerator
     }
 
     public string GenerateToken(User user)
+        => GenerateToken(user, contextBranchId: null, mode: "ORG");
+
+    public string GenerateToken(User user, int? contextBranchId, string mode)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var branchIdValue = contextBranchId.HasValue ? contextBranchId.Value.ToString() : "";
 
         var claims = new[]
         {
@@ -30,7 +35,10 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             new Claim(ClaimTypes.GivenName, user.FirstName),
             new Claim(ClaimTypes.Surname, user.LastName),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
-            new Claim("UserLevel", ((int)user.Level).ToString())
+            new Claim("UserLevel", ((int)user.Level).ToString()),
+            new Claim("OrgId", user.OrgId.ToString()),
+            new Claim("BranchId", branchIdValue),
+            new Claim("Mode", mode)
         };
 
         var token = new JwtSecurityToken(

@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using MicroCredit.Application.Interfaces;
 using MicroCredit.Application.Model.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers;
@@ -27,6 +29,36 @@ public class AuthController : ControllerBase
 
         if (response == null)
             return Unauthorized("Invalid email or password.");
+
+        return Ok(response);
+    }
+
+    [Authorize]
+    [HttpPost("navigate-to-branch")]
+    public async Task<IActionResult> NavigateToBranch([FromQuery] int branchId, CancellationToken cancellationToken = default)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
+
+        var response = await _authService.NavigateToBranchAsync(userId, branchId, cancellationToken);
+        if (response == null)
+            return BadRequest("Branch not found or you do not have access to it.");
+
+        return Ok(response);
+    }
+
+    [Authorize]
+    [HttpPost("navigate-to-org")]
+    public async Task<IActionResult> NavigateToOrg(CancellationToken cancellationToken = default)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
+
+        var response = await _authService.NavigateToOrgAsync(userId, cancellationToken);
+        if (response == null)
+            return Unauthorized("User not found.");
 
         return Ok(response);
     }
