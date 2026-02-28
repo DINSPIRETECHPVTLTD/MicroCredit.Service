@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Infrastructure.Persistence.Configurations;
@@ -18,7 +19,14 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(x => x.MiddleName).HasMaxLength(100);
         builder.Property(x => x.LastName).IsRequired().HasMaxLength(100);
-        builder.Property(x => x.Role).IsRequired();
+
+        // DB has Role/Level as string (varchar); map to enum
+        builder.Property(x => x.Role)
+            .IsRequired()
+            .HasConversion(new ValueConverter<UserRole, string>(
+                v => ((int)v).ToString(),
+                v => ParseUserRole(v)));
+
         builder.Property(x => x.Email).IsRequired().HasMaxLength(200);
         builder.Property(x => x.PhoneNumber).HasMaxLength(20);
         builder.Property(x => x.Address1).HasMaxLength(200);
@@ -28,7 +36,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.ZipCode).HasMaxLength(20);
 
         builder.Property(x => x.OrgId).IsRequired();
-        builder.Property(x => x.Level).IsRequired();
+
+        builder.Property(x => x.Level)
+            .IsRequired()
+            .HasConversion(new ValueConverter<UserLevel, string>(
+                v => ((int)v).ToString(),
+                v => ParseUserLevel(v)));
         builder.Property(x => x.PasswordHash).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
@@ -56,5 +69,19 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .WithMany()
             .HasForeignKey(x => x.ModifiedBy)
             .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static UserRole ParseUserRole(string v)
+    {
+        if (int.TryParse(v, out var n))
+            return (UserRole)n;
+        return Enum.Parse<UserRole>(v);
+    }
+
+    private static UserLevel ParseUserLevel(string v)
+    {
+        if (int.TryParse(v, out var n))
+            return (UserLevel)n;
+        return Enum.Parse<UserLevel>(v);
     }
 }
