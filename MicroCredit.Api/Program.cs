@@ -1,11 +1,19 @@
 using System.Text;
+using MicroCredit.Api.Middlewares;
 using MicroCredit.Application;
 using MicroCredit.Domain.Contracts;
 using MicroCredit.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddApplication(builder.Configuration);
@@ -45,9 +53,19 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseMiddleware<ExceptionMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+try
+{
+    Log.Information("Starting MicroCredit API");
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}
