@@ -4,6 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Use custom web.config for IIS deployment (do not overwrite on publish) -->
+    <GenerateWebConfigFile>false</GenerateWebConfigFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +21,13 @@
     <ProjectReference Include="..\MicroCredit.Application\MicroCredit.Application.csproj" />
     <ProjectReference Include="..\MicroCredit.Domain\MicroCredit.Domain.csproj" />
     <ProjectReference Include="..\MicroCredit.Infrastructure\MicroCredit.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="web.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
