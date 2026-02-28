@@ -1,5 +1,6 @@
-using System.Net;
+using Microsoft.AspNetCore.Http;
 using Serilog;
+using System.Net;
 
 namespace MicroCredit.Api.Middlewares;
 
@@ -25,7 +26,7 @@ public class ExceptionMiddleware
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
 
-            await context.Response.WriteAsync("An unexpected error occurred.");
+            await context.Response.WriteAsync(ex.Message);
         }
     }
 }
