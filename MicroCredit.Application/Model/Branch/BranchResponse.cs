@@ -1,4 +1,4 @@
-namespace MicroCredit.Application.Model.Organization;
+namespace MicroCredit.Application.Model.Branch;
 
 public class BranchResponse
 {

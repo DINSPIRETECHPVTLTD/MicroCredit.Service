@@ -1,3 +1,4 @@
+using MicroCredit.Application.Model.Branch;
 using MicroCredit.Application.Model.Organization;
 
 namespace MicroCredit.Application.Model.Auth;
