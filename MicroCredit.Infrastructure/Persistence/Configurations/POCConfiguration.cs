@@ -4,47 +4,41 @@ using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Infrastructure.Persistence.Configurations;
 
-public class UserConfiguration : IEntityTypeConfiguration<User>
+public class POCConfiguration : IEntityTypeConfiguration<POC>
 {
-    public void Configure(EntityTypeBuilder<User> builder)
+    public void Configure(EntityTypeBuilder<POC> builder)
     {
-        builder.ToTable("Users");
+        builder.ToTable("POCs");
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.FirstName)
-            .IsRequired()
-            .HasMaxLength(100);
-
+        builder.Property(x => x.FirstName).IsRequired().HasMaxLength(100);
         builder.Property(x => x.MiddleName).HasMaxLength(100);
         builder.Property(x => x.LastName).IsRequired().HasMaxLength(100);
-        builder.Property(x => x.Role).IsRequired();
-        builder.Property(x => x.Email).IsRequired().HasMaxLength(200);
-        builder.Property(x => x.PhoneNumber).HasMaxLength(20);
+        builder.Property(x => x.PhoneNumber).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.AltPhone).HasMaxLength(20);
         builder.Property(x => x.Address1).HasMaxLength(200);
         builder.Property(x => x.Address2).HasMaxLength(200);
         builder.Property(x => x.City).HasMaxLength(100);
         builder.Property(x => x.State).HasMaxLength(100);
         builder.Property(x => x.ZipCode).HasMaxLength(20);
 
-        builder.Property(x => x.OrgId).IsRequired();
-        builder.Property(x => x.Level).IsRequired();
-        builder.Property(x => x.PasswordHash).IsRequired();
+        builder.Property(x => x.CenterId).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();
+        builder.Property(x => x.CollectionDay).HasMaxLength(20);
+        builder.Property(x => x.CollectionFrequency).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.CollectionBy).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired();
 
-        builder.HasIndex(x => x.Email)
-            .IsUnique();
-
-        builder.HasOne(x => x.Organization)
-            .WithMany(o => o.Users)
-            .HasForeignKey(x => x.OrgId)
+        builder.HasOne(x => x.Center)
+            .WithMany(c => c.POCs)
+            .HasForeignKey(x => x.CenterId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.Branch)
-            .WithMany(b => b.Users)
-            .HasForeignKey(x => x.BranchId)
+        builder.HasOne(x => x.CollectionByUser)
+            .WithMany()
+            .HasForeignKey(x => x.CollectionBy)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.CreatedByUser)
@@ -55,6 +49,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasOne(x => x.ModifiedByUser)
             .WithMany()
             .HasForeignKey(x => x.ModifiedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(x => x.Members)
+            .WithOne(m => m.POC)
+            .HasForeignKey(m => m.POCId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
