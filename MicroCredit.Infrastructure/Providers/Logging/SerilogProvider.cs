@@ -1,7 +1,9 @@
 using System.Net;
+using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.Email;
 
 namespace MicroCredit.Infrastructure.Providers.Logging;
 
@@ -28,13 +30,22 @@ public static class SerilogProvider
 
         if (!string.IsNullOrEmpty(emailFrom) && !string.IsNullOrEmpty(emailTo) && !string.IsNullOrEmpty(emailHost))
         {
-            var emailPort = emailSection.GetValue("Port", 25);
+            var emailPort = emailSection.GetValue<int>("Port", 25);
             var emailUser = emailSection["Username"];
             var emailPassword = emailSection["Password"];
             var emailSubject = emailSection["Subject"] ?? "MicroCredit API Error";
-            var credentials = !string.IsNullOrEmpty(emailUser) && !string.IsNullOrEmpty(emailPassword)
-                ? new NetworkCredential(emailUser, emailPassword)
-                : null;
+            var enableSsl = emailSection.GetValue<bool>("EnableSsl", false);
+
+            // Sink expects ICredentialsByHost; CredentialCache implements it
+            ICredentialsByHost? credentials = null;
+            if (!string.IsNullOrEmpty(emailUser) && !string.IsNullOrEmpty(emailPassword))
+            {
+                var cache = new CredentialCache();
+                cache.Add(emailHost, emailPort, "smtp", new NetworkCredential(emailUser, emailPassword));
+                credentials = cache;
+            }
+
+            var connectionSecurity = enableSsl ? SecureSocketOptions.StartTlsWhenAvailable : SecureSocketOptions.None;
 
             try
             {
@@ -43,13 +54,14 @@ public static class SerilogProvider
                     to: emailTo,
                     host: emailHost,
                     port: emailPort,
+                    connectionSecurity: connectionSecurity,
                     credentials: credentials,
                     subject: emailSubject,
                     restrictedToMinimumLevel: LogEventLevel.Error);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Serilog Email sink not added: {ex.Message}");
+                try { System.IO.File.AppendAllText("logs/serilog-self.log", $"{DateTime.UtcNow:O} Email sink failed: {ex}{Environment.NewLine}"); } catch { /* ignore */ }
             }
         }
 
