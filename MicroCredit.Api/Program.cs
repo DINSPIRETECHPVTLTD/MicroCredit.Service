@@ -3,16 +3,14 @@ using MicroCredit.Api.Middlewares;
 using MicroCredit.Application;
 using MicroCredit.Domain.Contracts;
 using MicroCredit.Infrastructure;
+using MicroCredit.Infrastructure.Providers.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .CreateLogger();
-
+SerilogProvider.Configure(builder.Configuration);
 builder.Host.UseSerilog();
 
 // Add services to the container.
