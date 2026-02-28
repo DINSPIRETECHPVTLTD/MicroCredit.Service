@@ -1,0 +1,86 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace MicroCredit.Domain.Entities;
+
+[Table("POCs")]
+public class POC
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Required]
+    [StringLength(100)]
+    public string FirstName { get; set; } = string.Empty;
+
+    [StringLength(100)]
+    public string? MiddleName { get; set; }
+
+    [Required]
+    [StringLength(100)]
+    public string LastName { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(20)]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [StringLength(20)]
+    public string? AltPhone { get; set; }
+
+    [StringLength(200)]
+    public string? Address1 { get; set; }
+
+    [StringLength(200)]
+    public string? Address2 { get; set; }
+
+    [StringLength(100)]
+    public string? City { get; set; }
+
+    [StringLength(100)]
+    public string? State { get; set; }
+
+    [StringLength(20)]
+    public string? ZipCode { get; set; }
+
+    [Required]
+    public int CenterId { get; set; }
+
+    [Required]
+    public int CreatedBy { get; set; }
+
+    [StringLength(20)]
+    public string? CollectionDay { get; set; }
+
+    [Required]
+    [StringLength(20)]
+    public string CollectionFrequency { get; set; } = string.Empty;
+
+    [Required]
+    public int CollectionBy { get; set; }
+
+    [Required]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public int? ModifiedBy { get; set; }
+
+    public DateTime? ModifiedAt { get; set; }
+
+    [Required]
+    public bool IsDeleted { get; set; } = false;
+
+    // Navigation properties
+    [ForeignKey("CenterId")]
+    public virtual Center? Center { get; set; }
+
+    [ForeignKey("CollectionBy")]
+    public virtual User? CollectionByUser { get; set; }
+
+    [ForeignKey("CreatedBy")]
+    public virtual User? CreatedByUser { get; set; }
+
+    [ForeignKey("ModifiedBy")]
+    public virtual User? ModifiedByUser { get; set; }
+
+    public virtual ICollection<Member>? Members { get; set; }
+}
+
