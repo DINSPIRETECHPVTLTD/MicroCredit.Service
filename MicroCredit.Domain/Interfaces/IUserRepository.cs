@@ -1,8 +1,8 @@
-﻿using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Domain.Interfaces;
 
 public interface IUserRepository : IGenericRepository<User>
 {
-    //LoginAsync
+    Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
 }

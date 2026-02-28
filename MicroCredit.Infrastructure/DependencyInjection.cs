@@ -1,6 +1,8 @@
-﻿using MicroCredit.Domain.Interfaces;
+using MicroCredit.Domain.Contracts;
+using MicroCredit.Domain.Interfaces;
 using MicroCredit.Infrastructure.Persistence;
 using MicroCredit.Infrastructure.Repositories;
+using MicroCredit.Infrastructure.Providers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,12 +15,15 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+
         services.AddDbContext<MicroCreditDbContext>(options =>
             options.UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
         return services;
     }

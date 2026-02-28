@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <ProjectReference Include="..\MicroCredit.Domain\MicroCredit.Domain.csproj" />
     <ProjectReference Include="..\MicroCredit.Infrastructure\MicroCredit.Infrastructure.csproj" />
   </ItemGroup>

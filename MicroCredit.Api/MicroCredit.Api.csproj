@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -15,6 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MicroCredit.Application\MicroCredit.Application.csproj" />
+    <ProjectReference Include="..\MicroCredit.Domain\MicroCredit.Domain.csproj" />
     <ProjectReference Include="..\MicroCredit.Infrastructure\MicroCredit.Infrastructure.csproj" />
   </ItemGroup>
 
