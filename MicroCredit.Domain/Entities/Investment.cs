@@ -7,28 +7,39 @@ namespace MicroCredit.Domain.Entities;
 public class Investment
 {
     [Key]
-    public int Id { get; set; }
+    public int Id { get; private set; }
 
     [Required]
-    public int UserId { get; set; }
+    public int UserId { get; private set; }
 
     [Required]
     [Column(TypeName = "decimal(18,2)")]
-    public decimal Amount { get; set; }
+    public decimal Amount { get; private set; }
 
     [Required]
-    public DateTime InvestmentDate { get; set; }
+    public DateTime InvestmentDate { get; private set; }
 
     [Required]
-    public int CreatedById { get; set; }
+    public int CreatedById { get; private set; }
 
     [Required]
-    public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedDate { get; private set; }
 
-    // Navigation properties
+    // Navigation
     [ForeignKey("UserId")]
-    public virtual User User { get; set; } = null!;
+    public virtual User User { get; private set; } = null!;
 
     [ForeignKey("CreatedById")]
-    public virtual User? CreatedByUser { get; set; }
+    public virtual User? CreatedByUser { get; private set; }
+
+    private Investment() { } // EF
+
+    public Investment(int userId, decimal amount, DateTime investmentDate, int createdById)
+    {
+        UserId = userId;
+        Amount = amount;
+        InvestmentDate = investmentDate;
+        CreatedById = createdById;
+        CreatedDate = DateTime.UtcNow;
+    }
 }

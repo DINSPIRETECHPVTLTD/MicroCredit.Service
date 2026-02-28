@@ -14,24 +14,26 @@ public static class LookupKeys
 [Table("MasterLookups")]
 public class MasterLookup
 {
-    public int Id { get; set; }
-    public string LookupKey { get; set; } = null!;
+    public int Id { get; private set; }
+    public string LookupKey { get; private set; } = null!;
 
-    public string LookupCode { get; set; } = null!;
+    public string LookupCode { get; private set; } = null!;
 
-    public string LookupValue { get; set; } = null!;
+    public string LookupValue { get; private set; } = null!;
 
-    public decimal? NumericValue { get; set; }
+    public decimal? NumericValue { get; private set; }
 
-    public int SortOrder { get; set; }
+    public int SortOrder { get; private set; }
 
-    public bool IsActive { get; set; } = true;
+    public bool IsActive { get; private set; }
 
-    public string? Description { get; set; }
+    public string? Description { get; private set; }
 
-    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
-    public string? CreatedBy { get; set; }
+    public DateTime CreatedOn { get; private set; }
+    public string? CreatedBy { get; private set; }
 
-    public DateTime? UpdatedOn { get; set; }
-    public string? UpdatedBy { get; set; }
+    public DateTime? UpdatedOn { get; private set; }
+    public string? UpdatedBy { get; private set; }
+
+    private MasterLookup() { } // EF – lookup/legacy table
 }

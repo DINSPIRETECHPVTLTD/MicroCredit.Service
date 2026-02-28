@@ -7,80 +7,133 @@ namespace MicroCredit.Domain.Entities;
 public class POC
 {
     [Key]
-    public int Id { get; set; }
+    public int Id { get; private set; }
 
     [Required]
     [StringLength(100)]
-    public string FirstName { get; set; } = string.Empty;
+    public string FirstName { get; private set; } = string.Empty;
 
     [StringLength(100)]
-    public string? MiddleName { get; set; }
+    public string? MiddleName { get; private set; }
 
     [Required]
     [StringLength(100)]
-    public string LastName { get; set; } = string.Empty;
+    public string LastName { get; private set; } = string.Empty;
 
     [Required]
     [StringLength(20)]
-    public string PhoneNumber { get; set; } = string.Empty;
+    public string PhoneNumber { get; private set; } = string.Empty;
 
     [StringLength(20)]
-    public string? AltPhone { get; set; }
+    public string? AltPhone { get; private set; }
 
     [StringLength(200)]
-    public string? Address1 { get; set; }
+    public string? Address1 { get; private set; }
 
     [StringLength(200)]
-    public string? Address2 { get; set; }
+    public string? Address2 { get; private set; }
 
     [StringLength(100)]
-    public string? City { get; set; }
+    public string? City { get; private set; }
 
     [StringLength(100)]
-    public string? State { get; set; }
+    public string? State { get; private set; }
 
     [StringLength(20)]
-    public string? ZipCode { get; set; }
+    public string? ZipCode { get; private set; }
 
     [Required]
-    public int CenterId { get; set; }
+    public int CenterId { get; private set; }
 
     [Required]
-    public int CreatedBy { get; set; }
+    public int CreatedBy { get; private set; }
 
     [StringLength(20)]
-    public string? CollectionDay { get; set; }
+    public string? CollectionDay { get; private set; }
 
     [Required]
     [StringLength(20)]
-    public string CollectionFrequency { get; set; } = string.Empty;
+    public string CollectionFrequency { get; private set; } = string.Empty;
 
     [Required]
-    public int CollectionBy { get; set; }
+    public int CollectionBy { get; private set; }
 
     [Required]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; private set; }
 
-    public int? ModifiedBy { get; set; }
+    public int? ModifiedBy { get; private set; }
 
-    public DateTime? ModifiedAt { get; set; }
+    public DateTime? ModifiedAt { get; private set; }
 
     [Required]
-    public bool IsDeleted { get; set; } = false;
+    public bool IsDeleted { get; private set; }
 
-    // Navigation properties
+    // Navigation
     [ForeignKey("CenterId")]
-    public virtual Center? Center { get; set; }
+    public virtual Center? Center { get; private set; }
 
     [ForeignKey("CollectionBy")]
-    public virtual User? CollectionByUser { get; set; }
+    public virtual User? CollectionByUser { get; private set; }
 
     [ForeignKey("CreatedBy")]
-    public virtual User? CreatedByUser { get; set; }
+    public virtual User? CreatedByUser { get; private set; }
 
     [ForeignKey("ModifiedBy")]
-    public virtual User? ModifiedByUser { get; set; }
+    public virtual User? ModifiedByUser { get; private set; }
 
-    public virtual ICollection<Member>? Members { get; set; }
+    public virtual ICollection<Member>? Members { get; private set; }
+
+    private POC() { } // EF
+
+    public POC(string firstName, string lastName, string phoneNumber, int centerId, int createdBy,
+        string collectionFrequency, int collectionBy, string? middleName = null, string? altPhone = null,
+        string? address1 = null, string? address2 = null, string? city = null, string? state = null,
+        string? zipCode = null, string? collectionDay = null)
+    {
+        FirstName = firstName;
+        LastName = lastName;
+        PhoneNumber = phoneNumber;
+        CenterId = centerId;
+        CreatedBy = createdBy;
+        CollectionFrequency = collectionFrequency;
+        CollectionBy = collectionBy;
+        CreatedAt = DateTime.UtcNow;
+        IsDeleted = false;
+        MiddleName = middleName;
+        AltPhone = altPhone;
+        Address1 = address1;
+        Address2 = address2;
+        City = city;
+        State = state;
+        ZipCode = zipCode;
+        CollectionDay = collectionDay;
+    }
+
+    public void UpdateDetails(string firstName, string? middleName, string lastName, string phoneNumber, string? altPhone,
+        string? address1, string? address2, string? city, string? state, string? zipCode,
+        string? collectionDay, string collectionFrequency, int collectionBy, int modifiedBy)
+    {
+        FirstName = firstName;
+        MiddleName = middleName;
+        LastName = lastName;
+        PhoneNumber = phoneNumber;
+        AltPhone = altPhone;
+        Address1 = address1;
+        Address2 = address2;
+        City = city;
+        State = state;
+        ZipCode = zipCode;
+        CollectionDay = collectionDay;
+        CollectionFrequency = collectionFrequency;
+        CollectionBy = collectionBy;
+        ModifiedBy = modifiedBy;
+        ModifiedAt = DateTime.UtcNow;
+    }
+
+    public void MarkDeleted(int modifiedBy)
+    {
+        IsDeleted = true;
+        ModifiedBy = modifiedBy;
+        ModifiedAt = DateTime.UtcNow;
+    }
 }
-
