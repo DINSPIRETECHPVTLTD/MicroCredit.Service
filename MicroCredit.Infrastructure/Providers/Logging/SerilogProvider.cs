@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
@@ -15,10 +16,13 @@ public static class SerilogProvider
     /// </summary>
     public static void Configure(IConfiguration configuration)
     {
+        var logsDirectory = "logs";
+        Directory.CreateDirectory(logsDirectory);
+
         var loggerConfig = new LoggerConfiguration()
             .ReadFrom.Configuration(configuration)
             .WriteTo.File(
-                path: "logs/errors-.txt",
+                path: Path.Combine(logsDirectory, "errors-.txt"),
                 restrictedToMinimumLevel: LogEventLevel.Error,
                 rollingInterval: RollingInterval.Day,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {Message}{NewLine}{Exception}");
@@ -61,7 +65,16 @@ public static class SerilogProvider
             }
             catch (Exception ex)
             {
-                try { System.IO.File.AppendAllText("logs/serilog-self.log", $"{DateTime.UtcNow:O} Email sink failed: {ex}{Environment.NewLine}"); } catch { /* ignore */ }
+                try
+                {
+                    File.AppendAllText(
+                        Path.Combine(logsDirectory, "serilog-self.log"),
+                        $"{DateTime.UtcNow:O} Email sink failed: {ex}{Environment.NewLine}");
+                }
+                catch
+                {
+                    // ignore logging failures
+                }
             }
         }
 
