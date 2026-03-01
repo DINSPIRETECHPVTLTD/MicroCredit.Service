@@ -39,16 +39,16 @@ public class UserRepository : GenericRepository<User>, IUserRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task CreateAsync(User user, CancellationToken cancellationToken = default)
+    public Task CreateAsync(User user, CancellationToken cancellationToken = default)
     {
         _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        return Task.CompletedTask;
     }
 
-    public async Task UpdateAsync(User user, CancellationToken cancellationToken = default)
+    public Task UpdateAsync(User user, CancellationToken cancellationToken = default)
     {
         _context.Users.Update(user);
-        await _context.SaveChangesAsync();
+        return Task.CompletedTask;
     }
 
      

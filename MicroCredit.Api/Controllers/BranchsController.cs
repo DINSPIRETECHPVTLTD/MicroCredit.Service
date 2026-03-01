@@ -1,4 +1,4 @@
-﻿using MicroCredit.Api.Helpers;
+using MicroCredit.Api.Helpers;
 using MicroCredit.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,9 +11,9 @@ namespace MicroCredit.Api.Controllers
     public class BranchController : ControllerBase
     {
         private readonly IBranchService _branchService;
-        private readonly ILogger<UserController> _logger;
+        private readonly ILogger<BranchController> _logger;
 
-        public BranchController(IBranchService branchService, ILogger<UserController> logger)
+        public BranchController(IBranchService branchService, ILogger<BranchController> logger)
         {
             _branchService = branchService;
             _logger = logger;

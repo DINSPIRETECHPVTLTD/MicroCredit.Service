@@ -1,6 +1,8 @@
 using System.Text;
+using MicroCredit.Api.Abstractions;
 using MicroCredit.Api.Middlewares;
 using MicroCredit.Application;
+using MicroCredit.Application.Common;
 using MicroCredit.Domain.Contracts;
 using MicroCredit.Infrastructure;
 using MicroCredit.Infrastructure.Providers.Logging;
@@ -49,6 +51,8 @@ try
                 ClockSkew = TimeSpan.Zero
             };
         });
+
+    builder.Services.AddScoped<IUserContext, UserContext>();
 
     // CORS Configuration
     builder.Services.AddCors(options =>

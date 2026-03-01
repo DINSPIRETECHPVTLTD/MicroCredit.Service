@@ -1,0 +1,77 @@
+using MicroCredit.Application.Common;
+using MicroCredit.Application.Interfaces;
+using MicroCredit.Application.Model.User;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace MicroCredit.Api.Controllers;
+
+[Route("api/users")]
+[ApiController]
+[Authorize]
+public class UsersController : ControllerBase
+{
+    private readonly IUserService _userService;
+    private readonly IUserContext _userContext;
+    private readonly ILogger<UsersController> _logger;
+
+    public UsersController(IUserService userService, IUserContext userContext, ILogger<UsersController> logger)
+    {
+        _userService = userService;
+        _userContext = userContext;
+        _logger = logger;
+    }
+
+    [HttpGet("org")]
+    public async Task<IActionResult> GetOrgUsers(CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+        var users = await _userService.GetOrgUsersAsync(_userContext.OrgId, cancellationToken);
+        return Ok(users);
+    }
+
+    [HttpGet("branch")]
+    public async Task<IActionResult> GetBranchUsers(CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+        try
+        {
+            var (orgId, branchId) = _userContext.GetBranchContext();
+            var users = await _userService.GetBranchUsersAsync(orgId, branchId, cancellationToken);
+            return Ok(users);
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest("Branch context is required. Navigate to a branch first.");
+        }
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+    {
+        var user = await _userService.GetByIdAsync(id, cancellationToken);
+        if (user == null)
+            return NotFound();
+        return Ok(user);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateUserResponse request, CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+        var user = await _userService.CreateUserAsync(request, _userContext, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateUserResponse request, CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+        var user = await _userService.UpdateUserAsync(id, request, _userContext, cancellationToken);
+        return Ok(user);
+    }
+}

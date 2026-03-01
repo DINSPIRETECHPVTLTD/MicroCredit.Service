@@ -1,29 +1,29 @@
-﻿using MicroCredit.Application.Model.User;
+using MicroCredit.Application.Model.User;
 using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Application.Mappings.ApplicationModel;
 
 public static class CreateUserResponseExtensions
 {
-    public static User ToUser(this CreateUserResponse createUserResponse, int orgId, int? branchId,int createdBy)
+    /// <summary>Maps to entity; use passwordHash (e.g. BCrypt), not plain password.</summary>
+    public static User ToUser(this CreateUserResponse request, int orgId, int? branchId, int createdBy, string passwordHash)
     {
-        return new User(createUserResponse.FirstName,
-            createUserResponse.SurName,
-            createUserResponse.Role,
-            createUserResponse.Email,
-            createUserResponse.Password,
+        return new User(
+            request.FirstName,
+            request.SurName,
+            request.Role,
+            request.Email,
+            passwordHash,
             orgId,
-            createUserResponse.Level,
+            request.Level,
             createdBy,
             string.Empty,
-            createUserResponse.PhoneNumber,
-            createUserResponse.Address1,
-            createUserResponse.Address2,
-            createUserResponse.City,
-            createUserResponse.State,
-            createUserResponse.PinCode,
-            branchId
-            );
-    
+            request.PhoneNumber,
+            request.Address1,
+            request.Address2,
+            request.City,
+            request.State,
+            request.PinCode,
+            branchId);
     }
 }
