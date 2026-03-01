@@ -3,6 +3,7 @@ using MicroCredit.Api.Abstractions;
 using MicroCredit.Api.Middlewares;
 using MicroCredit.Application;
 using MicroCredit.Application.Common;
+using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Contracts;
 using MicroCredit.Infrastructure;
 using MicroCredit.Infrastructure.Providers.Logging;

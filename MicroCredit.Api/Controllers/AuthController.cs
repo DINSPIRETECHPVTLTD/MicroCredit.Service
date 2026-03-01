@@ -1,6 +1,6 @@
 using MicroCredit.Api.Helpers;
-using MicroCredit.Application.Interfaces;
-using MicroCredit.Application.Model.Auth;
+using MicroCredit.Domain.Interfaces.Services;
+using MicroCredit.Domain.Model.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

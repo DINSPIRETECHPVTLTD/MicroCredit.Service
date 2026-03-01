@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using MicroCredit.Domain.Contracts;
 using MicroCredit.Domain.Entities;
-using MicroCredit.Domain.Interfaces;
+using MicroCredit.Domain.Interfaces.Repository;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 

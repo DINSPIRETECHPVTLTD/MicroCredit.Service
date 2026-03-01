@@ -1,11 +1,11 @@
 using MicroCredit.Domain.Contracts;
-using MicroCredit.Domain.Interfaces;
 using MicroCredit.Infrastructure.Persistence;
 using MicroCredit.Infrastructure.Repositories;
 using MicroCredit.Infrastructure.Providers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MicroCredit.Domain.Interfaces.Repository;
 
 namespace MicroCredit.Infrastructure;
 

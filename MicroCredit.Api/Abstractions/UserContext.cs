@@ -1,5 +1,5 @@
+using MicroCredit.Domain.Common;
 using System.Security.Claims;
-using MicroCredit.Application.Common;
 
 namespace MicroCredit.Api.Abstractions;
 

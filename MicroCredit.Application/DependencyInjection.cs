@@ -1,5 +1,5 @@
-using MicroCredit.Application.Interfaces;
 using MicroCredit.Application.Services;
+using MicroCredit.Domain.Interfaces.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,8 +12,8 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IBranchService, BranchService>();
+        services.AddScoped<IUsersService, UsersService>();
+        services.AddScoped<IBranchsService, BranchsService>();
         return services;
     }
 }

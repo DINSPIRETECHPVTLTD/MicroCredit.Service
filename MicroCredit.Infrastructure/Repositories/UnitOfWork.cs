@@ -1,4 +1,4 @@
-using MicroCredit.Domain.Interfaces;
+using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Infrastructure.Persistence;
 
 namespace MicroCredit.Infrastructure.Repositories;

@@ -1,6 +1,7 @@
-using MicroCredit.Application.Common;
-using MicroCredit.Application.Interfaces;
-using MicroCredit.Application.Model.User;
+
+using MicroCredit.Domain.Common;
+using MicroCredit.Domain.Interfaces.Services;
+using MicroCredit.Domain.Model.User;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,11 +12,11 @@ namespace MicroCredit.Api.Controllers;
 [Authorize]
 public class UsersController : ControllerBase
 {
-    private readonly IUserService _userService;
+    private readonly IUsersService _userService;
     private readonly IUserContext _userContext;
     private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUserService userService, IUserContext userContext, ILogger<UsersController> logger)
+    public UsersController(IUsersService userService, IUserContext userContext, ILogger<UsersController> logger)
     {
         _userService = userService;
         _userContext = userContext;
@@ -58,7 +59,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateUserResponse request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create([FromBody] CreateUserRequest request, CancellationToken cancellationToken)
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
@@ -67,7 +68,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateUserResponse request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateUserRequest request, CancellationToken cancellationToken)
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();

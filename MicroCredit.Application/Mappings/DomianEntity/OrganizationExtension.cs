@@ -1,4 +1,4 @@
-﻿using MicroCredit.Application.Model.Organization;
+﻿using MicroCredit.Domain.Model.Organization;
 using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Application.Mappings.DomianEntity;

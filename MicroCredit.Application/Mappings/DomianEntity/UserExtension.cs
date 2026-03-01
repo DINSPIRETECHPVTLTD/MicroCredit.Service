@@ -1,5 +1,5 @@
-using MicroCredit.Application.Model.Auth;
-using MicroCredit.Application.Model.User;
+using MicroCredit.Domain.Model.Auth;
+using MicroCredit.Domain.Model.User;
 using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Application.Mappings.DomianEntity;

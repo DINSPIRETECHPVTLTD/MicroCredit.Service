@@ -1,7 +1,7 @@
-using MicroCredit.Application.Interfaces;
 using MicroCredit.Application.Mappings.DomianEntity;
-using MicroCredit.Application.Model.Auth;
-using MicroCredit.Domain.Interfaces;
+using MicroCredit.Domain.Model.Auth;
+using MicroCredit.Domain.Interfaces.Repository;
+using MicroCredit.Domain.Interfaces.Services;
 
 namespace MicroCredit.Application.Services;
 
