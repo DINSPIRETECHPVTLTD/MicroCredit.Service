@@ -53,6 +53,7 @@ try
             };
         });
 
+    builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<IUserContext, UserContext>();
 
     // CORS Configuration

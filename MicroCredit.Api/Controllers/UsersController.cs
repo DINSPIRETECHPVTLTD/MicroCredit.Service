@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers;
 
-[Route("api/users")]
+[Route("users")]
 [ApiController]
 [Authorize]
 public class UsersController : ControllerBase
