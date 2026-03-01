@@ -19,4 +19,11 @@ public class BranchRepository : IBranchRepository
         return await _context.Branches
             .FirstOrDefaultAsync(b => b.Id == branchId && b.OrgId == orgId && !b.IsDeleted, cancellationToken);
     }
+
+    public async Task<IEnumerable<Branch>> GetBranchs(int orgId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Branches
+            .Where(b => b.OrgId == orgId && !b.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
 }

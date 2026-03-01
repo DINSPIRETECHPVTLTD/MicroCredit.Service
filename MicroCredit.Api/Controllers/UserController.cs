@@ -1,11 +1,13 @@
 using MicroCredit.Api.Helpers;
 using MicroCredit.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers;
 
-[Route("api/[controller]")]
+[Route("[controller]")]
 [ApiController]
+[Authorize]
 public class UserController : ControllerBase
 {
     private readonly IUserService _userService;
@@ -17,7 +19,7 @@ public class UserController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet]
+    [HttpGet("Org")]
     public async Task<IActionResult> GetAllOrgUsers()
     {
         var ids = UserClaimsHelper.GetUserIdAndOrgId(User);
@@ -27,7 +29,7 @@ public class UserController : ControllerBase
         return Ok(users);
     }
 
-    [HttpGet]
+    [HttpGet("Branch")]
     public async Task<IActionResult> GetAllBranchUsers()
     {
         var ids = UserClaimsHelper.GetUserIdOrgIdAndBranchId(User);

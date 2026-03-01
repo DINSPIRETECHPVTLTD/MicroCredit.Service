@@ -15,4 +15,9 @@ public static class BranchExtension
             PhoneNumber = branch.PhoneNumber ?? string.Empty
         };
     }
+
+        public static IEnumerable<BranchResponse> ToBranchResponses(this IEnumerable<Branch> branchList)
+        {
+            return branchList.Select(b => b.ToBranchResponse());
+    }
 }

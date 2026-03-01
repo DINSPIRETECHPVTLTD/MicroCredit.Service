@@ -34,7 +34,7 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
-    [HttpPost("navigate-to-branch")]
+    [HttpPost("Navigate-to-Branch")]
     public async Task<IActionResult> NavigateToBranch([FromQuery] int branchId, CancellationToken cancellationToken = default)
     {
         var userId = UserClaimsHelper.GetUserId(User);
@@ -48,7 +48,7 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
-    [HttpPost("navigate-to-org")]
+    [HttpPost("Navigate-to-Org")]
     public async Task<IActionResult> NavigateToOrg(CancellationToken cancellationToken = default)
     {
         var userId = UserClaimsHelper.GetUserId(User);
