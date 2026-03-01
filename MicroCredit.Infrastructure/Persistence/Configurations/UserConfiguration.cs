@@ -20,11 +20,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.MiddleName).HasMaxLength(100);
         builder.Property(x => x.LastName).IsRequired().HasMaxLength(100);
 
-        // DB has Role/Level as string (varchar); map to enum
+        // DB has Role/Level as nvarchar (e.g. 'Owner', 'Investor'); map to enum
         builder.Property(x => x.Role)
             .IsRequired()
+            .HasColumnType("nvarchar(50)")
             .HasConversion(new ValueConverter<UserRole, string>(
-                v => ((int)v).ToString(),
+                v => v.ToString(),
                 v => ParseUserRole(v)));
 
         builder.Property(x => x.Email).IsRequired().HasMaxLength(200);
@@ -39,8 +40,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(x => x.Level)
             .IsRequired()
+            .HasColumnType("nvarchar(50)")
             .HasConversion(new ValueConverter<UserLevel, string>(
-                v => ((int)v).ToString(),
+                v => v.ToString(),
                 v => ParseUserLevel(v)));
         builder.Property(x => x.PasswordHash).IsRequired();
         builder.Property(x => x.CreatedBy).IsRequired();

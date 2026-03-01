@@ -4,6 +4,7 @@ using MicroCredit.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MicroCredit.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MicroCreditDbContext))]
-    partial class MicroCreditDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260301042748_UseNvarcharForRoleAndLevel")]
+    partial class UseNvarcharForRoleAndLevel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

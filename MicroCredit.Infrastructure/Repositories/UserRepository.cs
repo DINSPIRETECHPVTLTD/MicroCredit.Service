@@ -25,17 +25,17 @@ public class UserRepository : GenericRepository<User>, IUserRepository
 
     public async Task<IEnumerable<User>> GetOrgUsersAsync(int orgId, CancellationToken cancellationToken = default)
     {
-        var orgRoles = new[] { (int)UserRole.Owner, (int)UserRole.Investor };
         return await _context.Users
-            .Where(u => u.OrgId == orgId && !u.IsDeleted && orgRoles.Contains((int)u.Role))
+            .Where(u => u.OrgId == orgId && !u.IsDeleted
+                && (u.Role == UserRole.Owner || u.Role == UserRole.Investor))
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IEnumerable<User>> GetBranchUsersAsync(int orgId, int branchId, CancellationToken cancellationToken = default)
     {
-        var branchRoles = new[] { (int)UserRole.BranchAdmin, (int)UserRole.Staff };
         return await _context.Users
-            .Where(u => u.OrgId == orgId && !u.IsDeleted && u.BranchId == branchId && branchRoles.Contains((int)u.Role))
+            .Where(u => u.OrgId == orgId && !u.IsDeleted && u.BranchId == branchId
+                && (u.Role == UserRole.BranchAdmin || u.Role == UserRole.Staff))
             .ToListAsync(cancellationToken);
     }
 }
