@@ -20,7 +20,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     public async Task<IEnumerable<T>> GetAllAsync()
         => await _context.Set<T>().ToListAsync();
 
-    public async Task<T> GetByIdAsync(Guid id)
+    public async Task<T> GetByIdAsync(int id)
     {
         var entity = await _context.Set<T>().FindAsync(id);
         if (entity == null)

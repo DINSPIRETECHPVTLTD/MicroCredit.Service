@@ -38,4 +38,18 @@ public class UserRepository : GenericRepository<User>, IUserRepository
                 && (u.Role == UserRole.BranchAdmin || u.Role == UserRole.Staff))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task CreateAsync(User user, CancellationToken cancellationToken = default)
+    {
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(User user, CancellationToken cancellationToken = default)
+    {
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
+    }
+
+     
 }
