@@ -22,4 +22,21 @@ public class UserRepository : GenericRepository<User>, IUserRepository
             .Include(u => u.Organization)
             .FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted, cancellationToken);
     }
+
+    public async Task<IEnumerable<User>> GetOrgUsersAsync(int orgId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .Where(u => u.OrgId == orgId && !u.IsDeleted &&
+            (u.Role == UserRole.Owner || u.Role == UserRole.Investor))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<User>> GetBranchUsersAsync(int orgId, int branchId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .Where(u => u.OrgId == orgId && !u.IsDeleted &&
+            u.BranchId == branchId &&
+            (u.Role == UserRole.BranchAdmin || u.Role == UserRole.Staff))
+            .ToListAsync(cancellationToken);
+    }
 }
