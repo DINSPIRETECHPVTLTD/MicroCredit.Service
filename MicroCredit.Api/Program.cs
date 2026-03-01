@@ -22,65 +22,76 @@ static void WriteStartupError(Exception ex)
 
 try
 {
-var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder(args);
 
-SerilogProvider.Configure(builder.Configuration);
-builder.Host.UseSerilog();
+    SerilogProvider.Configure(builder.Configuration);
+    builder.Host.UseSerilog();
 
-// Add services to the container.
-builder.Services.AddApplication(builder.Configuration);
-builder.Services.AddInfrastructure(builder.Configuration);
+    // Add services to the container.
+    builder.Services.AddApplication(builder.Configuration);
+    builder.Services.AddInfrastructure(builder.Configuration);
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>();
-        if (jwtSettings?.Key is not { Length: >0 })
-            return;
-        options.TokenValidationParameters = new TokenValidationParameters
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
-            ValidateIssuer = true,
-            ValidIssuer = jwtSettings.Issuer,
-            ValidateAudience = true,
-            ValidAudience = jwtSettings.Audience,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
+            var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>();
+            if (jwtSettings?.Key is not { Length: > 0 })
+                return;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
+                ValidateIssuer = true,
+                ValidIssuer = jwtSettings.Issuer,
+                ValidateAudience = true,
+                ValidAudience = jwtSettings.Audience,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero
+            };
+        });
+
+    // CORS Configuration
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
     });
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
 
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+    var app = builder.Build();
 
-var app = builder.Build();
+    // Configure the HTTP request pipeline.
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    app.UseHttpsRedirection();
 
-app.UseHttpsRedirection();
+    app.UseMiddleware<ExceptionMiddleware>();
+    app.UseCors("AllowAll");
+    app.UseAuthentication();
+    app.UseAuthorization();
 
-app.UseMiddleware<ExceptionMiddleware>();
 
-app.UseAuthentication();
-app.UseAuthorization();
+    app.MapControllers();
 
-app.MapControllers();
-
-try
-{
-    Log.Information("Starting MicroCredit API");
-    app.Run();
-}
-finally
-{
-    Log.CloseAndFlush();
-}
+    try
+    {
+        Log.Information("Starting MicroCredit API");
+        app.Run();
+    }
+    finally
+    {
+        Log.CloseAndFlush();
+    }
 }
 catch (Exception ex)
 {
