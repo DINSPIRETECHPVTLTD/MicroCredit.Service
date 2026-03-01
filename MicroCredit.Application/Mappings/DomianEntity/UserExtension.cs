@@ -37,7 +37,7 @@ public static class UserExtension
             Surname = user.LastName,
             Email = user.Email,
             Role = user.Role.ToString(),
-            Addresss = $"{user.Address1} {user.Address2} {user.City} {user.State} {user.ZipCode}".Trim()
+            Address = $"{user.Address1} {user.Address2} {user.City} {user.State} {user.ZipCode}".Trim()
         };
     }
 
