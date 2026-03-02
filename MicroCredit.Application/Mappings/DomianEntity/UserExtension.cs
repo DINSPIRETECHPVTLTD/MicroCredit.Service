@@ -38,6 +38,12 @@ public static class UserExtension
             Email = user.Email,
             Role = user.Role.ToString(),
             Address = $"{user.Address1} {user.Address2} {user.City} {user.State} {user.ZipCode}".Trim()
+            Address1 = user.Address1 ?? string.Empty,
+            Address2 = user.Address2 ?? string.Empty,
+            City = user.City ?? string.Empty,
+            State = user.State ?? string.Empty,
+            PinCode = user.ZipCode ?? string.Empty,
+            PhoneNumber = user.PhoneNumber ?? string.Empty,
         };
     }
 
