@@ -8,12 +8,12 @@ namespace MicroCredit.Api.Controllers
     [Route("[controller]")]
     [ApiController]
     [Authorize]
-    public class BranchController : ControllerBase
+    public class BranchsController : ControllerBase
     {
         private readonly IBranchsService _branchService;
-        private readonly ILogger<BranchController> _logger;
+        private readonly ILogger<BranchsController> _logger;
 
-        public BranchController(IBranchsService branchService, ILogger<BranchController> logger)
+        public BranchsController(IBranchsService branchService, ILogger<BranchsController> logger)
         {
             _branchService = branchService;
             _logger = logger;
