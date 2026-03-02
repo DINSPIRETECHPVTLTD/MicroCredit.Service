@@ -14,7 +14,6 @@
 
   <ItemGroup>
     <Folder Include="Mappings\ApplicationModel\" />
-    <Folder Include="Model\User\" />
   </ItemGroup>
 
 </Project>
