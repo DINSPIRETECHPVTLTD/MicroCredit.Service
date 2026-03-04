@@ -9,16 +9,18 @@ public class UnitOfWork : IUnitOfWork
 
     public IUserRepository Users { get; }
     public IBranchRepository Branches { get; }
+    public IMembersRepository Members { get; }
 
     public UnitOfWork(MicroCreditDbContext context)
     {
         _context = context;
         Users = new UserRepository(_context);
         Branches = new BranchRepository(_context);
+        Members = new InMemoryMembersRepository();
     }
 
-    public async Task<int> CompleteAsync()
-        => await _context.SaveChangesAsync();
+    public async Task<int> CompleteAsync(CancellationToken cancellationToken = default)
+        => await _context.SaveChangesAsync(cancellationToken);
 
     public void Dispose()
         => _context.Dispose();
