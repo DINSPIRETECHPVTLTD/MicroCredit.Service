@@ -9,12 +9,16 @@ public class UnitOfWork : IUnitOfWork
 
     public IUserRepository Users { get; }
     public IBranchRepository Branches { get; }
+    public IMasterLookupRepository MasterLookups { get; }
+
 
     public UnitOfWork(MicroCreditDbContext context)
     {
         _context = context;
         Users = new UserRepository(_context);
         Branches = new BranchRepository(_context);
+        MasterLookups = new MasterLookupRepository(_context);
+
     }
 
     public async Task<int> CompleteAsync()

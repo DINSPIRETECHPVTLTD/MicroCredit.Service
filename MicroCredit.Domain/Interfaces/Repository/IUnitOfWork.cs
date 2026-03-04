@@ -4,6 +4,8 @@ public interface IUnitOfWork : IDisposable
 {
     IUserRepository Users { get; }
     IBranchRepository Branches { get; }
+    IMasterLookupRepository MasterLookups { get; }
+
 
     Task<int> CompleteAsync();
 }
