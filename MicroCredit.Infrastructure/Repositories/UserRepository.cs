@@ -11,6 +11,8 @@ public class UserRepository : GenericRepository<User>, IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
+
+    //Testing
         return await _context.Users
             .Include(u => u.Organization)
             .FirstOrDefaultAsync(u => u.Email == email && !u.IsDeleted, cancellationToken);
