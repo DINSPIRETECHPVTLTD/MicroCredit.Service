@@ -28,12 +28,11 @@ namespace MicroCredit.Api.Controllers
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<LookupResponse>>> GetMasterLookupAsync(
-           [FromQuery] string? lookupKey = null,
-           [FromQuery] bool isActive=false, CancellationToken cancellationToken = default)
+           [FromQuery] string? lookupKey = null, CancellationToken cancellationToken = default)
         {
             if (_userContext.UserId == 0 || _userContext.OrgId == 0)
                 return Unauthorized();
-            return Ok(await _masterlookupsService.GetMasterLookupAsync(lookupKey, isActive, cancellationToken));
+            return Ok(await _masterlookupsService.GetMasterLookupAsync(lookupKey, cancellationToken));
         }
 
 

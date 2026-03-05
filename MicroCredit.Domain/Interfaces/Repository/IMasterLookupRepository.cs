@@ -10,7 +10,7 @@ namespace MicroCredit.Domain.Interfaces.Repository
 {
     public  interface IMasterLookupRepository
     {
-        Task<IEnumerable<MasterLookup>> GetMasterLookupAsync(string lookupKey, bool isActive, CancellationToken cancellationToken = default);
+        Task<IEnumerable<MasterLookup>> GetMasterLookupAsync(string lookupKey, CancellationToken cancellationToken = default);
 
 
     }

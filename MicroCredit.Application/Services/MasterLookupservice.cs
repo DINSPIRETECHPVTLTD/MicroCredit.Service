@@ -24,9 +24,9 @@ namespace MicroCredit.Application.Services
         }
         
 
-        public async Task<IEnumerable<LookupResponse>> GetMasterLookupAsync(string lookupKey ,bool isActive , CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<LookupResponse>> GetMasterLookupAsync(string lookupKey , CancellationToken cancellationToken = default)
         {
-            return (await _unitOfWork.MasterLookups.GetMasterLookupAsync(lookupKey, isActive, cancellationToken))
+            return (await _unitOfWork.MasterLookups.GetMasterLookupAsync(lookupKey, cancellationToken))
                 .ToMasterLookupResponses();
         }
 
