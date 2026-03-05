@@ -14,7 +14,7 @@ public class LoanRepository : ILoanRepository
         _context = context;
     }
 
-       public async Task<Loan> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+       public async Task<Loan?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         return await _context.Loans
             .FirstOrDefaultAsync(l => l.Id == id && !l.IsDeleted, cancellationToken);
