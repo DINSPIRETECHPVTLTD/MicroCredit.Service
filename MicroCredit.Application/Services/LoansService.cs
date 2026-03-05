@@ -22,6 +22,9 @@ public class LoansService : ILoansService
 
     public async Task<LoanResponse> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return (await _unitOfWork.Loans.GetByIdAsync(id, cancellationToken)).ToLoanResponse();
+        var loan = await _unitOfWork.Loans.GetByIdAsync(id, cancellationToken)
+              ?? throw new KeyNotFoundException($"Loan with Id {id} not found");
+
+        return loan.ToLoanResponse();
     }
 }
