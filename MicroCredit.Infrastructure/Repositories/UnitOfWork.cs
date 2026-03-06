@@ -9,12 +9,14 @@ public class UnitOfWork : IUnitOfWork
 
     public IUserRepository Users { get; }
     public IBranchRepository Branches { get; }
+    public ICenterRepository Centers { get; }
 
     public UnitOfWork(MicroCreditDbContext context)
     {
         _context = context;
         Users = new UserRepository(_context);
         Branches = new BranchRepository(_context);
+        Centers = new CenterRepository(_context);
     }
 
     public async Task<int> CompleteAsync()
