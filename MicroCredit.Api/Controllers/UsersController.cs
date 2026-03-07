@@ -75,4 +75,24 @@ public class UsersController : ControllerBase
         var user = await _userService.UpdateUserAsync(id, request, _userContext, cancellationToken);
         return Ok(user);
     }
+
+    [HttpPost("{id:int}/reset-password")]
+    public async Task<IActionResult> ResetPassword(int id, ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+        var result = await _userService.ResetPassword(id, request.Password, _userContext.UserId, cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}/inactive")]
+    public async Task<IActionResult> MarkAsInactive(int id, CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+        var result = await _userService.MarkAsInactive(id, _userContext.UserId, cancellationToken);
+
+        return Ok(result);
+    }
 }
