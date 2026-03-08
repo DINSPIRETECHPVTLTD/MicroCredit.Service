@@ -13,6 +13,8 @@ public class UnitOfWork : IUnitOfWork
     public IInvestmentRepository Investments { get; }
     public ILedgerBalanceRepository LedgerBalances { get; }
     public ILedgerTransactionRepository LedgerTransaction { get; }
+    public IMasterLookupRepository MasterLookups { get; }
+
 
     public UnitOfWork(MicroCreditDbContext context)
     {
@@ -23,6 +25,7 @@ public class UnitOfWork : IUnitOfWork
         Investments = new InvestmentRepository(_context);
         LedgerBalances = new LedgerBalanceRepository(_context);
         LedgerTransaction = new LedgerTransactionRepository(_context);
+        MasterLookups = new MasterLookupRepository(_context);
 
     }
 

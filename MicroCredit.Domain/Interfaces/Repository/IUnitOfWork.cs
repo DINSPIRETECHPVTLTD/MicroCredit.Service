@@ -8,6 +8,8 @@ public interface IUnitOfWork : IDisposable
     IInvestmentRepository Investments { get; }
     ILedgerBalanceRepository LedgerBalances { get; }
     ILedgerTransactionRepository LedgerTransaction { get; }
+    IMasterLookupRepository MasterLookups { get; }
+
 
     Task<int> CompleteAsync();
 }

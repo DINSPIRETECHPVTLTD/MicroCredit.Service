@@ -52,4 +52,28 @@ public class UsersService : IUsersService
         await _unitOfWork.CompleteAsync();
         return user.ToUserResponse();
     }
+
+    public async Task<bool> ResetPassword(int id, string password, int modifiedby, CancellationToken cancellationToken = default)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(id, cancellationToken);
+        if (user == null)
+            throw new NotFoundException("User not found.");
+        user.ChangePassword(BCrypt.Net.BCrypt.HashPassword(password), modifiedby);
+
+        await _unitOfWork.Users.UpdateAsync(user, cancellationToken);
+        await _unitOfWork.CompleteAsync();
+        return true;
+    }
+
+    public async Task<bool> MarkAsInactive(int id, int modifiedby, CancellationToken cancellationToken = default)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(id, cancellationToken);
+        if (user == null)
+            throw new NotFoundException("User not found.");
+        user.MarkDeleted(modifiedby);
+
+        await _unitOfWork.Users.UpdateAsync(user, cancellationToken);
+        await _unitOfWork.CompleteAsync();
+        return true;
+    }
 }

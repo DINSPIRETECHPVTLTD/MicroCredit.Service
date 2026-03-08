@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IInvestmentsService, InvestmentService>();
         services.AddScoped<ILedgerBalanceService, LedgerBalanceService>();
         services.AddScoped<ILedgerTransactionService, LedgerTransactionService>();
+        services.AddScoped<IMasterLookupservice, MasterLookupservice>();
         return services;
     }
 }
