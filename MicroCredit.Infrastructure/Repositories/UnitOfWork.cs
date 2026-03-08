@@ -10,6 +10,9 @@ public class UnitOfWork : IUnitOfWork
     public IUserRepository Users { get; }
     public IBranchRepository Branches { get; }
     public ILoanRepository Loans { get; }
+    public IInvestmentRepository Investments { get; }
+    public ILedgerBalanceRepository LedgerBalances { get; }
+    public ILedgerTransactionRepository LedgerTransaction { get; }
 
     public UnitOfWork(MicroCreditDbContext context)
     {
@@ -17,6 +20,10 @@ public class UnitOfWork : IUnitOfWork
         Users = new UserRepository(_context);
         Branches = new BranchRepository(_context);
         Loans = new LoanRepository(_context);
+        Investments = new InvestmentRepository(_context);
+        LedgerBalances = new LedgerBalanceRepository(_context);
+        LedgerTransaction = new LedgerTransactionRepository(_context);
+
     }
 
     public async Task<int> CompleteAsync()

@@ -26,6 +26,9 @@ public static class DependencyInjection
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<ILoanRepository, LoanRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IInvestmentRepository, InvestmentRepository>();
+        services.AddScoped<ILedgerBalanceRepository, LedgerBalanceRepository>();
+        services.AddScoped<ILedgerTransactionRepository, LedgerTransactionRepository>();
 
         return services;
     }
