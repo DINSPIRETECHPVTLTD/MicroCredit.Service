@@ -17,7 +17,11 @@ public static class DependencyInjection
         services.AddScoped<IBranchsService, BranchsService>();
         services.AddScoped<ILoansService, LoansService>();
         services.AddScoped<IPOCService, POCService>();
+        services.AddScoped<IInvestmentsService, InvestmentService>();
+        services.AddScoped<ILedgerBalanceService, LedgerBalanceService>();
+        services.AddScoped<ILedgerTransactionService, LedgerTransactionService>();
         services.AddScoped<IMasterLookupservice, MasterLookupservice>();
+        services.AddScoped<IPaymentTermService, PaymentTermService>();
         return services;
     }
 }

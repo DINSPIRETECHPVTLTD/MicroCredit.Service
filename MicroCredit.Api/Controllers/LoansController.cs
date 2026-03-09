@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers
 {
-    [Route("loans")]
+    [Route("[controller]")]
     [ApiController]
     [Authorize]
     public class LoansController : ControllerBase

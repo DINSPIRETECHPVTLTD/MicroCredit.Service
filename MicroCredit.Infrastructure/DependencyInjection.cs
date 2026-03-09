@@ -28,7 +28,12 @@ public static class DependencyInjection
         services.AddScoped<IMasterLookupRepository, MasterLookupRepository>();
         services.AddScoped<IPOCRepository, POCRepository>();
 
+        services.AddScoped<ILoanSchedulersRepository, LoanSchedulersRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IInvestmentRepository, InvestmentRepository>();
+        services.AddScoped<ILedgerBalanceRepository, LedgerBalanceRepository>();
+        services.AddScoped<ILedgerTransactionRepository, LedgerTransactionRepository>();
+
 
         return services;
     }
