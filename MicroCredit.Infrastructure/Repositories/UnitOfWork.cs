@@ -11,6 +11,7 @@ public class UnitOfWork : IUnitOfWork
     public IBranchRepository Branches { get; }
     public ILoanRepository Loans { get; }
     public IMasterLookupRepository MasterLookups { get; }
+    public IPaymentTermRepository PaymentTerms { get; }
 
 
     public UnitOfWork(MicroCreditDbContext context)
@@ -20,6 +21,7 @@ public class UnitOfWork : IUnitOfWork
         Branches = new BranchRepository(_context);
         Loans = new LoanRepository(_context);
         MasterLookups = new MasterLookupRepository(_context);
+        PaymentTerms = new PaymentTermRepository(_context);
 
     }
 
