@@ -12,6 +12,7 @@ public class UnitOfWork : IUnitOfWork
     public ILoanRepository Loans { get; }
     public IMasterLookupRepository MasterLookups { get; }
 
+   public IPOCRepository POCs {  get; }
 
     public UnitOfWork(MicroCreditDbContext context)
     {
@@ -20,6 +21,7 @@ public class UnitOfWork : IUnitOfWork
         Branches = new BranchRepository(_context);
         Loans = new LoanRepository(_context);
         MasterLookups = new MasterLookupRepository(_context);
+        POCs = new POCRepository(_context);
 
     }
 
