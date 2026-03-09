@@ -14,6 +14,7 @@ public class UnitOfWork : IUnitOfWork
     public ILedgerBalanceRepository LedgerBalances { get; }
     public ILedgerTransactionRepository LedgerTransaction { get; }
     public IMasterLookupRepository MasterLookups { get; }
+    public IPaymentTermRepository PaymentTerms { get; }
 
 
     public UnitOfWork(MicroCreditDbContext context)
@@ -26,6 +27,7 @@ public class UnitOfWork : IUnitOfWork
         LedgerBalances = new LedgerBalanceRepository(_context);
         LedgerTransaction = new LedgerTransactionRepository(_context);
         MasterLookups = new MasterLookupRepository(_context);
+        PaymentTerms = new PaymentTermRepository(_context);
 
     }
 

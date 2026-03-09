@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<ILedgerBalanceService, LedgerBalanceService>();
         services.AddScoped<ILedgerTransactionService, LedgerTransactionService>();
         services.AddScoped<IMasterLookupservice, MasterLookupservice>();
+        services.AddScoped<IPaymentTermService, PaymentTermService>();
         return services;
     }
 }

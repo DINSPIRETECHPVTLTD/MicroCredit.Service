@@ -11,7 +11,7 @@ using System.Threading;
 
 namespace MicroCredit.Api.Controllers
 {
-    [Route("MasterLookups")]
+    [Route("[Controller]")]
     [ApiController]
     [Authorize]
     public class MasterLookupsController : ControllerBase

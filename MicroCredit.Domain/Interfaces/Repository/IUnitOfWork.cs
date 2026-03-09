@@ -9,6 +9,7 @@ public interface IUnitOfWork : IDisposable
     ILedgerBalanceRepository LedgerBalances { get; }
     ILedgerTransactionRepository LedgerTransaction { get; }
     IMasterLookupRepository MasterLookups { get; }
+    IPaymentTermRepository PaymentTerms { get; }
 
 
     Task<int> CompleteAsync();

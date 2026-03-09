@@ -17,7 +17,11 @@ namespace MicroCredit.Infrastructure.Repositories
        
         public async Task<IEnumerable<MasterLookup>> GetMasterLookupAsync(string lookupKey, CancellationToken cancellationToken = default)
         {
-            return await _context.MasterLookups.Where(m =>  m.LookupKey == lookupKey && m.IsActive== true)
+            var query = _context.MasterLookups;
+            if (!string.IsNullOrEmpty(lookupKey))
+                query.Where(m => m.LookupKey == lookupKey);
+
+            return await query.Where(m=>m.IsActive==true).OrderBy(m => m.LookupKey).ThenBy(m => m.SortOrder)
                 .ToListAsync(cancellationToken);
         }
     }
