@@ -1,5 +1,9 @@
 using MicroCredit.Api.Helpers;
+using MicroCredit.Application.Services;
+using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Interfaces.Services;
+using MicroCredit.Domain.Model.Branch;
+using MicroCredit.Domain.Model.User;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,11 +16,13 @@ namespace MicroCredit.Api.Controllers
     {
         private readonly IBranchsService _branchService;
         private readonly ILogger<BranchsController> _logger;
+        private readonly IUserContext _userContext;
 
-        public BranchsController(IBranchsService branchService, ILogger<BranchsController> logger)
+        public BranchsController(IBranchsService branchService, ILogger<BranchsController> logger,IUserContext userContext)
         {
             _branchService = branchService;
             _logger = logger;
+            _userContext = userContext;
         }
 
         [HttpGet]
@@ -27,6 +33,14 @@ namespace MicroCredit.Api.Controllers
             var (_, orgId) = ids.Value;
             var branches = await _branchService.GetBranchsAsync(orgId);
             return Ok(branches);
+        }
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateBranchRequest request, CancellationToken cancellationToken)
+        {
+            if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+                return Unauthorized();
+            var branch = await _branchService.CreateBranchAsync(request, _userContext, cancellationToken);
+            return Ok(branch);
         }
     }
 }

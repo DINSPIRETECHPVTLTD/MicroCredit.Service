@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<ILoanRepository, LoanRepository>();
+        services.AddScoped<IMasterLookupRepository, MasterLookupRepository>();
+
         services.AddScoped<ILoanSchedulersRepository, LoanSchedulersRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
