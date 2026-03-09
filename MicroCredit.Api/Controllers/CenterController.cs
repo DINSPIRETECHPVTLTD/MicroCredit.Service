@@ -19,8 +19,8 @@ public class CenterController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetByBranch(CancellationToken cancellationToken)
+    [HttpGet("getCenters")]
+    public async Task<IActionResult> GetCentersByBranch(CancellationToken cancellationToken)
     {
         var ids = UserClaimsHelper.GetUserIdOrgIdAndBranchId(User);
         if (ids == null) return Unauthorized();
