@@ -26,4 +26,9 @@ public class BranchRepository : IBranchRepository
             .Where(b => b.OrgId == orgId && !b.IsDeleted)
             .ToListAsync(cancellationToken);
     }
+    public Task CreateAsync(Branch branch, CancellationToken cancellationToken = default)
+    {
+        _context.Branches.Add(branch);
+        return Task.CompletedTask;
+    }
 }

@@ -10,4 +10,6 @@ public interface IUsersService
     Task<UserResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
     Task<UserResponse> CreateUserAsync(CreateUserRequest request, IUserContext context, CancellationToken cancellationToken = default);
     Task<UserResponse> UpdateUserAsync(int id, UpdateUserRequest request, IUserContext context, CancellationToken cancellationToken = default);
+    Task<bool> ResetPassword(int id, string password, int modifiedby, CancellationToken cancellationToken = default);
+    Task<bool> MarkAsInactive(int id, int modifiedby, CancellationToken cancellationToken = default);
 }
