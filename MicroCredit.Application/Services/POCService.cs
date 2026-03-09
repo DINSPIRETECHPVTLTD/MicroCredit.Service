@@ -33,8 +33,13 @@ public class POCService: IPOCService
             FirstName = p.FirstName,
             LastName = p.LastName,
             PhoneNumber = p.PhoneNumber,
-            CenterId = p.CenterId,
-            // Add other properties as needed
+            CenterId = p.CenterId,            
+            Address1 = p.Address1,
+            Address2 = p.Address2,
+            City = p.City,
+            State = p.State,
+            ZipCode = p.ZipCode,
+            // Add more as needed
         });
     }
 }

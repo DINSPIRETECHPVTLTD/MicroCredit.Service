@@ -81,7 +81,6 @@ public class POC
     public virtual User? ModifiedByUser { get; private set; }
 
     public virtual ICollection<Member>? Members { get; private set; }
-    public int BranchId { get; set; }
 
     private POC() { } // EF
 
