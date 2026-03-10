@@ -31,4 +31,9 @@ public class BranchRepository : IBranchRepository
         _context.Branches.Add(branch);
         return Task.CompletedTask;
     }
+    public Task UpdateAsync(Branch branch, CancellationToken cancellationToken = default)
+    {
+        _context.Branches.Update(branch);
+        return Task.CompletedTask;
+    }
 }

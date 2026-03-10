@@ -8,4 +8,5 @@ public interface IBranchRepository
 
     Task<IEnumerable<Branch>> GetBranchs(int orgId, CancellationToken cancellationToken = default);
     Task CreateAsync(Branch branch, CancellationToken cancellationToken = default);
+    Task UpdateAsync(Branch branch, CancellationToken cancellationToken = default);
 }

@@ -11,7 +11,12 @@ public static class BranchExtension
         {
             Id = branch.Id,
             Name = branch.Name,
-            Address = $"{branch.Address1} {branch.Address2} {branch.City} {branch.State} {branch.Country} {branch.ZipCode}".Trim(),
+            Address1= branch.Address1 ?? string.Empty,
+            Address2=branch.Address2 ?? string.Empty,
+            City=branch.City ?? string.Empty,
+            State=branch.State ?? string.Empty,
+            ZipCode=branch.ZipCode ?? string.Empty,
+            Country=branch.Country ?? string.Empty,            
             PhoneNumber = branch.PhoneNumber ?? string.Empty
         };
     }
