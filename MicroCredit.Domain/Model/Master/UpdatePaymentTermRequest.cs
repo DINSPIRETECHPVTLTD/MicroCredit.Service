@@ -1,6 +1,6 @@
 ﻿namespace MicroCredit.Domain.Model.PaymentTerm;
 
-public class PaymentTermResponse
+public class UpdatePaymentTermRequest
 {
     public int PaymentTermId { get; set; }
     public string PaymentTermName { get; set; } = string.Empty;
@@ -9,6 +9,4 @@ public class PaymentTermResponse
     public decimal? ProcessingFee { get; set; }
     public decimal? RateOfInterest { get; set; }
     public decimal? InsuranceFee { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? ModifiedAt { get; set; }
 }

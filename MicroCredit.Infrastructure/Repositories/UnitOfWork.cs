@@ -16,6 +16,7 @@ public class UnitOfWork : IUnitOfWork
     public IMasterLookupRepository MasterLookups { get; }
     public IPaymentTermRepository PaymentTerms { get; }
 
+   public IPOCRepository POCs {  get; }
 
     public UnitOfWork(MicroCreditDbContext context)
     {
@@ -28,6 +29,7 @@ public class UnitOfWork : IUnitOfWork
         LedgerTransaction = new LedgerTransactionRepository(_context);
         MasterLookups = new MasterLookupRepository(_context);
         PaymentTerms = new PaymentTermRepository(_context);
+        POCs = new POCRepository(_context);
 
     }
 
