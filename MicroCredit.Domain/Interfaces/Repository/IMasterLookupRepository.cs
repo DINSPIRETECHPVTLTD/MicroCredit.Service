@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Model.User;
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,10 @@ namespace MicroCredit.Domain.Interfaces.Repository
 {
     public  interface IMasterLookupRepository
     {
-        Task<IEnumerable<MasterLookup>> GetMasterLookupAsync(string lookupKey, CancellationToken cancellationToken = default);
+    Task<IEnumerable<MasterLookup>> GetMasterLookupAsync(string? lookupKey, CancellationToken cancellationToken = default);
+    Task<MasterLookup?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task AddAsync(MasterLookup entity, CancellationToken cancellationToken = default);
+    Task UpdateAsync(MasterLookup entity, CancellationToken cancellationToken = default);
 
 
     }
