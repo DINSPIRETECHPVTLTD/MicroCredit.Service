@@ -36,4 +36,55 @@ public class MasterLookup
     public string? UpdatedBy { get; private set; }
 
     private MasterLookup() { } // EF – lookup/legacy table
+
+    public static MasterLookup Create(
+        string lookupKey,
+        string lookupCode,
+        string lookupValue,
+        decimal? numericValue,
+        int sortOrder,
+        string? description,
+        string createdBy)
+    {
+        return new MasterLookup
+        {
+            LookupKey = lookupKey,
+            LookupCode = lookupCode,
+            LookupValue = lookupValue,
+            NumericValue = numericValue,
+            SortOrder = sortOrder,
+            Description = description,
+            IsActive = true,
+            CreatedOn = DateTime.UtcNow,
+            CreatedBy = createdBy,
+            UpdatedOn = null,
+            UpdatedBy = null
+        };
+    }
+
+    public void Update(
+        string lookupKey,
+        string lookupCode,
+        string lookupValue,
+        decimal? numericValue,
+        int sortOrder,
+        string? description,
+        string updatedBy)
+    {
+        LookupKey = lookupKey;
+        LookupCode = lookupCode;
+        LookupValue = lookupValue;
+        NumericValue = numericValue;
+        SortOrder = sortOrder;
+        Description = description;
+        UpdatedOn = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
+    }
+
+    public void MarkInactive(string updatedBy)
+    {
+        IsActive = false;
+        UpdatedOn = DateTime.UtcNow;
+        UpdatedBy = updatedBy;
+    }
 }
