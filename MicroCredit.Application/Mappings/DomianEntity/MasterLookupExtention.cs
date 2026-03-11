@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Model.Master;
 
 namespace MicroCredit.Application.Mappings.DomianEntity
@@ -15,6 +15,7 @@ namespace MicroCredit.Application.Mappings.DomianEntity
                 LookupCode=lookup.LookupCode,
                 NumericValue=lookup.NumericValue.HasValue ? (int)lookup.NumericValue.Value : (int?)null,
                 SortOrder=lookup.SortOrder,
+                Description = lookup.Description,
                 };
         }
 
