@@ -11,18 +11,22 @@ public static class PocExtension
         return new PocResponse
         {
             Id = poc.Id,
-            CenterId = poc.CenterId,
             FirstName = poc.FirstName,
             MiddleName = poc.MiddleName,
             LastName = poc.LastName,
-
-            PhoneNumber = poc.PhoneNumber ?? string.Empty,
-
+            PhoneNumber = poc.PhoneNumber,
+            AltPhone = poc.AltPhone,
             Address1 = poc.Address1,
             Address2 = poc.Address2,
             City = poc.City,
             State = poc.State,
-            ZipCode = poc.ZipCode
+            ZipCode = poc.ZipCode,
+            CenterId = poc.CenterId,
+            CreatedBy = poc.CreatedBy,
+            CollectionDay = poc.CollectionDay,
+            CollectionFrequency = poc.CollectionFrequency,
+            CollectionBy = poc.CollectionBy,
+            CreatedAt = poc.CreatedAt
         };
        
     }
