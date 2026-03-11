@@ -31,15 +31,21 @@ public class POCService: IPOCService
         {
             Id = p.Id,
             FirstName = p.FirstName,
+            MiddleName = p.MiddleName,
             LastName = p.LastName,
             PhoneNumber = p.PhoneNumber,
-            CenterId = p.CenterId,            
+            AltPhone = p.AltPhone,
             Address1 = p.Address1,
             Address2 = p.Address2,
             City = p.City,
             State = p.State,
             ZipCode = p.ZipCode,
-            // Add more as needed
+            CenterId = p.CenterId,
+            CreatedBy = p.CreatedBy,
+            CollectionDay = p.CollectionDay,
+            CollectionFrequency = p.CollectionFrequency,
+            CollectionBy = p.CollectionBy,
+            CreatedAt = p.CreatedAt,           
         });
     }
 }
