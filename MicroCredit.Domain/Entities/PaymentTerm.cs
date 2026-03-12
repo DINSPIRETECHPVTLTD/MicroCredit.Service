@@ -6,40 +6,40 @@ namespace MicroCredit.Domain.Entities;
 public class PaymentTerm
 {
     [Column("PaymentTermID")]
-    public int PaymentTermId { get; private set; }
+    public int PaymentTermId { get; set; }
 
     [Column("PaymentTerm")]
-    public string PaymentTermName { get; private set; } = null!;
+    public string PaymentTermName { get; set; } = null!;
 
     [Column("PaymentType")]
-    public string PaymentType { get; private set; } = string.Empty;
+    public string PaymentType { get; set; } = string.Empty;
 
     [Column("NoOfTerms")]
-    public int NoOfTerms { get; private set; }
+    public int NoOfTerms { get; set; }
 
     [Column("ProcessingFee")]
-    public decimal? ProcessingFee { get; private set; }
+    public decimal? ProcessingFee { get; set; }
 
     [Column("RateOfInterest")]
-    public decimal? RateOfInterest { get; private set; }
+    public decimal? RateOfInterest { get; set; }
 
     [Column("InsuranceFee")]
-    public decimal? InsuranceFee { get; private set; }
+    public decimal? InsuranceFee { get; set; }
 
     [Column("CreatedBy")]
-    public int CreatedBy { get; private set; }
+    public int CreatedBy { get; set; }
 
     [Column("CreatedAt")]
-    public DateTime CreatedAt { get; private set; }
+    public DateTime CreatedAt { get; set; }
 
     [Column("ModifiedBy")]
-    public int? ModifiedBy { get; private set; }
+    public int? ModifiedBy { get; set; }
 
     [Column("ModifiedAt")]
-    public DateTime? ModifiedAt { get; private set; }
+    public DateTime? ModifiedAt { get; set; }
 
     [Column("IsDeleted")]
-    public bool IsDeleted { get; private set; }
+    public bool IsDeleted { get; set; }
 
-    private PaymentTerm() { } // EF – lookup/legacy table
+    public PaymentTerm() { } // EF – lookup/legacy table
 }

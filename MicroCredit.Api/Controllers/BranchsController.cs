@@ -42,5 +42,23 @@ namespace MicroCredit.Api.Controllers
             var branch = await _branchService.CreateBranchAsync(request, _userContext, cancellationToken);
             return Ok(branch);
         }
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateBranchRequest request, CancellationToken cancellationToken)
+        {
+            if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+                return Unauthorized();
+            var branch = await _branchService.UpdateBranchAsync(id, request, _userContext, cancellationToken);
+            return Ok(branch);
+        }
+
+        [HttpDelete("{id:int}/inactive")]
+        public async Task<IActionResult> MarkAsInactive(int id, CancellationToken cancellationToken)
+        {
+            if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+                return Unauthorized();
+            var result = await _branchService.MarkAsInactive(id, _userContext.UserId, cancellationToken);
+
+            return Ok(result);
+        }
     }
 }

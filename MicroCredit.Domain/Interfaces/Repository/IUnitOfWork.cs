@@ -12,6 +12,7 @@ public interface IUnitOfWork : IDisposable
     ILedgerTransactionRepository LedgerTransaction { get; }
     IMasterLookupRepository MasterLookups { get; }
     IPaymentTermRepository PaymentTerms { get; }
+    IPOCRepository POCs { get; }
 
 
     ICenterRepository Centers { get; }

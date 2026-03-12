@@ -45,6 +45,9 @@ public class POC
     [Required]
     public int CenterId { get; private set; }
 
+    [ForeignKey("CenterId")]
+    public virtual Center Center { get; private set; }
+
     [Required]
     public int CreatedBy { get; private set; }
 
@@ -66,11 +69,7 @@ public class POC
     public DateTime? ModifiedAt { get; private set; }
 
     [Required]
-    public bool IsDeleted { get; private set; }
-
-    // Navigation
-    [ForeignKey("CenterId")]
-    public virtual Center? Center { get; private set; }
+    public bool IsDeleted { get; private set; } 
 
     [ForeignKey("CollectionBy")]
     public virtual User? CollectionByUser { get; private set; }

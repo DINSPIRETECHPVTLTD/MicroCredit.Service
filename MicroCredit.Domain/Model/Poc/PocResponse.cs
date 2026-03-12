@@ -1,5 +1,35 @@
-﻿namespace MicroCredit.Domain.Model.Poc;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace MicroCredit.Domain.Model.Poc;
 
 public class PocResponse
 {
+    public int Id { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string? MiddleName { get; set; }
+    public string LastName { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string? AltPhone { get; set; }
+    public string? Address1 { get; set; }
+    public string? Address2 { get; set; }
+    public string? City { get; set; }
+    public string? State { get; set; }
+    public string? ZipCode { get; set; }
+    public int CenterId { get; set; }
+    public int CreatedBy { get; set; }
+    public string? CollectionDay { get; set; }
+    public string CollectionFrequency { get; set; } = string.Empty;
+    public int CollectionBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+
+    public string Name => string.Join(" ", new[]
+    {
+    FirstName,
+    MiddleName,
+    LastName
+}.Where(x => !string.IsNullOrWhiteSpace(x)));
+   
+    public string FullAddress => string.Join(", ", new[] { Address1, Address2, City, State, ZipCode }
+                                           .Where(x => !string.IsNullOrWhiteSpace(x)));
+
 }

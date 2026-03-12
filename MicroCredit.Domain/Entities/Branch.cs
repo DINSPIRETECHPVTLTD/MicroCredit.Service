@@ -97,8 +97,10 @@ public class Branch
         ModifiedAt = DateTime.UtcNow;
     }
 
-    public void MarkDeleted()
+    public void MarkDeleted(int modifiedBy)
     {
         IsDeleted = true;
+        ModifiedBy = modifiedBy;
+        ModifiedAt = DateTime.UtcNow;
     }
 }
