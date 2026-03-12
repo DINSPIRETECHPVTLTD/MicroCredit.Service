@@ -21,4 +21,10 @@ public class CenterRepository : ICenterRepository
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
+
+    public async Task CreateAsync(Center center, CancellationToken cancellationToken = default)
+    {
+        await _context.Centers.AddAsync(center, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }

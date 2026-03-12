@@ -12,7 +12,8 @@ public static class CenterExtension
             Id = center.Id,
             Name = center.Name,
             Address = $"{center.CenterAddress}, {center.City}",
-           
+            City = center.City,
+            
         };
     }
 
