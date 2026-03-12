@@ -21,19 +21,24 @@ public class POCRepository : IPOCRepository
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
-    //public async Task<IEnumerable<POC>> GetByBranchIdAsync(int branchId, CancellationToken cancellationToken = default)
-    //{
-    //    return await _context.POCs
-    //      .Include(p => p.Center)
-    //      .Where(p => p.Center != null && p.Center.BranchId == branchId)
-    //      .ToListAsync(cancellationToken);
-    //}
     public async Task<IEnumerable<POC>> GetByBranchIdAsync(int branchId, CancellationToken cancellationToken = default)
     {
         return await _context.POCs
-             .Where(p => _context.Centers
-                 .Any(c => c.Id == p.CenterId && c.BranchId == branchId))
-             .AsNoTracking()
-             .ToListAsync(cancellationToken);
+      .Include(p => p.Center)                          // load Center
+      .Where(p => p.Center != null &&
+                  p.Center.BranchId == branchId)       // filter by branch
+      .AsNoTracking()
+      .ToListAsync(cancellationToken);
+    }
+    public Task CreateAsync(POC poc, CancellationToken cancellationToken = default)
+    {
+        _context.POCs.Add(poc);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(POC poc, CancellationToken cancellationToken = default)
+    {
+        _context.POCs.Update(poc);
+        return Task.CompletedTask;
     }
 }

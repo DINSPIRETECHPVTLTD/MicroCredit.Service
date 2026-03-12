@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿
+using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Domain.Model.Poc;
 
@@ -21,15 +22,18 @@ public class PocResponse
     public string CollectionFrequency { get; set; } = string.Empty;
     public int CollectionBy { get; set; }
     public DateTime CreatedAt { get; set; }
+      
+    public string CenterName { get; set; } = string.Empty;
+    //Implemented CenterName in Get POC API to display the Center Name in the grid.
+    //Previously, Center and POC were retrieved through separate API calls; now both are fetched in a single API call.
 
     public string Name => string.Join(" ", new[]
     {
-    FirstName,
-    MiddleName,
-    LastName
-}.Where(x => !string.IsNullOrWhiteSpace(x)));
-   
-    public string FullAddress => string.Join(", ", new[] { Address1, Address2, City, State, ZipCode }
-                                           .Where(x => !string.IsNullOrWhiteSpace(x)));
+        FirstName,
+        MiddleName,
+        LastName
+    }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
+    public string FullAddress => string.Join(", ", new[] { Address1, Address2, City, State, ZipCode }
+                                       .Where(x => !string.IsNullOrWhiteSpace(x)));
 }

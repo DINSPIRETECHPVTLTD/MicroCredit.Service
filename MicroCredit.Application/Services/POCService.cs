@@ -1,51 +1,99 @@
-﻿
-
-using MicroCredit.Application.Mappings.DomianEntity;
+﻿using MicroCredit.Application.Mappings.DomianEntity;
+using MicroCredit.Domain.Common;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Model.Poc;
-using MicroCredit.Infrastructure.Repositories;
 
 namespace MicroCredit.Application.Services;
 
-public class POCService: IPOCService
+public class POCService : IPOCService
 {
     private readonly IUnitOfWork unitOfWork;
-    public POCService(IUnitOfWork unitOfWork)
+    private readonly IUserContext _userContext;
+    public POCService(IUnitOfWork unitOfWork, IUserContext userContext)
     {
         this.unitOfWork = unitOfWork;
-    }  
+        this._userContext = userContext;
+
+    }
 
     public async Task<PocResponse> GetByIdAsync(int id, CancellationToken cancellationToken = default)
-        {
-            var poc = await unitOfWork.POCs.GetByIdAsync(id, cancellationToken);
-            if (poc == null)
-                throw new Exception("POC not found");
-            return poc.ToPocResponse();
-         }
+    {
+        var poc = await unitOfWork.POCs.GetByIdAsync(id, cancellationToken);
+        if (poc == null)
+            throw new Exception("POC not found");
+        return poc.ToPocResponse();
+    }
+
     public async Task<IEnumerable<PocResponse>> GetPOCsByBranchIdAsync(int branchId, CancellationToken cancellationToken = default)
     {
         var pocs = await unitOfWork.POCs.GetByBranchIdAsync(branchId, cancellationToken);
+        return pocs.ToPocResponses();
+    }
 
-        return pocs.Select(p => new PocResponse
-        {
-            Id = p.Id,
-            FirstName = p.FirstName,
-            MiddleName = p.MiddleName,
-            LastName = p.LastName,
-            PhoneNumber = p.PhoneNumber,
-            AltPhone = p.AltPhone,
-            Address1 = p.Address1,
-            Address2 = p.Address2,
-            City = p.City,
-            State = p.State,
-            ZipCode = p.ZipCode,
-            CenterId = p.CenterId,
-            CreatedBy = p.CreatedBy,
-            CollectionDay = p.CollectionDay,
-            CollectionFrequency = p.CollectionFrequency,
-            CollectionBy = p.CollectionBy,
-            CreatedAt = p.CreatedAt,           
-        });
+    public async Task<PocResponse> CreateAsync(CreatePocRequest request,CancellationToken cancellationToken = default)
+    {
+        if (_userContext.UserId == 0)
+            throw new UnauthorizedAccessException("User context is required.");
+        var entity = new POC(
+            firstName: request.FirstName,
+            lastName: request.LastName,
+            phoneNumber: request.PhoneNumber,
+            centerId: request.CenterId,
+            createdBy: _userContext.UserId,
+            collectionFrequency: request.CollectionFrequency,
+            collectionBy: request.CollectionBy,
+            middleName: request.MiddleName,
+            altPhone: request.AltPhone,
+            address1: request.Address1,
+            address2: request.Address2,
+            city: request.City,
+            state: request.State,
+            zipCode: request.ZipCode,
+            collectionDay: request.CollectionDay
+        );
+        await unitOfWork.POCs.CreateAsync(entity, cancellationToken);
+        await unitOfWork.CompleteAsync();
+        return entity.ToPocResponse();
+    }
+
+    public async Task<PocResponse> UpdateAsync(int id, UpdatePocRequest request,CancellationToken cancellationToken = default)
+    {
+        if (_userContext.UserId == 0)
+            throw new UnauthorizedAccessException("User context is required.");
+        var poc = await unitOfWork.POCs.GetByIdAsync(id, cancellationToken);
+        if (poc == null)
+            throw new Exception("POC not found");
+        poc.UpdateDetails(
+            firstName: request.FirstName,
+            middleName: request.MiddleName,
+            lastName: request.LastName,
+            phoneNumber: request.PhoneNumber,
+            altPhone: request.AltPhone,
+            address1: request.Address1,
+            address2: request.Address2,
+            city: request.City,
+            state: request.State,
+            zipCode: request.ZipCode,
+            collectionDay: request.CollectionDay,
+            collectionFrequency: request.CollectionFrequency,
+            collectionBy: request.CollectionBy,
+            modifiedBy: _userContext.UserId
+        );
+        await unitOfWork.POCs.UpdateAsync(poc, cancellationToken);
+        await unitOfWork.CompleteAsync();
+        return poc.ToPocResponse();
+    }
+
+    public async Task<bool> MarkAsInactiveAsync(int id, int modifiedBy, CancellationToken cancellationToken = default)
+    {
+        var poc = await unitOfWork.POCs.GetByIdAsync(id, cancellationToken);
+        if (poc == null)
+            throw new Exception("POC not found");
+        poc.MarkDeleted(modifiedBy);
+        await unitOfWork.POCs.UpdateAsync(poc, cancellationToken);
+        await unitOfWork.CompleteAsync();
+        return true;
     }
 }
