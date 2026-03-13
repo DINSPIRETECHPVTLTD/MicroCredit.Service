@@ -10,5 +10,6 @@ namespace MicroCredit.Domain.Interfaces.Service
     public interface ILedgerBalanceService
     {
         Task<IEnumerable<LedgerBalanceResponse>> GetLedgerBalancesAsync(int orgId, CancellationToken cancellationToken = default);
+        Task CreateFundTransferAsync(CreateFundTransferRequest request, int createdByUserId, CancellationToken cancellationToken = default);
     }
 }

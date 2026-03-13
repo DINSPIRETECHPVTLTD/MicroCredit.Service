@@ -48,14 +48,14 @@ public class LedgerTransaction
     private LedgerTransaction() { } // EF
 
     public LedgerTransaction(int? paidFromUserId, int? paidToUserId, decimal amount, DateTime paymentDate,
-        int createdBy, string transactionType, int? referenceId = null, string? comments = null)
+        int createdBy, DateTime createdDate, string transactionType, int? referenceId = null, string? comments = null)
     {
         PaidFromUserId = paidFromUserId;
         PaidToUserId = paidToUserId;
         Amount = amount;
         PaymentDate = paymentDate;
         CreatedBy = createdBy;
-        CreatedDate = DateTime.UtcNow;
+        CreatedDate = createdDate;
         TransactionType = transactionType;
         ReferenceId = referenceId;
         Comments = comments;
