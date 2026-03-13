@@ -9,12 +9,10 @@ namespace MicroCredit.Application.Services;
 
 public class POCService : IPOCService
 {
-    private readonly IUnitOfWork unitOfWork;
-    private readonly IUserContext _userContext;
-    public POCService(IUnitOfWork unitOfWork, IUserContext userContext)
+    private readonly IUnitOfWork unitOfWork;  
+    public POCService(IUnitOfWork unitOfWork)
     {
-        this.unitOfWork = unitOfWork;
-        this._userContext = userContext;
+        this.unitOfWork = unitOfWork;      
 
     }
 
@@ -32,7 +30,7 @@ public class POCService : IPOCService
         return pocs.ToPocResponses();
     }
 
-    public async Task<PocResponse> CreateAsync(CreatePocRequest request,CancellationToken cancellationToken = default)
+    public async Task<PocResponse> CreateAsync(CreatePocRequest request, IUserContext _userContext, CancellationToken cancellationToken = default)
     {
         if (_userContext.UserId == 0)
             throw new UnauthorizedAccessException("User context is required.");
@@ -58,7 +56,7 @@ public class POCService : IPOCService
         return entity.ToPocResponse();
     }
 
-    public async Task<PocResponse> UpdateAsync(int id, UpdatePocRequest request,CancellationToken cancellationToken = default)
+    public async Task<PocResponse> UpdateAsync(int id, UpdatePocRequest request, IUserContext _userContext, CancellationToken cancellationToken = default)
     {
         if (_userContext.UserId == 0)
             throw new UnauthorizedAccessException("User context is required.");

@@ -5,6 +5,7 @@ namespace MicroCredit.Domain.Model.Poc;
 
 public class PocResponse
 {
+
     public int Id { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string? MiddleName { get; set; }

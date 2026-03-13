@@ -23,7 +23,7 @@ namespace MicroCredit.Api.Controllers
             _userContext = userContext;
         }
 
-        [HttpGet("{branchId}")]
+        [HttpGet("branch/{branchId}")]
         public async Task<IActionResult> GetPOCsByBranchId(int branchId, CancellationToken cancellationToken)
         {
             var pocs = await _pocService.GetPOCsByBranchIdAsync(branchId, cancellationToken);
