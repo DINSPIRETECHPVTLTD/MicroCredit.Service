@@ -41,12 +41,12 @@ public class BranchsService : IBranchsService
         return branch.ToBranchResponse();
     }
 
-    public async Task<bool> MarkAsInactive(int branchId, int modifiedby, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkAsInactive(int branchId, IUserContext context, CancellationToken cancellationToken = default)
     {
-        var branch = await _unitOfWork.Branches.GetByIdAndOrgIdAsync(branchId, modifiedby, cancellationToken);
+        var branch = await _unitOfWork.Branches.GetByIdAndOrgIdAsync(branchId, context.OrgId, cancellationToken);
         if (branch == null)
             throw new NotFoundException("branch not found.");
-        branch.MarkDeleted(modifiedby);
+        branch.MarkDeleted(context.UserId);
 
         await _unitOfWork.Branches.UpdateAsync(branch, cancellationToken);
         await _unitOfWork.CompleteAsync();

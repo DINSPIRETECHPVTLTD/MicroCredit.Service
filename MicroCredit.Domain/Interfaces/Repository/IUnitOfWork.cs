@@ -11,6 +11,7 @@ public interface IUnitOfWork : IDisposable
     IMasterLookupRepository MasterLookups { get; }
     IPaymentTermRepository PaymentTerms { get; }
     IPOCRepository POCs { get; }
+    ICenterRepository Centers { get; }
 
 
     Task<int> CompleteAsync();

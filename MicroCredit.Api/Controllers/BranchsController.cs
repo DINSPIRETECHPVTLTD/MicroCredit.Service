@@ -28,10 +28,10 @@ namespace MicroCredit.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetBranches()
         {
-            var ids = UserClaimsHelper.GetUserIdAndOrgId(User);
-            if (ids == null) return Unauthorized();
-            var (_, orgId) = ids.Value;
-            var branches = await _branchService.GetBranchsAsync(orgId);
+            if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+                return Unauthorized();
+
+            var branches = await _branchService.GetBranchsAsync(_userContext.OrgId);
             return Ok(branches);
         }
         [HttpPost]
@@ -56,7 +56,7 @@ namespace MicroCredit.Api.Controllers
         {
             if (_userContext.UserId == 0 || _userContext.OrgId == 0)
                 return Unauthorized();
-            var result = await _branchService.MarkAsInactive(id, _userContext.UserId, cancellationToken);
+            var result = await _branchService.MarkAsInactive(id, _userContext, cancellationToken);
 
             return Ok(result);
         }
