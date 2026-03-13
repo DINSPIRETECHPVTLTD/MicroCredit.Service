@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using MicroCredit.Domain.Interfaces.Repository;
@@ -26,6 +26,22 @@ namespace MicroCredit.Infrastructure.Repositories
             return await _context.Ledgers
                 .Where(l => l.User.OrgId == orgId)
                 .ToListAsync(cancellationToken);
+        }
+
+        public async Task<Ledger?> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Ledgers
+                .FirstOrDefaultAsync(l => l.UserId == userId, cancellationToken);
+        }
+
+        public async Task AddAsync(Ledger ledger, CancellationToken cancellationToken = default)
+        {
+            await _context.Ledgers.AddAsync(ledger, cancellationToken);
+        }
+
+        public async Task CreateFundTransfer( CancellationToken cancellationToken = default)
+        {
+            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 }
