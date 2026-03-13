@@ -34,12 +34,12 @@ public class Investment
 
     private Investment() { } // EF
 
-    public Investment(int userId, decimal amount, DateTime investmentDate, int createdById)
+    public Investment(int userId, decimal amount, DateTime investmentDate, int createdById, DateTime createdDate)
     {
         UserId = userId;
         Amount = amount;
         InvestmentDate = investmentDate;
         CreatedById = createdById;
-        CreatedDate = DateTime.UtcNow;
+        CreatedDate = createdDate;
     }
 }

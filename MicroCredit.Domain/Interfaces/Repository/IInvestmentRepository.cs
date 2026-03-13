@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,5 +10,6 @@ namespace MicroCredit.Domain.Interfaces.Repository
     public interface IInvestmentRepository
     {
         Task<IEnumerable<Investment>> GetInvestmentsAsync(int orgId, CancellationToken cancellationToken = default);
+        Task AddInvestmentAsync(Investment investment, CancellationToken cancellationToken = default);
     }
 }

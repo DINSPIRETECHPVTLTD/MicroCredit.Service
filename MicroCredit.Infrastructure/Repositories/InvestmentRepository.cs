@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using MicroCredit.Domain.Interfaces.Repository;
@@ -25,5 +25,10 @@ public class InvestmentRepository : IInvestmentRepository
         return await _context.Investments
             .Where(i => i.User.OrgId == orgId)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddInvestmentAsync(Investment investment, CancellationToken cancellationToken = default)
+    {
+        await _context.Investments.AddAsync(investment, cancellationToken);
     }
 }

@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,5 +10,7 @@ namespace MicroCredit.Domain.Interfaces.Repository
     public interface ILedgerBalanceRepository
     {
         Task<IEnumerable<Ledger>> GetLedgerBalanceAsync(int orgId, CancellationToken cancellationToken = default);
+        Task<Ledger?> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default);
+        Task AddAsync(Ledger ledger, CancellationToken cancellationToken = default);
     }
 }
