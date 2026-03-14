@@ -1,5 +1,4 @@
-﻿
-using MicroCredit.Domain.Entities;
+﻿using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Model.Poc;
 
 namespace MicroCredit.Application.Mappings.DomianEntity;
@@ -26,13 +25,13 @@ public static class PocExtension
             CollectionDay = poc.CollectionDay,
             CollectionFrequency = poc.CollectionFrequency,
             CollectionBy = poc.CollectionBy,
-            CreatedAt = poc.CreatedAt
+            CreatedAt = poc.CreatedAt,
+            CenterName = poc.Center?.Name ?? string.Empty
         };
-       
     }
+
     public static IEnumerable<PocResponse> ToPocResponses(this IEnumerable<POC> pocList)
     {
         return pocList.Select(p => p.ToPocResponse());
     }
-
 }
