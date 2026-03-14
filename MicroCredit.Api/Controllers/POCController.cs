@@ -26,9 +26,14 @@ namespace MicroCredit.Api.Controllers
         [HttpGet("branch/{branchId}")]
         public async Task<IActionResult> GetPOCsByBranchId(int branchId, CancellationToken cancellationToken)
         {
+            if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+                return Unauthorized();
+
             var pocs = await _pocService.GetPOCsByBranchIdAsync(branchId, cancellationToken);
+
             if (pocs == null || !pocs.Any())
                 return NotFound(new { message = "No POCs found for the given branch." });
+
             return Ok(pocs);
         }
 

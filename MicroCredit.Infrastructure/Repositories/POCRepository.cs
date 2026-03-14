@@ -26,7 +26,7 @@ public class POCRepository : IPOCRepository
         return await _context.POCs
       .Include(p => p.Center)                          // load Center
       .Where(p => p.Center != null &&
-                  p.Center.BranchId == branchId)       // filter by branch
+                  p.Center.BranchId == branchId && !p.IsDeleted)       // filter by branch
       .AsNoTracking()
       .ToListAsync(cancellationToken);
     }

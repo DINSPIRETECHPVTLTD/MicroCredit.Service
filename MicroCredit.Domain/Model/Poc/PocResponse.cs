@@ -37,4 +37,5 @@ public class PocResponse
 
     public string FullAddress => string.Join(", ", new[] { Address1, Address2, City, State, ZipCode }
                                        .Where(x => !string.IsNullOrWhiteSpace(x)));
+    public bool IsDeleted { get; set; }
 }
