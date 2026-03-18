@@ -1,4 +1,5 @@
 using MicroCredit.Application.Common;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Net;
 
@@ -25,6 +26,15 @@ public class ExceptionMiddleware
             context.Response.StatusCode = (int)HttpStatusCode.NotFound;
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("duplicate key") == true ||
+                                            ex.InnerException?.Message.Contains("unique index") == true ||
+                                            ex.InnerException?.Message.Contains("UNIQUE") == true)
+        {
+            Log.Warning(ex, "Duplicate key violation");
+            context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { error = "A record with the same unique value already exists." });
         }
         catch (Exception ex)
         {
