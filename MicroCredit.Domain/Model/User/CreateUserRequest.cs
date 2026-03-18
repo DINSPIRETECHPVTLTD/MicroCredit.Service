@@ -2,5 +2,5 @@
 
 public class CreateUserRequest : UpdateUserRequest
 {
-    public string Password { get; private set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
 }
