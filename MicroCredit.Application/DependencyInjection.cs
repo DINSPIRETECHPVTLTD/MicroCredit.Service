@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<IMasterLookupservice, MasterLookupservice>();
         services.AddScoped<IPaymentTermService, PaymentTermService>(); 
         services.AddScoped<ICenterService, CenterService>();
+        services.AddScoped<ILoanSchedulerService, LoanSchedulerService>();
 
         return services;
     }
