@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddScoped<IMasterLookupservice, MasterLookupservice>();
         services.AddScoped<IPaymentTermService, PaymentTermService>(); 
         services.AddScoped<ICenterService, CenterService>();
+        services.AddScoped<IMemberService, MemberService>();
+        services.AddScoped<IMemberMembershipFeeService, MemberMembershipFeeService>();
 
         return services;
     }

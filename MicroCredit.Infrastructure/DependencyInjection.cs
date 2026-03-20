@@ -33,7 +33,8 @@ public static class DependencyInjection
         services.AddScoped<IInvestmentRepository, InvestmentRepository>();
         services.AddScoped<ILedgerBalanceRepository, LedgerBalanceRepository>();
         services.AddScoped<ILedgerTransactionRepository, LedgerTransactionRepository>();
-
+        services.AddScoped<IMemberRepository, MemberRepository>();
+        services.AddScoped<IMemberMembershipFeeRepository, MemberMembershipFeeRepository>();
 
         return services;
     }
