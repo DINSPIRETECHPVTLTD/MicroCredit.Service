@@ -27,4 +27,10 @@ public class LoanRepository : ILoanRepository
             .Where(l => !l.IsDeleted)
             .ToListAsync(cancellationToken);
     }
+    public async Task<IEnumerable<Loan>> GetActiveLoanAsync(int memberId, CancellationToken cancellationToken = default)
+    {
+        var member=_context.Members.Where(m => m.Id == memberId).FirstOrDefaultAsync(cancellationToken);
+        return await _context.Loans.Where(v => v.MemberId == memberId && v.IsDeleted == true).ToListAsync(cancellationToken);
+       
+    }
 }

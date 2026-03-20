@@ -28,5 +28,11 @@ namespace MicroCredit.Api.Controllers
             return Ok(loans);
         }
 
+        [HttpGet("ActiveLoans")]       
+        public async Task<IActionResult> GetActiveLoans()
+        {
+            var loans = await _loansService.GetAllAsync();
+            return Ok(loans);
+        }
     }
 }

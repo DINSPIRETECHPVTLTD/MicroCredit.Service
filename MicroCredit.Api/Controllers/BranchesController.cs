@@ -12,13 +12,13 @@ namespace MicroCredit.Api.Controllers
     [Route("[controller]")]
     [ApiController]
     [Authorize]
-    public class BranchsController : ControllerBase
+    public class BranchesController : ControllerBase
     {
         private readonly IBranchsService _branchService;
-        private readonly ILogger<BranchsController> _logger;
+        private readonly ILogger<BranchesController> _logger;
         private readonly IUserContext _userContext;
 
-        public BranchsController(IBranchsService branchService, ILogger<BranchsController> logger,IUserContext userContext)
+        public BranchesController(IBranchsService branchService, ILogger<BranchesController> logger,IUserContext userContext)
         {
             _branchService = branchService;
             _logger = logger;

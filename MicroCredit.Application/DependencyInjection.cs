@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<ICenterService, CenterService>();
         services.AddScoped<IMemberService, MemberService>();
         services.AddScoped<IMemberMembershipFeeService, MemberMembershipFeeService>();
+        services.AddScoped<ILoanSchedulerService, LoanSchedulerService>();
 
         return services;
     }

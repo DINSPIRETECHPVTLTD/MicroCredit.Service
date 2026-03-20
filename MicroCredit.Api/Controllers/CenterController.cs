@@ -16,9 +16,9 @@ namespace MicroCredit.Api.Controllers
     public class CenterController : ControllerBase
     {
         private readonly ICenterService _centerService;
-        private readonly ILogger<BranchsController> _logger;
+        private readonly ILogger<BranchesController> _logger;
         private readonly IUserContext _userContext;
-        public CenterController(ICenterService centerService, ILogger<BranchsController> logger, IUserContext userContext)
+        public CenterController(ICenterService centerService, ILogger<BranchesController> logger, IUserContext userContext)
         {
             _centerService = centerService;
             _logger = logger;
