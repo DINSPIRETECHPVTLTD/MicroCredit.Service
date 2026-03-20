@@ -145,11 +145,13 @@ public class Member
         GuardianDOB = guardianDob;
     }
 
-    public void UpdateDetails(string firstName, string? middleName, string lastName, string phoneNumber, string? altPhone,
+    public void UpdateDetails(int centerId, int pocId, string firstName, string? middleName, string lastName, string phoneNumber, string? altPhone,
         string? address1, string? address2, string? city, string? state, string? zipCode, string? aadhaar,
         string? occupation, string? relationship, DateOnly? dob, int age, string guardianFirstName, string? guardianMiddleName,
         string guardianLastName, string guardianPhone, DateOnly? guardianDob, int guardianAge, int modifiedBy)
     {
+        CenterId = centerId;
+        POCId = pocId;
         FirstName = firstName;
         MiddleName = middleName;
         LastName = lastName;
