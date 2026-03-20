@@ -12,6 +12,7 @@ public interface IUnitOfWork : IDisposable
     IPaymentTermRepository PaymentTerms { get; }
     IPOCRepository POCs { get; }
     ICenterRepository Centers { get; }
+    ILoanSchedulersRepository LoanSchedulers { get; }
 
 
     Task<int> CompleteAsync();

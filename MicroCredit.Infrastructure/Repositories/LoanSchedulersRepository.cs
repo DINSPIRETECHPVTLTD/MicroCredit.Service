@@ -25,5 +25,16 @@ public class LoanSchedulersRepository : ILoanSchedulersRepository
         return scheduler;
     }
 
+    public async Task<IEnumerable<LoanScheduler>> GetLoanSchedulersByIdAsync(int Loanid, CancellationToken cancellationToken)
+    {
+        var schedulers = await _context.LoanSchedulers.Where(ls => ls.LoanId == Loanid).ToListAsync(cancellationToken);
+
+        if (schedulers == null)
+        {
+            throw new Exception($"LoanSchedule with ID {Loanid} not found.");
+        }
+        return schedulers;
+    }
+
 
 }
