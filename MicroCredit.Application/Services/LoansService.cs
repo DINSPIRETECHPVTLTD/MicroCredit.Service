@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Model.Branch;
+using MicroCredit.Domain.Model.Branch;
 using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Services;
 using MicroCredit.Domain.Interfaces.Repository;
@@ -20,11 +20,8 @@ public class LoansService : ILoansService
         return (await _unitOfWork.Loans.GetAllAsync(cancellationToken)).ToLoanResponses();
     }
 
-    public async Task<LoanResponse> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<ActiveLoanResponse>> GetActiveLoansAsync(int branchid, CancellationToken cancellationToken = default)
     {
-        var loan = await _unitOfWork.Loans.GetByIdAsync(id, cancellationToken)
-              ?? throw new KeyNotFoundException($"Loan with Id {id} not found");
-
-        return loan.ToLoanResponse();
+        return await _unitOfWork.Loans.GetActiveLoansAsync(branchid, cancellationToken);
     }
 }

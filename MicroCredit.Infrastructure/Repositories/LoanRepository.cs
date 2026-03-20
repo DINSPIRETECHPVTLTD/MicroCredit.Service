@@ -1,5 +1,6 @@
-﻿using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Repository;
+using MicroCredit.Domain.Model.Loan;
 using MicroCredit.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,10 +28,14 @@ public class LoanRepository : ILoanRepository
             .Where(l => !l.IsDeleted)
             .ToListAsync(cancellationToken);
     }
-    public async Task<IEnumerable<Loan>> GetActiveLoanAsync(int memberId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<ActiveLoanResponse>> GetActiveLoansAsync(int branchId, CancellationToken cancellationToken = default)
     {
-        var member=_context.Members.Where(m => m.Id == memberId).FirstOrDefaultAsync(cancellationToken);
-        return await _context.Loans.Where(v => v.MemberId == memberId && v.IsDeleted == true).ToListAsync(cancellationToken);
-       
+        var branchIdParam = new Microsoft.Data.SqlClient.SqlParameter("@BranchId", branchId);
+
+        return await _context.Database
+            .SqlQueryRaw<ActiveLoanResponse>(
+                "EXEC sp_BranchLoansReport @BranchId",
+                branchIdParam)
+            .ToListAsync(cancellationToken);
     }
 }
