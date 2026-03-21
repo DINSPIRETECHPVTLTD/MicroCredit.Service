@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Model.Branch;
+using MicroCredit.Domain.Model.Branch;
 using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Services;
 using MicroCredit.Domain.Interfaces.Repository;
@@ -6,6 +6,8 @@ using MicroCredit.Domain.Model.Loan;
 using MicroCredit.Application.Mappings.DomianEntity;
 using Microsoft.AspNetCore.Http.HttpResults;
 using MicroCredit.Domain.Interfaces.Service;
+using MicroCredit.Application.Core;
+
 namespace MicroCredit.Application.Services;
 
 public class LoansService : ILoansService
@@ -22,7 +24,6 @@ public class LoansService : ILoansService
     {
         _unitOfWork = unitOfWork;
         _ledgerBalanceService = ledgerBalanceService;
-        _loanSchedulerService = loanSchedulerService;
         _ledgerRecordService = ledgerRecordService;
     }
 
@@ -31,11 +32,16 @@ public class LoansService : ILoansService
         return (await _unitOfWork.Loans.GetAllAsync(cancellationToken)).ToLoanResponses();
     }
 
+    public async Task<IEnumerable<ActiveLoanResponse>> GetActiveLoansAsync(int branchid, CancellationToken cancellationToken = default)
+    {
+        return await _unitOfWork.Loans.GetActiveLoansAsync(branchid, cancellationToken);
+    }
+
     public async Task<LoanResponse> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var loan = await _unitOfWork.Loans.GetByIdAsync(id, cancellationToken)
-              ?? throw new KeyNotFoundException($"Loan with Id {id} not found");
-
+        var loan = await _unitOfWork.Loans.GetByIdAsync(id, cancellationToken);
+        if (loan == null)
+            throw new NotFoundException($"Loan with id {id} not found.");
         return loan.ToLoanResponse();
     }
 
