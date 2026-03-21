@@ -15,7 +15,7 @@ public class LoanRepository : ILoanRepository
         _context = context;
     }
 
-       public async Task<Loan?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<Loan?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         return await _context.Loans
             .FirstOrDefaultAsync(l => l.Id == id && !l.IsDeleted, cancellationToken);
@@ -28,7 +28,14 @@ public class LoanRepository : ILoanRepository
             .Where(l => !l.IsDeleted)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task AddLoanAsync(Loan loan, CancellationToken cancellationToken = default)
+    {
+        await _context.Loans.AddAsync(loan, cancellationToken);
+    }
+
     public async Task<IEnumerable<ActiveLoanResponse>> GetActiveLoansAsync(int branchId, CancellationToken cancellationToken = default)
+
     {
         var branchIdParam = new Microsoft.Data.SqlClient.SqlParameter("@BranchId", branchId);
 

@@ -1,5 +1,6 @@
 using MicroCredit.Api.Abstractions;
 using MicroCredit.Application.Services;
+using MicroCredit.Api.Helpers;
 using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Interfaces.Services;
 using MicroCredit.Domain.Model.Loan;
@@ -34,8 +35,19 @@ namespace MicroCredit.Api.Controllers
             return Ok(loans);
         }
 
-       
-        [HttpGet("ActiveLoans")]
+        [HttpPost("Add-Loan")]
+        public async Task<IActionResult> CreateLoan([FromBody] CreateLoanRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request == null || request.LoanAmount <= 0)
+                return BadRequest("Valid loan amount is required.");
+            var ids = UserClaimsHelper.GetUserIdAndOrgId(User);
+            if (ids == null) return Unauthorized();
+            var (userId, _) = ids.Value;
+            var loan = await _loansService.AddLoanAsync(request, userId, cancellationToken);
+            return Ok(loan);
+        }
+
+        [HttpGet("ActiveLoans")]       
         public async Task<IActionResult> GetActiveLoans()
         {
             if (_userContext.UserId == 0 || _userContext.OrgId == 0 )

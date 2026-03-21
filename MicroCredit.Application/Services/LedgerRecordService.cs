@@ -159,4 +159,57 @@ public class LedgerRecordService : ILedgerRecordService
         if (ledger.Amount < 0)
             throw new InvalidOperationException("Transaction would result in negative balance");
     }
+
+    public async Task<LedgerTransaction> RecordWithdrawalAsync(
+        int paidFromUserId,
+        decimal amount,
+        DateTime paymentDate,
+        int createdBy,
+        DateTime createdDate,
+        int? referenceId = null,
+        string? comments = null,
+        CancellationToken cancellationToken = default)
+    {
+        var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(paidFromUserId, cancellationToken); ;
+
+        if (ledger.Amount < amount)
+            throw new InvalidOperationException("Insufficient balance");
+
+        return await CreateTransactionAsync(
+            paidFromUserId,
+            null,
+            amount,
+            paymentDate,
+            createdBy,
+            createdDate,
+            "Loan disbursement",
+            referenceId,
+            comments,
+            cancellationToken);
+
+    }
+
+    public async Task<LedgerTransaction> RecordDepositAsync(
+        int paidToUserId,
+        decimal amount,
+        DateTime paymentDate,
+        int createdBy,
+        DateTime createdDate,
+        string transactionType,
+        int? referenceId = null,
+        string? comments = null,
+        CancellationToken cancellationToken = default)
+    {
+        return await CreateTransactionAsync(
+            null,
+            paidToUserId,
+            amount,
+            paymentDate,
+            createdBy,
+            createdDate,
+            transactionType,
+            referenceId,
+            comments,
+            cancellationToken);
+    }
 }

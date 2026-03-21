@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IUsersService, UsersService>();
         services.AddScoped<IBranchsService, BranchsService>();
         services.AddScoped<ILoansService, LoansService>();
+        services.AddScoped<ILoanSchedulerService, LoanSchedulerService>();
         services.AddScoped<IPOCService, POCService>();
         services.AddScoped<IInvestmentsService, InvestmentService>();
         services.AddScoped<ILedgerBalanceService, LedgerBalanceService>();
