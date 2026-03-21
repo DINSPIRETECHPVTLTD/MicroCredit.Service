@@ -39,6 +39,7 @@ namespace MicroCredit.Api.Controllers
             var (userId, _) = ids.Value;
             var loan = await _loansService.AddLoanAsync(request, userId, cancellationToken);
             return Ok(loan);
+        }
 
         [HttpGet("ActiveLoans")]       
         public async Task<IActionResult> GetActiveLoans()
