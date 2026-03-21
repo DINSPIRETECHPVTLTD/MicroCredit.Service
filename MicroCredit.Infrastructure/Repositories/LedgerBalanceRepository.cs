@@ -43,5 +43,12 @@ namespace MicroCredit.Infrastructure.Repositories
         {
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task<decimal> GetCurrentBalanceAsync(int userId, CancellationToken cancellationToken = default)
+        {
+            var ledger = await _context.Ledgers
+                .FirstOrDefaultAsync(l => l.UserId == userId, cancellationToken);
+            return ledger.Amount;
+        }
     }
 }

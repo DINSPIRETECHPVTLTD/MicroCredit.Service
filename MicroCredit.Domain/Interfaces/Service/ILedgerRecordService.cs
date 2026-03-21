@@ -62,4 +62,25 @@ public interface ILedgerRecordService
        decimal balanceChange,
        CancellationToken cancellationToken);
 
+    public Task<LedgerTransaction> RecordWithdrawalAsync(
+        int paidFromUserId,
+        decimal amount,
+        DateTime paymentDate,
+        int createdBy,
+        DateTime createdDate,
+        int? referenceId = null,
+        string? comments = null,
+        CancellationToken cancellationToken = default);
+
+    public Task<LedgerTransaction> RecordDepositAsync(
+        int paidToUserId,
+        decimal amount,
+        DateTime paymentDate,
+        int createdBy,
+        DateTime createdDate,
+        string transactionType,
+        int? referenceId = null,
+        string? comments = null,
+        CancellationToken cancellationToken = default);
+
 }

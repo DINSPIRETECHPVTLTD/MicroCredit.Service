@@ -12,5 +12,7 @@ namespace MicroCredit.Domain.Interfaces.Repository
         Task<IEnumerable<Ledger>> GetLedgerBalanceAsync(int orgId, CancellationToken cancellationToken = default);
         Task<Ledger?> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default);
         Task AddAsync(Ledger ledger, CancellationToken cancellationToken = default);
+
+        Task<decimal> GetCurrentBalanceAsync(int userId, CancellationToken cancellationToken = default);
     }
 }

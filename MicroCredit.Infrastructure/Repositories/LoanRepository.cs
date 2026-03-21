@@ -27,4 +27,9 @@ public class LoanRepository : ILoanRepository
             .Where(l => !l.IsDeleted)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task AddLoanAsync(Loan loan, CancellationToken cancellationToken = default)
+    {
+        await _context.Loans.AddAsync(loan, cancellationToken);
+    }
 }

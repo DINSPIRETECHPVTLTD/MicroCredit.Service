@@ -38,5 +38,11 @@ namespace MicroCredit.Application.Services
 
             await _unitOfWork.CompleteAsync();
         }
+
+        public async Task<decimal> GetCurrentBalanceAsync(int userId, CancellationToken cancellationToken = default)
+        {
+            var balance = await _unitOfWork.LedgerBalances.GetCurrentBalanceAsync(userId, cancellationToken);
+            return balance;
+        }
     }
 }

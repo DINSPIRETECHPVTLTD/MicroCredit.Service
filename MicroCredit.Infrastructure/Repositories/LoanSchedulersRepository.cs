@@ -19,10 +19,16 @@ public class LoanSchedulersRepository : ILoanSchedulersRepository
 
         if (scheduler == null)
         {
-            throw new Exception($"LoanSchedule with ID {Loanid} not found.");
+            return null;
         }
 
         return scheduler;
+    }
+
+    public async Task AddRangeAsync(IEnumerable<LoanScheduler> schedules, CancellationToken cancellationToken = default)
+    {
+        await _context.LoanSchedulers.AddRangeAsync(schedules, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
 
