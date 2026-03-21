@@ -82,7 +82,7 @@ public class Loan
     private Loan() { } // EF
 
     public Loan(int memberId, decimal loanAmount, decimal interestAmount, decimal processingFee, decimal insuranceFee,
-        bool isSavingEnabled, decimal savingAmount, decimal totalAmount, string collectionTerm, int noOfTerms, int createdBy)
+        bool isSavingEnabled, decimal savingAmount, decimal totalAmount, DateTime disbursementDate, string collectionTerm, DateTime collectionStartDate, int noOfTerms, int createdBy)
     {
         MemberId = memberId;
         LoanAmount = loanAmount;
@@ -92,8 +92,10 @@ public class Loan
         IsSavingEnabled = isSavingEnabled;
         SavingAmount = savingAmount;
         TotalAmount = totalAmount;
+        DisbursementDate = disbursementDate;
         Status = "Active";
         CollectionTerm = collectionTerm;
+        CollectionStartDate = collectionStartDate;
         NoOfTerms = noOfTerms;
         CreatedBy = createdBy;
         CreatedAt = DateTime.UtcNow;

@@ -116,4 +116,11 @@ public class LoanScheduler
         Comments = comments;
         Status = "Partial";
     }
+
+    public void AdjustAmounts(decimal newPrincipal, decimal newInterest)
+    {
+        ActualPrincipalAmount = Math.Round(newPrincipal, 2);
+        ActualInterestAmount = Math.Round(newInterest, 2);
+        ActualEmiAmount = ActualPrincipalAmount + ActualInterestAmount;
+    }
 }
