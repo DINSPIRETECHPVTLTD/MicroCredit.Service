@@ -1,6 +1,9 @@
-﻿using MicroCredit.Domain.Interfaces.Repository;
-using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Entities;
+using MicroCredit.Application.Mappings.DomianEntity;
+using MicroCredit.Domain.Interfaces.Repository;
+using MicroCredit.Domain.Interfaces.Service;
+using MicroCredit.Domain.Model.LoanScheduler;
+using MicroCredit.Domain.Model.User;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -114,5 +117,11 @@ namespace MicroCredit.Application.Services
             };
         }
 
+        public async Task<IEnumerable<LoanSchedulerResponce>> GetLoanSchedulersByIdAsync(int loanId, CancellationToken cancellationToken = default)
+        {
+            return (await _unitOfWork.LoanSchedulers.GetLoanSchedulersByIdAsync(loanId, cancellationToken)).ToLoanSchedulerResponces();
+        }
+
+     
     }
 }

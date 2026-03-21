@@ -20,6 +20,9 @@ public class UnitOfWork : IUnitOfWork
 
    public IPOCRepository POCs {  get; }
     public ICenterRepository Centers { get; }
+    public IMemberRepository Members { get; }
+    public IMemberMembershipFeeRepository MemberMembershipFees { get; }
+    public ILoanSchedulersRepository LoanSchedulers { get; }
 
     public UnitOfWork(MicroCreditDbContext context)
     {
@@ -35,6 +38,9 @@ public class UnitOfWork : IUnitOfWork
         PaymentTerms = new PaymentTermRepository(_context);
         POCs = new POCRepository(_context);
         Centers = new CenterRepository(_context);
+        Members = new MemberRepository(_context);
+        MemberMembershipFees = new MemberMembershipFeeRepository(_context);
+        LoanSchedulers = new LoanSchedulersRepository(_context);
 
     }
 
