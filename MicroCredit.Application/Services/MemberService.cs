@@ -124,4 +124,12 @@ public class MemberService : IMemberService
         await unitOfWork.CompleteAsync();
         return true;
     }
+
+    public async Task<IEnumerable<MemberResponse>> SearchMemebersByBranchAsync(SearchMemberRequest request, CancellationToken cancellationToken = default)
+    {
+        var members = await unitOfWork.Members.SearchMembersByBranchAsync(request, cancellationToken);
+        if (members == null)
+            return Enumerable.Empty<MemberResponse>();
+        return members.Select(m => m.ToMemberResponse());
+    }
 }
