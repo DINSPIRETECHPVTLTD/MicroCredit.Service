@@ -45,9 +45,9 @@ public class LoansService : ILoansService
         return loan.ToLoanResponse();
     }
 
-    public async Task<IEnumerable<LoanResponse>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<ActiveLoanResponse>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default)
     {
-        return (await _unitOfWork.Loans.GetLoanByMemId(memberId, cancellationToken)).ToLoanResponses();
+        return await _unitOfWork.Loans.GetLoanByMemId(memberId, cancellationToken);
     }
 
     public async Task<Loan> AddLoanAsync(CreateLoanRequest request, int userId, CancellationToken cancellationToken = default)
