@@ -7,6 +7,8 @@ public interface ILoanRepository
 
     Task<IEnumerable<Loan>> GetAllAsync(CancellationToken cancellationToken = default);
 
+    Task<IEnumerable<Loan>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default);
+
     Task AddLoanAsync(Loan loan, CancellationToken cancellationToken = default);
 
 

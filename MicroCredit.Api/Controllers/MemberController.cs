@@ -77,4 +77,16 @@ public class MemberController : ControllerBase
         await _memberService.MarkAsInactiveAsync(id, _userContext.UserId, cancellationToken);
         return Ok();
     }
+
+    [HttpPost("by-branch/search-member")]
+    public async Task<IActionResult> GetByBranchId([FromBody] SearchMemberRequest request,  CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+
+        var members = await _memberService.SearchMemebersByBranchAsync(request, cancellationToken);
+        if (members == null || !members.Any())
+            return Ok(Enumerable.Empty<MemberResponse>());
+        return Ok(members);
+    }
 }

@@ -9,4 +9,6 @@ public interface ILoansService
     Task<LoanResponse> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
     Task<Loan> AddLoanAsync(CreateLoanRequest request, int userId, CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<LoanResponse>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default);
 }

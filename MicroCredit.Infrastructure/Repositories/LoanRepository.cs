@@ -28,6 +28,11 @@ public class LoanRepository : ILoanRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<Loan>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Loans.Where(l => l.MemberId == memberId).ToListAsync(cancellationToken);
+    }
+
     public async Task AddLoanAsync(Loan loan, CancellationToken cancellationToken = default)
     {
         await _context.Loans.AddAsync(loan, cancellationToken);
