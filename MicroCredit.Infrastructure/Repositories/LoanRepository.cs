@@ -29,9 +29,15 @@ public class LoanRepository : ILoanRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<Loan>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<ActiveLoanResponse>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default)
     {
-        return await _context.Loans.Where(l => l.MemberId == memberId).ToListAsync(cancellationToken);
+        var memberIdParam = new Microsoft.Data.SqlClient.SqlParameter("@MemberId", memberId);
+
+        return await _context.Database
+            .SqlQueryRaw<ActiveLoanResponse>(
+                "EXEC sp_MemberLoanReport @MemberId",
+                memberIdParam)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AddLoanAsync(Loan loan, CancellationToken cancellationToken = default)
