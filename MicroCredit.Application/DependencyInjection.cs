@@ -1,5 +1,4 @@
 using MicroCredit.Application.Services;
-using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Interfaces.Services;
 using Microsoft.Extensions.Configuration;
@@ -24,11 +23,12 @@ public static class DependencyInjection
         services.AddScoped<ILedgerRecordService, LedgerRecordService>();
         services.AddScoped<ILedgerTransactionService, LedgerTransactionService>();
         services.AddScoped<IMasterLookupservice, MasterLookupservice>();
-        services.AddScoped<IPaymentTermService, PaymentTermService>(); 
+        services.AddScoped<IPaymentTermService, PaymentTermService>();
         services.AddScoped<ICenterService, CenterService>();
         services.AddScoped<IMemberService, MemberService>();
         services.AddScoped<IMemberMembershipFeeService, MemberMembershipFeeService>();
         services.AddScoped<ILoanSchedulerService, LoanSchedulerService>();
+        services.AddScoped<IRecoveryPostingService, RecoveryPostingService>();
 
         return services;
     }

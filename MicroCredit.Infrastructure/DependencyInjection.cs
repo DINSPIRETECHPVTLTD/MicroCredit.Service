@@ -1,11 +1,11 @@
 using MicroCredit.Domain.Contracts;
+using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Infrastructure.Persistence;
-using MicroCredit.Infrastructure.Repositories;
 using MicroCredit.Infrastructure.Providers;
+using MicroCredit.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using MicroCredit.Domain.Interfaces.Repository;
 
 namespace MicroCredit.Infrastructure;
 
@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<ILedgerTransactionRepository, LedgerTransactionRepository>();
         services.AddScoped<IMemberRepository, MemberRepository>();
         services.AddScoped<IMemberMembershipFeeRepository, MemberMembershipFeeRepository>();
+        services.AddScoped<IRecoveryPostingRepository, RecoveryPostingRepository>();
 
         return services;
     }
