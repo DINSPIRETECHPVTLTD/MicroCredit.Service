@@ -10,4 +10,6 @@ public interface IMemberService
     Task<MemberResponse> CreateAsync(CreateMemberRequest request, IUserContext userContext, CancellationToken cancellationToken = default);
     Task<MemberResponse> UpdateAsync(int id, UpdateMemberRequest request, IUserContext userContext, CancellationToken cancellationToken = default);
     Task<bool> MarkAsInactiveAsync(int id, int modifiedBy, CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<MemberResponse>> SearchMemebersByBranchAsync(SearchMemberRequest request, CancellationToken cancellationToken = default);
 }

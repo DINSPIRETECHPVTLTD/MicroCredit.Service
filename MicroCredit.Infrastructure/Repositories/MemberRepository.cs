@@ -1,7 +1,9 @@
 using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Repository;
+using MicroCredit.Domain.Model.Member;
 using MicroCredit.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MicroCredit.Infrastructure.Repositories;
 
@@ -41,5 +43,40 @@ public class MemberRepository : IMemberRepository
     {
         _context.Members.Update(member);
         return Task.CompletedTask;
+    }
+
+    public async Task<IEnumerable<Member>> SearchMembersByBranchAsync(SearchMemberRequest request, CancellationToken cancellationToken)
+    {
+        var query = _context.Members
+        .Include(m => m.Center)
+        .Include(m => m.POC)
+        .Where(m => m.Center != null &&
+                    m.Center.BranchId == request.BranchId &&
+                    !m.IsDeleted);
+
+        // Apply filters ONLY if any name is provided
+        if (!string.IsNullOrWhiteSpace(request.FirstName) ||
+            !string.IsNullOrWhiteSpace(request.MiddleName) ||
+            !string.IsNullOrWhiteSpace(request.LastName))
+        {
+            query = query.Where(m =>
+                (!string.IsNullOrWhiteSpace(request.FirstName) && m.FirstName.Contains(request.FirstName)) ||
+                (!string.IsNullOrWhiteSpace(request.MiddleName) && m.MiddleName.Contains(request.MiddleName)) ||
+                (!string.IsNullOrWhiteSpace(request.LastName) && m.LastName.Contains(request.LastName))
+            );
+        }
+
+        // Always sort by latest
+        query = query.OrderByDescending(m => m.CreatedAt);
+
+        // If NO filters ? take only 10
+        if (string.IsNullOrWhiteSpace(request.FirstName) &&
+            string.IsNullOrWhiteSpace(request.MiddleName) &&
+            string.IsNullOrWhiteSpace(request.LastName))
+        {
+            query = query.Take(10);
+        }
+
+        return await query.ToListAsync(cancellationToken);
     }
 }

@@ -35,6 +35,13 @@ namespace MicroCredit.Api.Controllers
             return Ok(loans);
         }
 
+        [HttpGet("MemberId/{memberId:int}")]
+        public async Task<IActionResult> GetLoanByMemId(int memberId, CancellationToken cancellationToken =default)
+        {
+            var loans = await _loansService.GetLoanByMemId(memberId, cancellationToken);
+            return Ok(loans);
+        }
+
         [HttpPost("Add-Loan")]
         public async Task<IActionResult> CreateLoan([FromBody] CreateLoanRequest request, CancellationToken cancellationToken = default)
         {
@@ -44,7 +51,7 @@ namespace MicroCredit.Api.Controllers
             if (ids == null) return Unauthorized();
             var (userId, _) = ids.Value;
             var loan = await _loansService.AddLoanAsync(request, userId, cancellationToken);
-            return Ok(loan);
+            return Ok(loan.Id);
         }
 
         [HttpGet("ActiveLoans")]       
