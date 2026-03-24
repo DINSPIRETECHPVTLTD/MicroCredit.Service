@@ -149,4 +149,45 @@ public class LoansService : ILoansService
         }
 
     }
+
+    public async Task<CloseLoanResponse> CloseLoanAsync(int loanId, int userId, CancellationToken cancellationToken = default)
+    {
+        var loan = await _unitOfWork.Loans.GetByIdAsync(loanId, cancellationToken);
+        if (loan == null)
+            throw new NotFoundException($"Loan with id {loanId} not found.");
+
+        if (string.Equals(loan.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+        {
+            return new CloseLoanResponse
+            {
+                LoanId = loan.Id,
+                IsClosed = true,
+                Status = loan.Status,
+                ClosureDate = loan.ClosureDate,
+            };
+        }
+
+        var hasOpenSchedulers = await _unitOfWork.Loans.HasOpenSchedulersAsync(loanId, cancellationToken);
+        if (hasOpenSchedulers)
+        {
+            return new CloseLoanResponse
+            {
+                LoanId = loan.Id,
+                IsClosed = false,
+                Status = loan.Status,
+                ClosureDate = loan.ClosureDate,
+            };
+        }
+
+        loan.CloseLoan(userId);
+        await _unitOfWork.CompleteAsync();
+
+        return new CloseLoanResponse
+        {
+            LoanId = loan.Id,
+            IsClosed = true,
+            Status = "Closed",
+            ClosureDate = loan.ClosureDate,
+        };
+    }
 }

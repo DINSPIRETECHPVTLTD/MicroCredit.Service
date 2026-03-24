@@ -56,4 +56,12 @@ public class LoanRepository : ILoanRepository
                 branchIdParam)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<bool> HasOpenSchedulersAsync(int loanId, CancellationToken cancellationToken = default)
+    {
+        return await _context.LoanSchedulers
+            .AnyAsync(
+                ls => ls.LoanId == loanId && ls.Status != "Paid",
+                cancellationToken);
+    }
 }
