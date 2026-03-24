@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Model.Loan;
+using MicroCredit.Domain.Model.Loan;
 using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Domain.Interfaces.Services;
@@ -14,4 +14,6 @@ public interface ILoansService
     Task<Loan> AddLoanAsync(CreateLoanRequest request, int userId, CancellationToken cancellationToken = default);
 
     Task<IEnumerable<ActiveLoanResponse>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default);
+
+    Task<CloseLoanResponse> CloseLoanAsync(int loanId, int userId, CancellationToken cancellationToken = default);
 }

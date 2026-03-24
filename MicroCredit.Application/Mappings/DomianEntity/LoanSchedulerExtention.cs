@@ -1,4 +1,4 @@
-﻿using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Model.LoanScheduler;
 using System;
 using System.Collections.Generic;
@@ -19,8 +19,12 @@ namespace MicroCredit.Application.Mappings.DomianEntity
                     ScheduleDate = loanScheduler.ScheduleDate,
                     PaymentDate = loanScheduler.PaymentDate,
                     ActualEmiAmount = loanScheduler.ActualEmiAmount,
+                    ActualPrincipalAmount = loanScheduler.ActualPrincipalAmount,
+                    ActualInterestAmount = loanScheduler.ActualInterestAmount,
                    
                     PaymentAmount = loanScheduler.PaymentAmount,
+                    PrincipalAmount = loanScheduler.PrincipalAmount,
+                    InterestAmount = loanScheduler.InterestAmount,
                    
                     InstallmentNo = loanScheduler.InstallmentNo,
                     Status = loanScheduler.Status,

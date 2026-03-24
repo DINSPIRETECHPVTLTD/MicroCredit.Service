@@ -108,10 +108,12 @@ public class Loan
         CollectionStartDate = collectionStartDate ?? DateTime.UtcNow;
     }
 
-    public void CloseLoan()
+    public void CloseLoan(int modifiedBy)
     {
         Status = "Closed";
         ClosureDate = DateTime.UtcNow;
+        ModifiedBy = modifiedBy;
+        ModifiedAt = DateTime.UtcNow;
     }
 
     public void MarkDefaulted()

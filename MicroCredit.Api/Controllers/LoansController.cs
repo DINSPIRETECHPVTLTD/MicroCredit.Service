@@ -64,5 +64,26 @@ namespace MicroCredit.Api.Controllers
             var branches = await _loansService.GetActiveLoansAsync(_userContext.BranchId.Value);
             return Ok(branches);
         }
+
+        [HttpPut("{id:int}/close")]
+        public async Task<IActionResult> CloseLoan(int id, CancellationToken cancellationToken = default)
+        {
+            if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+                return Unauthorized();
+            try
+            {
+                var result = await _loansService.CloseLoanAsync(id, _userContext.UserId, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Loan close request rejected for LoanId={LoanId}", id);
+                return BadRequest(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }
