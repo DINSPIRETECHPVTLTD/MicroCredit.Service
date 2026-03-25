@@ -24,6 +24,7 @@ public class LoansService : ILoansService
     {
         _unitOfWork = unitOfWork;
         _ledgerBalanceService = ledgerBalanceService;
+        _loanSchedulerService = loanSchedulerService;
         _ledgerRecordService = ledgerRecordService;
     }
 
@@ -69,7 +70,7 @@ public class LoansService : ILoansService
             (
                 memberId: request.MemberId,
                 loanAmount: request.LoanAmount,
-                interestAmount: request.ProcessingFee,
+                interestAmount: request.InterestAmount,
                 processingFee: request.ProcessingFee,
                 insuranceFee: request.InsuranceFee,
                 isSavingEnabled: request.IsSavingEnabled,
