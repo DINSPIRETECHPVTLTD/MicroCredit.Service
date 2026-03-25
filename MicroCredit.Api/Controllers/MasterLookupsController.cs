@@ -84,7 +84,21 @@ namespace MicroCredit.Api.Controllers
 
             return NoContent();
         }
+        [HttpGet("lookupkey")]
+        public IActionResult Getlookupkeys()
+        {
+            if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+                return Unauthorized();
 
+            string[] lookupKeys = new string[]
+            {
+                "PAYMENTMODE",
+                "RELATIONSHIP",
+                "STATE",
 
+        }
+            ;
+            return Ok(lookupKeys);
+        }
     }
 }
