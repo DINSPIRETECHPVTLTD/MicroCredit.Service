@@ -84,8 +84,11 @@ namespace MicroCredit.Application.Services
             if (schedules.Any())
             {
                 var lastSchedule = schedules.Last();
-                var totalScheduledPrincipal = schedules.Sum(s => s.PrincipalAmount);
-                var totalScheduledInterest = schedules.Sum(s => s.InterestAmount);
+                // PrincipalAmount/InterestAmount are not initialized for the unpaid schedule rows
+                // (they are 0). Use Actual* fields for rounding correction so the last EMI
+                // only receives the rounding remainder, not the entire loan amount.
+                var totalScheduledPrincipal = schedules.Sum(s => s.ActualPrincipalAmount);
+                var totalScheduledInterest = schedules.Sum(s => s.ActualInterestAmount);
 
                 decimal principalAdjustment = loan.LoanAmount - totalScheduledPrincipal;
                 decimal interestAdjustment = loan.InterestAmount - totalScheduledInterest;
