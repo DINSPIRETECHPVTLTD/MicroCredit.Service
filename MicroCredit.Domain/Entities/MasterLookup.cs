@@ -4,11 +4,12 @@ namespace MicroCredit.Domain.Entities;
 
 public static class LookupKeys
 {
-    public const string LoanTerm = "LOAN_TERM";
-    public const string PaymentType = "PAYMENT_TYPE";
+   // public const string LoanTerm = "LOAN_TERM";
+    //public const string PaymentType = "PAYMENT_TYPE";
     public const string Relationship = "RELATIONSHIP";
     public const string State = "STATE";
     public const string PaymentMode = "PAYMENTMODE";
+    public const string PaymentTerm = "PAYMENT_TERM";
 }
 
 [Table("MasterLookups")]

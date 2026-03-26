@@ -85,6 +85,22 @@ namespace MicroCredit.Api.Controllers
             return NoContent();
         }
 
+        
+        // GET: api/MasterLookups/keys - Returns valid LookupKey values for the Add Master Lookup dropdown.
+        
+        [HttpGet("keys")]
+        public ActionResult<IEnumerable<string>> GetLookupKeys()
+        {
+            return new[] {
+                //LookupKeys.LoanTerm,
+               // LookupKeys.PaymentType,
+                LookupKeys.Relationship,
+                LookupKeys.State,
+                LookupKeys.PaymentMode,
+                LookupKeys.PaymentTerm
+            };
+        }
+
 
     }
 }
