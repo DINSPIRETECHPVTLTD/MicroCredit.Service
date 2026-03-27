@@ -108,10 +108,11 @@ public class POC
         CollectionDay = collectionDay;
     }
 
-    public void UpdateDetails(string firstName, string? middleName, string lastName, string phoneNumber, string? altPhone,
+    public void UpdateDetails(int centerId, string firstName, string? middleName, string lastName, string phoneNumber, string? altPhone,
         string? address1, string? address2, string? city, string? state, string? zipCode,
         string? collectionDay, string collectionFrequency, int collectionBy, int modifiedBy)
     {
+        CenterId = centerId;
         FirstName = firstName;
         MiddleName = middleName;
         LastName = lastName;

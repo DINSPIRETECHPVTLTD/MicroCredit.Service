@@ -1,4 +1,4 @@
-﻿using MicroCredit.Application.Mappings.DomianEntity;
+using MicroCredit.Application.Mappings.DomianEntity;
 using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Repository;
@@ -64,6 +64,7 @@ public class POCService : IPOCService
         if (poc == null)
             throw new Exception("POC not found");
         poc.UpdateDetails(
+            centerId: request.CenterId,
             firstName: request.FirstName,
             middleName: request.MiddleName,
             lastName: request.LastName,
