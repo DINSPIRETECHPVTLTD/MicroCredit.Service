@@ -17,6 +17,7 @@ public interface IUnitOfWork : IDisposable
     IMemberRepository Members { get; }
     IMemberMembershipFeeRepository MemberMembershipFees { get; }
     IRecoveryPostingRepository RecoveryPostings { get; }
+    IReportRepository Reports { get; }
 
 
     Task<int> CompleteAsync();
