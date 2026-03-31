@@ -35,6 +35,8 @@ public class MemberService : IMemberService
         if (userContext.UserId == 0)
             throw new UnauthorizedAccessException("User context is required.");
 
+        var aadhaar = request.Aadhaar?.Trim();
+
         var dob = request.Dob.HasValue ? DateOnly.FromDateTime(request.Dob.Value) : (DateOnly?)null;
         var guardianDob = request.GuardianDob.HasValue ? DateOnly.FromDateTime(request.GuardianDob.Value) : (DateOnly?)null;
 
@@ -57,7 +59,7 @@ public class MemberService : IMemberService
             city: request.City,
             state: request.State,
             zipCode: request.ZipCode,
-            aadhaar: request.Aadhaar,
+            aadhaar: aadhaar,
             occupation: request.Occupation,
             relationship: request.Relationship,
             dob: dob,
