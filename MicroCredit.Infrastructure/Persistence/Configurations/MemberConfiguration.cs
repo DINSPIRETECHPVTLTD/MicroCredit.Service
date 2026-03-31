@@ -39,6 +39,10 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired();
 
+        builder.HasIndex(x => x.Aadhaar)
+            .IsUnique()
+            .HasFilter("[Aadhaar] IS NOT NULL");
+
         builder.HasOne(x => x.Center)
             .WithMany(c => c.Members)
             .HasForeignKey(x => x.CenterId)
