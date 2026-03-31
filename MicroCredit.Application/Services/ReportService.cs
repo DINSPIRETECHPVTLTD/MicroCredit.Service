@@ -22,4 +22,9 @@ public class ReportService : IReportService
     {
         return await _unitOfWork.Reports.GetMembersByPocIdAsync(branchId, pocId);
     }
+
+    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdsAsync(int branchId, IReadOnlyList<int> pocIds)
+    {
+        return await _unitOfWork.Reports.GetMembersByPocIdsAsync(branchId, pocIds);
+    }
 }

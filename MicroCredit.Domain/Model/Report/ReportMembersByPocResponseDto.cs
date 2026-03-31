@@ -2,6 +2,7 @@ namespace MicroCredit.Domain.Model.Report;
 
 public class ReportMembersByPocResponseDto
 {
+    public int PocId { get; set; }
     public int MemberId { get; set; }
     public string MembersFullName { get; set; } = string.Empty;
     public decimal ActualEmiAmount { get; set; }

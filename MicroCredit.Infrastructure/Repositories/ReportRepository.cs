@@ -68,6 +68,7 @@ public class ReportRepository : IReportRepository
                   && ls.ScheduleDate < windowEndExclusive
             select new ReportMembersByPocResponseDto
             {
+                PocId = p.Id,
                 MemberId = m.Id,
                 MembersFullName = ((m.FirstName ?? string.Empty) + " " +
                                    (m.MiddleName ?? string.Empty) + " " +
@@ -78,7 +79,54 @@ public class ReportRepository : IReportRepository
 
         return await query
             .Distinct()
-            .OrderBy(x => x.MemberId)
+            .OrderBy(x => x.PocId)
+            .ThenBy(x => x.MemberId)
+            .ThenBy(x => x.ScheduleDate)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdsAsync(int branchId, IReadOnlyList<int> pocIds)
+    {
+        if (pocIds == null || pocIds.Count == 0)
+            return new List<ReportMembersByPocResponseDto>();
+
+        // Aligns with SQL: CAST(ls.ScheduleDate AS DATE) IN (CAST(GETDATE() AS DATE), DATEADD(DAY, 1, CAST(GETDATE() AS DATE)))
+        var windowStart = DateTime.Today;
+        var windowEndExclusive = DateTime.Today.AddDays(2);
+
+        var distinctPocIds = pocIds.Distinct().ToList();
+
+        var query =
+            from m in _context.Members
+            join p in _context.POCs on m.POCId equals p.Id
+            join c in _context.Centers on p.CenterId equals c.Id
+            join l in _context.Loans on m.Id equals l.MemberId into loans
+            from l in loans.DefaultIfEmpty()
+            join ls in _context.LoanSchedulers on l.Id equals ls.LoanId into loanSchedulers
+            from ls in loanSchedulers.DefaultIfEmpty()
+            where !m.IsDeleted
+                  && !p.IsDeleted
+                  && c.BranchId == branchId
+                  && distinctPocIds.Contains(p.Id)
+                  && ls != null
+                  && ls.ScheduleDate >= windowStart
+                  && ls.ScheduleDate < windowEndExclusive
+            select new ReportMembersByPocResponseDto
+            {
+                PocId = p.Id,
+                MemberId = m.Id,
+                MembersFullName = ((m.FirstName ?? string.Empty) + " " +
+                                   (m.MiddleName ?? string.Empty) + " " +
+                                   (m.LastName ?? string.Empty)).Trim(),
+                ActualEmiAmount = ls.ActualEmiAmount,
+                ScheduleDate = ls.ScheduleDate,
+            };
+
+        return await query
+            .Distinct()
+            .OrderBy(x => x.PocId)
+            .ThenBy(x => x.MemberId)
             .ThenBy(x => x.ScheduleDate)
             .AsNoTracking()
             .ToListAsync();
