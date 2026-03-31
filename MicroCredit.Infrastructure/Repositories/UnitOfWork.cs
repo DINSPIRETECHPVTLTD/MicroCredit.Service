@@ -23,6 +23,7 @@ public class UnitOfWork : IUnitOfWork
     public IMemberRepository Members { get; }
     public IMemberMembershipFeeRepository MemberMembershipFees { get; }
     public IRecoveryPostingRepository RecoveryPostings { get; }
+    public IReportRepository Reports { get; }
 
     public UnitOfWork(MicroCreditDbContext context)
     {
@@ -41,6 +42,7 @@ public class UnitOfWork : IUnitOfWork
         Members = new MemberRepository(_context);
         MemberMembershipFees = new MemberMembershipFeeRepository(_context);
         RecoveryPostings = new RecoveryPostingRepository(_context);
+        Reports = new ReportRepository(_context);
 
     }
 
