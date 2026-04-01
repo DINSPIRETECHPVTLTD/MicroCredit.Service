@@ -64,6 +64,8 @@ public class ReportRepository : IReportRepository
                   && c.BranchId == branchId
                   && p.Id == pocId
                   && ls != null
+                  && ls.Status != null
+                  && ls.Status.ToLower() == "not paid"
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
             select new ReportMembersByPocResponseDto
@@ -110,6 +112,8 @@ public class ReportRepository : IReportRepository
                   && c.BranchId == branchId
                   && distinctPocIds.Contains(p.Id)
                   && ls != null
+                  && ls.Status != null
+                  && ls.Status.ToLower() == "not paid"
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
             select new ReportMembersByPocResponseDto

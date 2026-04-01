@@ -3,22 +3,28 @@ using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Model.RecoveryPosting;
 using MicroCredit.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace MicroCredit.Application.Services;
 
 public class RecoveryPostingService : IRecoveryPostingService
 {
+    private const string EmiRecoveryTransactionType = "EMI Recovery";
+
     private readonly IUnitOfWork _unitOfWork;  // ✅ CHANGED: Use UnitOfWork instead of direct repository
+    private readonly ILedgerRecordService _ledgerRecordService;
     private readonly MicroCreditDbContext _db;
     private readonly ILogger<RecoveryPostingService> _logger;
 
     public RecoveryPostingService(
         IUnitOfWork unitOfWork,  // ✅ CHANGED: Inject UnitOfWork
+        ILedgerRecordService ledgerRecordService,
         MicroCreditDbContext db,
         ILogger<RecoveryPostingService> logger)
     {
         _unitOfWork = unitOfWork;
+        _ledgerRecordService = ledgerRecordService;
         _db = db;
         _logger = logger;
     }
@@ -114,6 +120,23 @@ public class RecoveryPostingService : IRecoveryPostingService
             .OrderBy(e => e.LoanId)
             .ThenBy(e => e.InstallmentNo)
             .ToList();
+
+        var loanIds = ordered.Select(x => x.LoanId).Distinct().ToList();
+        var loanMemberMap = await _db.Loans
+            .AsNoTracking()
+            .Where(l => loanIds.Contains(l.Id))
+            .Select(l => new
+            {
+                l.Id,
+                l.MemberId,
+                MemberName = ((l.Member.FirstName ?? string.Empty) + " " +
+                              (l.Member.MiddleName ?? string.Empty) + " " +
+                              (l.Member.LastName ?? string.Empty)).Trim()
+            })
+            .ToDictionaryAsync(
+                x => x.Id,
+                x => new { x.MemberId, x.MemberName },
+                cancellationToken);
 
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
 
@@ -221,6 +244,45 @@ public class RecoveryPostingService : IRecoveryPostingService
                         shortfallP,
                         shortfallI,
                         cancellationToken);
+                }
+
+                // Recovery collection should credit ledger balance for the collector.
+                var alreadyRecorded = await _unitOfWork.LedgerTransaction.ExistsByTypeAndReferenceIdAsync(
+                    EmiRecoveryTransactionType,
+                    row.LoanSchedulerId,
+                    cancellationToken);
+
+                if (!alreadyRecorded)
+                {
+                    var memberInfo = loanMemberMap.TryGetValue(row.LoanId, out var v) ? v : null;
+                    var memberLabel = memberInfo?.MemberName;
+                    if (string.IsNullOrWhiteSpace(memberLabel))
+                    {
+                        memberLabel = memberInfo != null ? memberInfo.MemberId.ToString() : "Unknown";
+                    }
+
+                    var defaultComment =
+                        $"Loan Payment for Loan ID: {row.LoanId}, Loan Scheduler: {row.LoanSchedulerId}, Member ID: {memberLabel}";
+                    var finalComment = string.IsNullOrWhiteSpace(line.Comments)
+                        ? defaultComment
+                        : $"{defaultComment} | Reason: {line.Comments.Trim()}";
+
+                    await _ledgerRecordService.RecordDepositAsync(
+                        paidToUserId: request.CollectedBy,
+                        amount: payment,
+                        paymentDate: DateTime.UtcNow,
+                        createdBy: userContext.UserId,
+                        createdDate: DateTime.UtcNow,
+                        transactionType: EmiRecoveryTransactionType,
+                        referenceId: row.LoanSchedulerId,
+                        comments: finalComment,
+                        cancellationToken: cancellationToken);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "Skipping duplicate EMI Recovery ledger entry for LoanSchedulerId={LoanSchedulerId}.",
+                        row.LoanSchedulerId);
                 }
             }
 
