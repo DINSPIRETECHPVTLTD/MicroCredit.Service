@@ -41,13 +41,23 @@ namespace MicroCredit.Infrastructure.Repositories
         public async Task<IEnumerable<LedgerTransaction>> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default)
         {
             return await _context.LedgerTransactions
-                .Where(lt => lt.FromUser.Id == userId || lt.ToUser.Id == userId)
+                .Where(lt => lt.PaidFromUserId == userId || lt.PaidToUserId == userId)
                 .ToListAsync(cancellationToken);
         }
 
         public async Task AddAsync(LedgerTransaction transaction, CancellationToken cancellationToken = default)
         {
             await _context.LedgerTransactions.AddAsync(transaction, cancellationToken);
+        }
+
+        public async Task<bool> ExistsByTypeAndReferenceIdAsync(
+            string transactionType,
+            int referenceId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.LedgerTransactions.AnyAsync(
+                lt => lt.TransactionType == transactionType && lt.ReferenceId == referenceId,
+                cancellationToken);
         }
     }
 }

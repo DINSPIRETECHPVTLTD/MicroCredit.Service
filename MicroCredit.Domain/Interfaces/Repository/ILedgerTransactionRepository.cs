@@ -17,5 +17,9 @@ namespace MicroCredit.Domain.Interfaces.Repository
         Task<IEnumerable<LedgerTransaction>> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default);
 
         Task AddAsync(LedgerTransaction transaction, CancellationToken cancellationToken = default);
+        Task<bool> ExistsByTypeAndReferenceIdAsync(
+            string transactionType,
+            int referenceId,
+            CancellationToken cancellationToken = default);
     }
 }
