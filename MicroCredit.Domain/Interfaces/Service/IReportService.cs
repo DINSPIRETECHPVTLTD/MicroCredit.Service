@@ -7,4 +7,5 @@ public interface IReportService
     Task<List<ReportPocCenterResponseDto>> GetPocsByBranchIdAsync(int branchId);
     Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdAsync(int branchId, int pocId);
     Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdsAsync(int branchId, IReadOnlyList<int> pocIds);
+    Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId);
 }

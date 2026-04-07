@@ -74,4 +74,21 @@ public class ReportController : ControllerBase
         var data = await _reportService.GetMembersByPocIdsAsync(branchId, distinctPocIds);
         return Ok(data ?? new List<ReportMembersByPocResponseDto>());
     }
+    [HttpGet("MemberWiseCollectionSheet")]
+    public async Task<IActionResult> GetMemberWiseCollectionsheet()
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0 || _userContext.BranchId == 0)
+            return Unauthorized();
+
+        var fileBytes = await _reportService.GetMemberWiseCollectionSheet(_userContext.OrgId, _userContext.BranchId);
+
+        if (fileBytes == null || fileBytes.Length == 0)
+            return NotFound("No data found for the given organisation.");
+
+        return File(
+            fileBytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"MemberWiseCollection_{DateTime.Today:yyyyMMdd}.xlsx"
+        );
+    }
 }

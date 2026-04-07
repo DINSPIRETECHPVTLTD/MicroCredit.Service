@@ -27,4 +27,9 @@ public class ReportService : IReportService
     {
         return await _unitOfWork.Reports.GetMembersByPocIdsAsync(branchId, pocIds);
     }
+
+    public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId)
+    {
+        return await _unitOfWork.Reports.GetMemberWiseCollectionSheet(orgId, branchId);
+    }
 }
