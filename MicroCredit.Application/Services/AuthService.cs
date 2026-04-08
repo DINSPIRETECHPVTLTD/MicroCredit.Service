@@ -1,4 +1,5 @@
 using MicroCredit.Application.Mappings.DomianEntity;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Model.Auth;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Interfaces.Services;
@@ -25,6 +26,9 @@ public class AuthService : IAuthService
 
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return null;
+
+        if (user.Role == UserRole.Investor)
+            throw new UnauthorizedAccessException("Unauthorized");
 
         return user.ToAuthResponse(_jwtTokenGenerator.GenerateToken(user));
     }

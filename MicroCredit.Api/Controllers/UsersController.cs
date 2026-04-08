@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers;
 
-[Route("users")]
+[Route("[controller]")]
 [ApiController]
 [Authorize]
 public class UsersController : ControllerBase
@@ -47,6 +47,15 @@ public class UsersController : ControllerBase
         {
             return BadRequest("Branch context is required. Navigate to a branch first.");
         }
+    }
+
+    [HttpGet("collected-by")]
+    public async Task<IActionResult> GetCollectedByUsers(CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+        var users = await _userService.GetCollectedByUsersAsync(_userContext.OrgId, _userContext.BranchId, cancellationToken);
+        return Ok(users);
     }
 
     [HttpGet("{id:int}")]

@@ -39,6 +39,26 @@ public class UserRepository : GenericRepository<User>, IUserRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<User>> GetCollectedByUsersAsync(int orgId, int? branchId, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Users.Where(u => u.OrgId == orgId && !u.IsDeleted);
+
+        if (branchId.HasValue)
+        {
+            // In branch mode: keep Owner from org and branch staff/admin only for current branch.
+            query = query.Where(u =>
+                u.Role == UserRole.Owner ||
+                ((u.Role == UserRole.BranchAdmin || u.Role == UserRole.Staff) && u.BranchId == branchId.Value));
+        }
+        else
+        {
+            query = query.Where(u =>
+                u.Role == UserRole.Owner || u.Role == UserRole.BranchAdmin || u.Role == UserRole.Staff);
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
     public Task CreateAsync(User user, CancellationToken cancellationToken = default)
     {
         _context.Users.Add(user);

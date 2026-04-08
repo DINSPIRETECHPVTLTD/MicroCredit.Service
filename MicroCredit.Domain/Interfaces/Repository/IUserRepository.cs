@@ -9,6 +9,7 @@ public interface IUserRepository : IGenericRepository<User>
 
     Task<IEnumerable<User>> GetOrgUsersAsync(int orgId, CancellationToken cancellationToken = default);
     Task<IEnumerable<User>> GetBranchUsersAsync(int orgId, int branchId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<User>> GetCollectedByUsersAsync(int orgId, int? branchId, CancellationToken cancellationToken = default);
 
     Task CreateAsync(User user, CancellationToken cancellationToken = default);
     Task UpdateAsync(User user, CancellationToken cancellationToken = default);
