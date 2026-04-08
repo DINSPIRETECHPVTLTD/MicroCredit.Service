@@ -229,7 +229,6 @@ public class ReportRepository : IReportRepository
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Member Wise Collection");
 
-        // ── Colors ────────────────────────────────────────────────────
         var titleFill = XLColor.FromHtml("#1F4E79");
         var groupFill = XLColor.FromHtml("#D6E4F0");
         var groupFont = XLColor.FromHtml("#1F4E79");
@@ -239,14 +238,13 @@ public class ReportRepository : IReportRepository
 
         string[] headers =
         [
-        "Member Code", "Member Name", "Husb Name", "Village",
-        "Contact No", "Loan Amount", "Outstanding Weeks",
-        "Weekly Due Amount", "As On Outstanding",
-        "Collection Day", "Attend Staff"
+            "Member Code", "Member Name", "Guardian Name", "Village",
+            "Contact No", "Loan Amount", "Outstanding Weeks",
+            "Weekly Due Amount", "As On Outstanding",
+            "Collection Day", "Attend Staff"
         ];
         int[] colWidths = [13, 24, 24, 34, 14, 13, 14, 16, 16, 14, 16];
 
-        // ── Title row ─────────────────────────────────────────────────
         int row = 1;
         var titleRange = ws.Range(row, 1, row, 11);
         titleRange.Merge();
@@ -258,7 +256,6 @@ public class ReportRepository : IReportRepository
             .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
         ws.Row(row).Height = 28;
 
-        // ── Column header row ──────────────────────────────────────────
         row++;
         for (int col = 1; col <= headers.Length; col++)
         {
@@ -274,29 +271,32 @@ public class ReportRepository : IReportRepository
         }
         ws.Row(row).Height = 32;
 
-        // ── Group by CollectionDay, then by CenterName ─────────────────
         var byDay = data
             .GroupBy(x => x.collectionDay)
             .OrderBy(g => g.Key);
 
-        // Track all data rows per day for the day-total SUM formula
-        var dayDataRows = new List<(string day, int startRow, int endRow)>();
+        // ── CHANGE 1: Renamed from dayDataRows to dayTotalRowNumbers ──────
+        // Old: var dayDataRows = new List<(string day, int startRow, int endRow)>();
+        // New: tracks only the row number where each day total is written
+        var dayTotalRowNumbers = new List<int>();
 
         foreach (var dayGroup in byDay)
         {
-            int dayBlockStart = row + 1; // first data row under this day
+            int dayBlockStart = row + 1;
 
             var byCentre = dayGroup
                 .GroupBy(x => x.centerName)
                 .OrderBy(g => g.Key);
 
+            // ── CHANGE 2: Added memberRowRanges to track only member rows ─
+            // This is new — used to build day total formula without centre headers
+            var memberRowRanges = new List<(int start, int end)>();
+
             foreach (var centreGroup in byCentre)
             {
-                // ── Centre header row ──────────────────────────────────
                 row++;
                 int centreHeaderRow = row;
 
-                // Col A–E: centre name (merged)
                 var centreRange = ws.Range(row, 1, row, 5);
                 centreRange.Merge();
                 centreRange.Value = centreGroup.Key;
@@ -305,7 +305,6 @@ public class ReportRepository : IReportRepository
                     .Fill.SetBackgroundColor(groupFill)
                     .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
 
-                // Col F–K: fill only
                 for (int col = 6; col <= 11; col++)
                 {
                     ws.Cell(row, col).Style
@@ -314,7 +313,6 @@ public class ReportRepository : IReportRepository
                 }
                 ws.Row(row).Height = 18;
 
-                // ── Member rows ───────────────────────────────────────
                 int memberStart = row + 1;
                 int i = 0;
 
@@ -325,10 +323,10 @@ public class ReportRepository : IReportRepository
 
                     object[] values =
                     [
-                    m.memberId,        m.memberName,       m.guardianName,
-                    m.address,           m.phoneNumber,      m.loanAmount,
-                    m.outstandingWeeks,  m.weeklyDueAmount,  m.asOnOutStanding,
-                    m.collectionDay,     m.attendStaff
+                        m.memberId,         m.memberName,      m.guardianName,
+                        m.address,          m.phoneNumber,     m.loanAmount,
+                        m.outstandingWeeks, m.weeklyDueAmount, m.asOnOutStanding,
+                        m.collectionDay,    m.attendStaff
                     ];
 
                     for (int col = 1; col <= values.Length; col++)
@@ -351,7 +349,11 @@ public class ReportRepository : IReportRepository
 
                 int memberEnd = row;
 
-                // Centre subtotal in col I of the centre header row
+                // ── CHANGE 3: Track member row range for this centre ──────
+                // Old: nothing tracked here
+                // New: add to memberRowRanges so day total can skip centre headers
+                memberRowRanges.Add((memberStart, memberEnd));
+
                 ws.Cell(centreHeaderRow, 9).FormulaA1 = $"SUM(I{memberStart}:I{memberEnd})";
                 ws.Cell(centreHeaderRow, 9).Style
                     .Font.SetBold(true).Font.SetFontColor(groupFont)
@@ -361,11 +363,14 @@ public class ReportRepository : IReportRepository
 
             int dayBlockEnd = row;
 
-            // ── Collection Day Total row ───────────────────────────────
             row++;
             int dayTotalRow = row;
 
-            // Col A–C merged: "{Day} Total"
+            // ── CHANGE 4: Track the day total row number ──────────────────
+            // Old: dayDataRows.Add((dayGroup.Key, dayBlockStart, dayBlockEnd));
+            // New: just track the row number for grand total formula
+            dayTotalRowNumbers.Add(dayTotalRow);
+
             var dayTotalRange = ws.Range(row, 1, row, 3);
             dayTotalRange.Merge();
             dayTotalRange.Value = $"{dayGroup.Key} Total";
@@ -382,24 +387,23 @@ public class ReportRepository : IReportRepository
                     .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
             }
 
-            // Sum all As On Outstanding rows in this day block
-            // (skips the centre header rows because they contain formulas, not raw numbers —
-            //  but since we want the true total we sum all member data rows directly)
-            ws.Cell(row, 9).FormulaA1 = $"SUM(I{dayBlockStart}:I{dayBlockEnd})";
+            // ── CHANGE 5: Day total formula now skips centre header rows ──
+            // Old: ws.Cell(row, 9).FormulaA1 = $"SUM(I{dayBlockStart}:I{dayBlockEnd})";
+            //      — this included centre header rows which have subtotal formulas = double count
+            // New: sum only actual member row ranges, centre headers skipped entirely
+            var dayFormula = string.Join("+", memberRowRanges.Select(r => $"SUM(I{r.start}:I{r.end})"));
+            ws.Cell(row, 9).FormulaA1 = dayFormula;
             ws.Cell(row, 9).Style
                 .Font.SetBold(true).Font.SetFontColor(groupFont)
                 .NumberFormat.SetFormat("#,##0.00");
 
             ws.Row(row).Height = 18;
-
-            dayDataRows.Add((dayGroup.Key, dayBlockStart, dayBlockEnd));
         }
 
-        // ── Weekly Grand Total row ─────────────────────────────────────
         row++;
         var grandRange = ws.Range(row, 1, row, 3);
         grandRange.Merge();
-        grandRange.Value = "Weekly Grand Total";
+        grandRange.Value = "Grand Total";
         grandRange.Style
             .Font.SetBold(true).Font.SetFontSize(11).Font.SetFontColor(XLColor.White)
             .Fill.SetBackgroundColor(grandFill)
@@ -414,14 +418,17 @@ public class ReportRepository : IReportRepository
                 .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
         }
 
-        // Grand total = sum of all member data rows (rows 3 to last data row before this)
-        ws.Cell(row, 9).FormulaA1 = $"SUM(I3:I{row - 1})";
+        // ── CHANGE 6: Grand total formula sums only day total rows ────────
+        // Old: ws.Cell(row, 9).FormulaA1 = $"SUM(I3:I{row - 1})";
+        //      — included everything: member rows + centre subtotals + day totals = triple count
+        // New: sums only the day total rows e.g. I10+I25+I40
+        var grandFormula = string.Join("+", dayTotalRowNumbers.Select(r => $"I{r}"));
+        ws.Cell(row, 9).FormulaA1 = grandFormula;
         ws.Cell(row, 9).Style
             .Font.SetBold(true).Font.SetFontColor(XLColor.White)
             .NumberFormat.SetFormat("#,##0.00");
         ws.Row(row).Height = 22;
 
-        // ── Column widths & freeze ─────────────────────────────────────
         for (int col = 1; col <= colWidths.Length; col++)
             ws.Column(col).Width = colWidths[col - 1];
 
