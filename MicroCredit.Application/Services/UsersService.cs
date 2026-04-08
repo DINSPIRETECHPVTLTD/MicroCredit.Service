@@ -27,6 +27,11 @@ public class UsersService : IUsersService
         return (await _unitOfWork.Users.GetBranchUsersAsync(orgId, branchId, cancellationToken)).ToUserResponses();
     }
 
+    public async Task<IEnumerable<UserResponse>> GetCollectedByUsersAsync(int orgId, int? branchId, CancellationToken cancellationToken = default)
+    {
+        return (await _unitOfWork.Users.GetCollectedByUsersAsync(orgId, branchId, cancellationToken)).ToUserResponses();
+    }
+
     public async Task<UserResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id, cancellationToken);
