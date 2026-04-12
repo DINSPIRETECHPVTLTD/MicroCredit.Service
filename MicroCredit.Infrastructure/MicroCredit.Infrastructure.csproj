@@ -28,10 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Database\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\MicroCredit.Domain\MicroCredit.Domain.csproj" />
   </ItemGroup>
 
