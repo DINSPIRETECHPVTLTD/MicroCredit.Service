@@ -31,7 +31,11 @@ public class ReportController : ControllerBase
 
         var data = await _reportService.GetPocsByBranchIdAsync(branchId);
         if (data == null || !data.Any())
-            return NotFound(new { error = "no Poc in current branch" });
+            return Ok(new
+            {
+                message = "No POC found in current branch",
+                data = new List<ReportPocCenterResponseDto>()
+            });
 
         return Ok(data);
     }
