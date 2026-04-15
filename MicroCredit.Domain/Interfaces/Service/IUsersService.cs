@@ -6,6 +6,7 @@ namespace MicroCredit.Domain.Interfaces.Services;
 public interface IUsersService
 {
     Task<IEnumerable<UserResponse>> GetOrgUsersAsync(int orgId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<UserResponse>> GetOrgInvestorsAsync(int orgId, CancellationToken cancellationToken = default);
     Task<IEnumerable<UserResponse>> GetBranchUsersAsync(int orgId, int branchId, CancellationToken cancellationToken = default);
     Task<IEnumerable<UserResponse>> GetCollectedByUsersAsync(int orgId, int? branchId, CancellationToken cancellationToken = default);
     Task<UserResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
