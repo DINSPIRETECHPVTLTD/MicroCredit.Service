@@ -26,6 +26,13 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     public async Task<IEnumerable<User>> GetOrgUsersAsync(int orgId, CancellationToken cancellationToken = default)
     {
         return await _context.Users
+            .Where(u => u.OrgId == orgId && !u.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<User>> GetOrgInvestorsAsync(int orgId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
             .Where(u => u.OrgId == orgId && !u.IsDeleted
                 && (u.Role == UserRole.Owner || u.Role == UserRole.Investor))
             .ToListAsync(cancellationToken);

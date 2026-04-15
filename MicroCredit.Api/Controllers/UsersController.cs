@@ -32,6 +32,15 @@ public class UsersController : ControllerBase
         return Ok(users);
     }
 
+    [HttpGet("investors")]
+    public async Task<IActionResult> GetOrgInvestors(CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+        var users = await _userService.GetOrgInvestorsAsync(_userContext.OrgId, cancellationToken);
+        return Ok(users);
+    }
+
     [HttpGet("branch")]
     public async Task<IActionResult> GetBranchUsers(CancellationToken cancellationToken)
     {

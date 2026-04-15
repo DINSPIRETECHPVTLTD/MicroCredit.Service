@@ -22,6 +22,11 @@ public class UsersService : IUsersService
         return (await _unitOfWork.Users.GetOrgUsersAsync(orgId, cancellationToken)).ToUserResponses();
     }
 
+    public async Task<IEnumerable<UserResponse>> GetOrgInvestorsAsync(int orgId, CancellationToken cancellationToken = default)
+    {
+        return (await _unitOfWork.Users.GetOrgInvestorsAsync(orgId, cancellationToken)).ToUserResponses();
+    }
+
     public async Task<IEnumerable<UserResponse>> GetBranchUsersAsync(int orgId, int branchId, CancellationToken cancellationToken = default)
     {
         return (await _unitOfWork.Users.GetBranchUsersAsync(orgId, branchId, cancellationToken)).ToUserResponses();
