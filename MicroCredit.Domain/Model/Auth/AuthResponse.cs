@@ -13,6 +13,7 @@ public class AuthResponse
     public string LastName { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string Mode { get; set; } = "ORG";
+    public int? BranchId { get; set; }
     public required OrgResponse Organization { get; set; }
     public BranchResponse? Branch { get; set; }
 }

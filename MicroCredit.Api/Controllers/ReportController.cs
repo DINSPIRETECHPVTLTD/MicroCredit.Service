@@ -1,7 +1,10 @@
 using MicroCredit.Domain.Common;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Model.Report;
+using MicroCredit.Api.Helpers;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers;
@@ -25,6 +28,14 @@ public class ReportController : ControllerBase
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
+        var role = UserClaimsHelper.GetUserRole(User);
+        if (role == UserRole.BranchAdmin || role == UserRole.Staff)
+        {
+            if (!_userContext.BranchId.HasValue)
+                return StatusCode(StatusCodes.Status403Forbidden, "Branch context is required.");
+            if (_userContext.BranchId.Value != branchId)
+                return StatusCode(StatusCodes.Status403Forbidden, "You can access only your branch data.");
+        }
 
         if (branchId <= 0)
             return BadRequest("branchId must be greater than 0.");
@@ -45,6 +56,14 @@ public class ReportController : ControllerBase
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
+        var role = UserClaimsHelper.GetUserRole(User);
+        if (role == UserRole.BranchAdmin || role == UserRole.Staff)
+        {
+            if (!_userContext.BranchId.HasValue)
+                return StatusCode(StatusCodes.Status403Forbidden, "Branch context is required.");
+            if (_userContext.BranchId.Value != branchId)
+                return StatusCode(StatusCodes.Status403Forbidden, "You can access only your branch data.");
+        }
 
         if (branchId <= 0 || pocId <= 0)
             return BadRequest("branchId and pocId must be greater than 0.");
@@ -64,6 +83,14 @@ public class ReportController : ControllerBase
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
+        var role = UserClaimsHelper.GetUserRole(User);
+        if (role == UserRole.BranchAdmin || role == UserRole.Staff)
+        {
+            if (!_userContext.BranchId.HasValue)
+                return StatusCode(StatusCodes.Status403Forbidden, "Branch context is required.");
+            if (_userContext.BranchId.Value != branchId)
+                return StatusCode(StatusCodes.Status403Forbidden, "You can access only your branch data.");
+        }
 
         if (branchId <= 0)
             return BadRequest("branchId must be greater than 0.");

@@ -1,10 +1,12 @@
 using MicroCredit.Api.Helpers;
 using MicroCredit.Application.Services;
 using MicroCredit.Domain.Common;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Services;
 using MicroCredit.Domain.Model.Branch;
 using MicroCredit.Domain.Model.User;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers
@@ -30,6 +32,8 @@ namespace MicroCredit.Api.Controllers
         {
             if (_userContext.UserId == 0 || _userContext.OrgId == 0)
                 return Unauthorized();
+            if (UserClaimsHelper.GetUserRole(User) != UserRole.Owner)
+                return StatusCode(StatusCodes.Status403Forbidden, "Only owner can access branches.");
 
             var branches = await _branchService.GetBranchsAsync(_userContext.OrgId);
             return Ok(branches);
@@ -39,6 +43,8 @@ namespace MicroCredit.Api.Controllers
         {
             if (_userContext.UserId == 0 || _userContext.OrgId == 0)
                 return Unauthorized();
+            if (UserClaimsHelper.GetUserRole(User) != UserRole.Owner)
+                return StatusCode(StatusCodes.Status403Forbidden, "Only owner can manage branches.");
             var branch = await _branchService.CreateBranchAsync(request, _userContext, cancellationToken);
             return Ok(branch);
         }
@@ -47,6 +53,8 @@ namespace MicroCredit.Api.Controllers
         {
             if (_userContext.UserId == 0 || _userContext.OrgId == 0)
                 return Unauthorized();
+            if (UserClaimsHelper.GetUserRole(User) != UserRole.Owner)
+                return StatusCode(StatusCodes.Status403Forbidden, "Only owner can manage branches.");
             var branch = await _branchService.UpdateBranchAsync(id, request, _userContext, cancellationToken);
             return Ok(branch);
         }
@@ -56,6 +64,8 @@ namespace MicroCredit.Api.Controllers
         {
             if (_userContext.UserId == 0 || _userContext.OrgId == 0)
                 return Unauthorized();
+            if (UserClaimsHelper.GetUserRole(User) != UserRole.Owner)
+                return StatusCode(StatusCodes.Status403Forbidden, "Only owner can manage branches.");
             var result = await _branchService.MarkAsInactive(id, _userContext, cancellationToken);
 
             return Ok(result);

@@ -33,6 +33,19 @@ public class MemberRepository : IMemberRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<bool> ExistsByAadhaarAsync(string aadhaar, int? excludeMemberId = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(aadhaar))
+            return false;
+
+        var normalizedAadhaar = aadhaar.Trim();
+
+        return await _context.Members
+            .Where(m => m.Aadhaar != null && m.Aadhaar == normalizedAadhaar)
+            .Where(m => !excludeMemberId.HasValue || m.Id != excludeMemberId.Value)
+            .AnyAsync(cancellationToken);
+    }
+
     public Task CreateAsync(Member member, CancellationToken cancellationToken = default)
     {
         _context.Members.Add(member);

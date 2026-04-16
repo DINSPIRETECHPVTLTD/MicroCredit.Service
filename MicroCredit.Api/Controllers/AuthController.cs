@@ -2,6 +2,7 @@ using MicroCredit.Api.Helpers;
 using MicroCredit.Domain.Interfaces.Services;
 using MicroCredit.Domain.Model.Auth;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers;
@@ -34,9 +35,9 @@ public class AuthController : ControllerBase
 
             return Ok(response);
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
-            return Unauthorized("Unauthorized");
+            return Unauthorized(ex.Message);
         }
     }
 
@@ -46,12 +47,17 @@ public class AuthController : ControllerBase
     {
         var userId = UserClaimsHelper.GetUserId(User);
         if (userId == null) return Unauthorized();
-
-        var response = await _authService.NavigateToBranchAsync(userId.Value, branchId, cancellationToken);
-        if (response == null)
-            return BadRequest("Branch not found or you do not have access to it.");
-
-        return Ok(response);
+        try
+        {
+            var response = await _authService.NavigateToBranchAsync(userId.Value, branchId, cancellationToken);
+            if (response == null)
+                return BadRequest("Branch not found or you do not have access to it.");
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+        }
     }
 
     [Authorize]
@@ -60,11 +66,16 @@ public class AuthController : ControllerBase
     {
         var userId = UserClaimsHelper.GetUserId(User);
         if (userId == null) return Unauthorized();
-
-        var response = await _authService.NavigateToOrgAsync(userId.Value, cancellationToken);
-        if (response == null)
-            return Unauthorized("User not found.");
-
-        return Ok(response);
+        try
+        {
+            var response = await _authService.NavigateToOrgAsync(userId.Value, cancellationToken);
+            if (response == null)
+                return Unauthorized("User not found.");
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+        }
     }
 }

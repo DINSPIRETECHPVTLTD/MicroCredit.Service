@@ -36,6 +36,13 @@ public class ExceptionMiddleware
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsJsonAsync(new { error = "A record with the same unique value already exists." });
         }
+        catch (InvalidOperationException ex)
+        {
+            Log.Warning(ex, "Business validation failed");
+            context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "Unhandled exception occurred");

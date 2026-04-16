@@ -1,8 +1,11 @@
 
 using MicroCredit.Domain.Common;
+using MicroCredit.Domain.Entities;
+using MicroCredit.Api.Helpers;
 using MicroCredit.Domain.Interfaces.Services;
 using MicroCredit.Domain.Model.User;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers;
@@ -28,6 +31,8 @@ public class UsersController : ControllerBase
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
+        if (UserClaimsHelper.GetUserRole(User) != UserRole.Owner)
+            return StatusCode(StatusCodes.Status403Forbidden, "Only owner can access organization users.");
         var users = await _userService.GetOrgUsersAsync(_userContext.OrgId, cancellationToken);
         return Ok(users);
     }

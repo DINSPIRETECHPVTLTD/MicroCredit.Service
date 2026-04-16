@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Api.Helpers;
 
@@ -10,6 +11,7 @@ public static class UserClaimsHelper
 {
     private const string OrgIdClaim = "OrgId";
     private const string BranchIdClaim = "BranchId";
+    private const string ModeClaim = "Mode";
 
     /// <summary>
     /// Gets the current user's Id from claims.
@@ -53,5 +55,26 @@ public static class UserClaimsHelper
             branchId = bid;
 
         return (userId, orgId, branchId);
+    }
+
+    public static UserRole? GetUserRole(ClaimsPrincipal? user)
+    {
+        var value = user?.FindFirstValue(ClaimTypes.Role);
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return Enum.TryParse<UserRole>(value, true, out var role) ? role : null;
+    }
+
+    public static string GetMode(ClaimsPrincipal? user)
+    {
+        var mode = user?.FindFirstValue(ModeClaim);
+        return string.IsNullOrWhiteSpace(mode) ? "ORG" : mode.Trim().ToUpperInvariant();
+    }
+
+    public static bool IsOwner(ClaimsPrincipal? user) => GetUserRole(user) == UserRole.Owner;
+
+    public static bool IsBranchUser(ClaimsPrincipal? user)
+    {
+        var role = GetUserRole(user);
+        return role == UserRole.BranchAdmin || role == UserRole.Staff;
     }
 }
