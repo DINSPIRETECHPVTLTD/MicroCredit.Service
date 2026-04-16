@@ -1,7 +1,10 @@
 using MicroCredit.Domain.Common;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Service;
+using MicroCredit.Api.Helpers;
 using MicroCredit.Domain.Model.Member;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Api.Controllers;
@@ -44,6 +47,14 @@ public class MemberController : ControllerBase
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
+        var role = UserClaimsHelper.GetUserRole(User);
+        if (role == UserRole.BranchAdmin || role == UserRole.Staff)
+        {
+            if (!_userContext.BranchId.HasValue)
+                return StatusCode(StatusCodes.Status403Forbidden, "Branch context is required.");
+            if (_userContext.BranchId.Value != branchId)
+                return StatusCode(StatusCodes.Status403Forbidden, "You can access only your branch data.");
+        }
 
         var members = await _memberService.GetMembersByBranchAsync(branchId, cancellationToken);
         if (members == null || !members.Any())
@@ -56,8 +67,16 @@ public class MemberController : ControllerBase
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
-        var member = await _memberService.CreateAsync(request, _userContext, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = member.Id }, member);
+        try
+        {
+            var member = await _memberService.CreateAsync(request, _userContext, cancellationToken);
+            return CreatedAtAction(nameof(GetById), new { id = member.Id }, member);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Validation failed while creating member.");
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id:int}")]
@@ -83,6 +102,13 @@ public class MemberController : ControllerBase
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
+        var role = UserClaimsHelper.GetUserRole(User);
+        if (role == UserRole.BranchAdmin || role == UserRole.Staff)
+        {
+            if (!_userContext.BranchId.HasValue)
+                return StatusCode(StatusCodes.Status403Forbidden, "Branch context is required.");
+            request.BranchId = _userContext.BranchId.Value;
+        }
 
         var members = await _memberService.SearchMemebersByBranchAsync(request, cancellationToken);
         if (members == null || !members.Any())

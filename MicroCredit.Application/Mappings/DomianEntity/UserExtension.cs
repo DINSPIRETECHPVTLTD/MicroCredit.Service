@@ -23,6 +23,7 @@ public static class UserExtension
             UserType = userType,
             Token = token,
             Mode = mode,
+            BranchId = contextBranch?.Id ?? user.BranchId,
             Organization = user.Organization.ToOrgResponse(),
             Branch = contextBranch?.ToBranchResponse()
         };

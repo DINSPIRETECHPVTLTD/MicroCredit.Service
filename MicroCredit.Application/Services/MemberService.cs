@@ -36,6 +36,12 @@ public class MemberService : IMemberService
             throw new UnauthorizedAccessException("User context is required.");
 
         var aadhaar = request.Aadhaar?.Trim();
+        if (!string.IsNullOrWhiteSpace(aadhaar))
+        {
+            var aadhaarExists = await unitOfWork.Members.ExistsByAadhaarAsync(aadhaar, cancellationToken: cancellationToken);
+            if (aadhaarExists)
+                throw new InvalidOperationException("Member already exists with this Aadhaar number.");
+        }
 
         var dob = request.Dob.HasValue ? DateOnly.FromDateTime(request.Dob.Value) : (DateOnly?)null;
         var guardianDob = request.GuardianDob.HasValue ? DateOnly.FromDateTime(request.GuardianDob.Value) : (DateOnly?)null;
