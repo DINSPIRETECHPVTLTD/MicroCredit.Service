@@ -6,6 +6,7 @@ using MicroCredit.Api.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace MicroCredit.Api.Controllers;
 
@@ -16,11 +17,13 @@ public class ReportController : ControllerBase
 {
     private readonly IReportService _reportService;
     private readonly IUserContext _userContext;
+    private readonly ILogger<ReportController> _logger;
 
-    public ReportController(IReportService reportService, IUserContext userContext)
+    public ReportController(IReportService reportService, IUserContext userContext, ILogger<ReportController> logger)
     {
         _reportService = reportService;
         _userContext = userContext;
+        _logger = logger;
     }
 
     [HttpGet("pocs-by-branch/{branchId:int}")]
@@ -105,6 +108,25 @@ public class ReportController : ControllerBase
         var data = await _reportService.GetMembersByPocIdsAsync(branchId, distinctPocIds);
         return Ok(data ?? new List<ReportMembersByPocResponseDto>());
     }
+
+    [HttpGet("/report/summary")]
+    public async Task<IActionResult> GetSummary(CancellationToken cancellationToken = default)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+
+        try
+        {
+            var summary = await _reportService.GetSummaryAsync(cancellationToken);
+            return Ok(summary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while fetching report summary.");
+            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while fetching report summary.");
+        }
+    }
+
     [HttpGet("MemberWiseCollectionSheet")]
     public async Task<IActionResult> GetMemberWiseCollectionsheet()
     {

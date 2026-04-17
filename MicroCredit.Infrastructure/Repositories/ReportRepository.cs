@@ -138,6 +138,61 @@ public class ReportRepository : IReportRepository
             .ToListAsync();
     }
 
+    public async Task<ReportSummaryResponseDto> GetSummaryAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+SELECT
+  COALESCE(inv.TotalOwnerAmount,0)         AS TotalOwnerAmount,
+  COALESCE(inv.TotalInvestorAmount,0)      AS TotalInvestorAmount,
+  COALESCE(loan.TotalInsuranceAmount,0)    AS TotalInsuranceAmount,
+  COALESCE(loan.TotalProcessingFee,0)      AS TotalProcessingFee,
+  COALESCE(ls.ReceivedPrinciple,0)         AS ReceivedPrinciple,
+  COALESCE(ls.ReceivedInterest,0)          AS ReceivedInterest,
+  COALESCE(ls.OutstandingPrinciple,0)      AS OutstandingPrinciple,
+  COALESCE(ls.InterestAccured,0)           AS InterestAccured,
+  COALESCE(fees.TotalJoiningFee,0)         AS TotalJoiningFee,
+  COALESCE(exp.TotalLedgerExpenseAmount,0) AS TotalLedgerExpenseAmount
+FROM
+(
+  SELECT SUM(CASE WHEN UPPER(U.Role) = 'OWNER' THEN I.Amount ELSE 0 END)    AS TotalOwnerAmount,
+         SUM(CASE WHEN UPPER(U.Role) = 'INVESTOR' THEN I.Amount ELSE 0 END) AS TotalInvestorAmount
+  FROM Investments I
+  JOIN Users U ON I.UserId = U.Id
+) inv
+CROSS JOIN
+(
+  SELECT SUM(InsuranceFee) AS TotalInsuranceAmount,
+         SUM(ProcessingFee) AS TotalProcessingFee
+  FROM Loans
+) loan
+CROSS JOIN
+(
+  SELECT
+    SUM(CASE WHEN Status IN ('Paid','Partial') THEN PrincipalAmount ELSE 0 END)   AS ReceivedPrinciple,
+    SUM(CASE WHEN Status IN ('Paid','Partial') THEN InterestAmount ELSE 0 END)    AS ReceivedInterest,
+    SUM(CASE WHEN Status = 'Not Paid' THEN ActualPrincipalAmount ELSE 0 END)      AS OutstandingPrinciple,
+    SUM(CASE WHEN Status = 'Not Paid' THEN ActualInterestAmount ELSE 0 END)       AS InterestAccured
+  FROM LoanSchedulers
+) ls
+CROSS JOIN
+(
+  SELECT SUM(MF.Amount) AS TotalJoiningFee
+  FROM MemberMembershipFees MF
+) fees
+CROSS JOIN
+(
+  SELECT SUM(Amount) AS TotalLedgerExpenseAmount
+  FROM LedgerTransactions
+  WHERE TransactionType = 'Expense'
+) exp";
+
+        var result = await _context.Database
+            .SqlQueryRaw<ReportSummaryResponseDto>(sql)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return result ?? new ReportSummaryResponseDto();
+    }
+
     public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId)
     {
         var rawData = await (
