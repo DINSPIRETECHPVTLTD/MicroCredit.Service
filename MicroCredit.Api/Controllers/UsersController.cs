@@ -45,7 +45,7 @@ public class UsersController : ControllerBase
         if (UserClaimsHelper.GetUserRole(User) != UserRole.Owner)
             return StatusCode(StatusCodes.Status403Forbidden, "Only owner can access investors.");
 
-        var users = await _userService.GetOrgUsersAsync(_userContext.OrgId, cancellationToken);
+        var users = await _userService.GetOrgInvestorsAsync(_userContext.OrgId, cancellationToken);
         return Ok(users);
     }
 
