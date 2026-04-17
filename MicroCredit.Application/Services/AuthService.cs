@@ -33,8 +33,10 @@ public class AuthService : IAuthService
         if (user.Role == UserRole.Investor)
             throw new UnauthorizedAccessException("Unauthorized");
 
+        var requestedMode = (request.Mode ?? string.Empty).Trim().ToUpperInvariant();
         var configuredMode = (_configuration["Auth:DefaultMode"] ?? "ORG").Trim().ToUpperInvariant();
-        var isBranchMode = configuredMode == "BRANCH";
+        var effectiveMode = requestedMode is "ORG" or "BRANCH" ? requestedMode : configuredMode;
+        var isBranchMode = effectiveMode == "BRANCH";
         var isOwner = user.Role == UserRole.Owner;
         var isBranchRole = user.Role == UserRole.BranchAdmin || user.Role == UserRole.Staff;
 
