@@ -37,6 +37,18 @@ public class UsersController : ControllerBase
         return Ok(users);
     }
 
+    [HttpGet("investors")]
+    public async Task<IActionResult> GetInvestors(CancellationToken cancellationToken)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+        if (UserClaimsHelper.GetUserRole(User) != UserRole.Owner)
+            return StatusCode(StatusCodes.Status403Forbidden, "Only owner can access investors.");
+
+        var users = await _userService.GetOrgUsersAsync(_userContext.OrgId, cancellationToken);
+        return Ok(users);
+    }
+
     [HttpGet("branch")]
     public async Task<IActionResult> GetBranchUsers(CancellationToken cancellationToken)
     {
