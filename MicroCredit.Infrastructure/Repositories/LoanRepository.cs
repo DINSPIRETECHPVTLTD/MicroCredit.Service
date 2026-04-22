@@ -64,4 +64,13 @@ public class LoanRepository : ILoanRepository
                 ls => ls.LoanId == loanId && ls.Status != "Paid",
                 cancellationToken);
     }
+
+    public async Task<bool> HasOpenLoanForMemberAsync(int memberId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Loans.AnyAsync(
+            loan => loan.MemberId == memberId &&
+                    !loan.IsDeleted &&
+                    (loan.Status == "Active" || loan.Status == "Defaulted"),
+            cancellationToken);
+    }
 }

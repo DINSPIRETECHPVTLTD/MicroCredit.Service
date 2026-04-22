@@ -48,7 +48,7 @@ namespace MicroCredit.Infrastructure.Repositories
         {
             var ledger = await _context.Ledgers
                 .FirstOrDefaultAsync(l => l.UserId == userId, cancellationToken);
-            return ledger.Amount;
+            return ledger?.Amount ?? 0m;
         }
     }
 }
