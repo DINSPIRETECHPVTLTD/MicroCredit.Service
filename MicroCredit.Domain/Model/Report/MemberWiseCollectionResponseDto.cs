@@ -20,5 +20,11 @@ namespace MicroCredit.Domain.Model.Report
         public string collectionDay { get; set; }
         public string attendStaff { get; set; }
         public string centerName { get; set; }
+        public DateTime? disbursementDate { get; set; }
+        public decimal principleCollected { get; set; }
+        public decimal interestCollected { get; set; }
+        public decimal collected { get; set; }
+        public decimal toBeCollected { get; set; }
+        public decimal osBalance { get; set; }
     }
 }
