@@ -96,6 +96,9 @@ public class LedgerRecordService : ILedgerRecordService
     {
         var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(paidFromUserId, cancellationToken);
 
+        if (ledger == null)
+            throw new InvalidOperationException("Ledger balance not found for this user.");
+
         if (ledger.Amount < amount)
             throw new InvalidOperationException("Insufficient balance");
 
@@ -124,6 +127,9 @@ public class LedgerRecordService : ILedgerRecordService
     CancellationToken cancellationToken = default)
     {
         var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(paidFromUserId, cancellationToken); ;
+
+        if (ledger == null)
+            throw new InvalidOperationException("Ledger balance not found for this user.");
 
         if (ledger.Amount < amount)
             throw new InvalidOperationException("Insufficient balance");
@@ -171,6 +177,9 @@ public class LedgerRecordService : ILedgerRecordService
         CancellationToken cancellationToken = default)
     {
         var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(paidFromUserId, cancellationToken); ;
+
+        if (ledger == null)
+            throw new InvalidOperationException("Insufficient funds to disburse the loan.");
 
         if (ledger.Amount < amount)
             throw new InvalidOperationException("Insufficient balance");

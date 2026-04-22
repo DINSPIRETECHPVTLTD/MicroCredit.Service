@@ -50,6 +50,11 @@ public class LoanConfiguration : IEntityTypeConfiguration<Loan>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired();
 
+        builder.HasIndex(x => x.MemberId)
+            .IsUnique()
+            .HasDatabaseName("IX_Loans_MemberId_OpenLoanUnique")
+            .HasFilter("[IsDeleted] = 0 AND [Status] IN ('Active', 'Defaulted')");
+
         builder.HasOne(x => x.Member)
             .WithMany()
             .HasForeignKey(x => x.MemberId)

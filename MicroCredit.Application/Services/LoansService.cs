@@ -7,6 +7,7 @@ using MicroCredit.Application.Mappings.DomianEntity;
 using Microsoft.AspNetCore.Http.HttpResults;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Application.Core;
+using Microsoft.EntityFrameworkCore;
 
 namespace MicroCredit.Application.Services;
 
@@ -53,6 +54,13 @@ public class LoansService : ILoansService
 
     public async Task<Loan> AddLoanAsync(CreateLoanRequest request, int userId, CancellationToken cancellationToken = default)
     {
+        var member = await _unitOfWork.Members.GetByIdAsync(request.MemberId, cancellationToken);
+        if (member == null)
+            throw new NotFoundException($"Member with id {request.MemberId} not found.");
+
+        var hasOpenLoan = await _unitOfWork.Loans.HasOpenLoanForMemberAsync(request.MemberId, cancellationToken);
+        if (hasOpenLoan)
+            throw new InvalidOperationException("This member already has an open loan.");
 
         var currentBalance = await _ledgerBalanceService.GetCurrentBalanceAsync(userId, cancellationToken);
 
@@ -142,6 +150,11 @@ public class LoansService : ILoansService
 
             return loan;
 
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("IX_Loans_MemberId_OpenLoanUnique", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw new InvalidOperationException("This member already has an open loan.", ex);
         }
         catch
         {

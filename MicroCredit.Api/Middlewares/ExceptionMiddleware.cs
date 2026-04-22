@@ -48,7 +48,7 @@ public class ExceptionMiddleware
             Log.Error(ex, "Unhandled exception occurred");
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+            await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred. Please try again later." });
         }
     }
 }

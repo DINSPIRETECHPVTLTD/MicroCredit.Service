@@ -12,6 +12,7 @@ public interface ILoanRepository
     Task<IEnumerable<ActiveLoanResponse>> GetActiveLoansAsync(int branchId, CancellationToken cancellationToken = default);
 
     Task<bool> HasOpenSchedulersAsync(int loanId, CancellationToken cancellationToken = default);
+    Task<bool> HasOpenLoanForMemberAsync(int memberId, CancellationToken cancellationToken = default);
 
     Task AddLoanAsync(Loan loan, CancellationToken cancellationToken = default);
 
