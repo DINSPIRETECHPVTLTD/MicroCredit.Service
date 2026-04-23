@@ -70,7 +70,7 @@ public class RecoveryPostingController : ControllerBase
 
         if (request == null || request.Items == null || request.Items.Count == 0)
             return BadRequest(
-                "Recovery posting requires at least one item with LoanSchedulerId, PaymentAmount, PrincipalAmount, InterestAmount, PaymentMode, and Status. Comments are optional.");
+                "Recovery posting requires at least one item with LoanSchedulerId and Status. CollectedBy is required. Amounts and PaymentMode depend on selected status.");
 
         if (request.CollectedBy <= 0)
             return BadRequest("CollectedBy is required: select the staff member who collected the payment.");

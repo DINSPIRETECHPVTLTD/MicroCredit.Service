@@ -106,6 +106,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                 LoanSchedulerId = ls.LoanSchedulerId,
                 LoanId = ls.LoanId,
                 InstallmentNo = ls.InstallmentNo,
+                ScheduleDate = ls.ScheduleDate,
                 Status = ls.Status,
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ActualPrincipalAmount = ls.ActualPrincipalAmount,
@@ -189,6 +190,27 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                     .SetProperty(ls => ls.PaymentMode, paymentMode)
                     .SetProperty(ls => ls.Comments, comments)
                     .SetProperty(ls => ls.Status, "Partial"),
+                cancellationToken);
+
+        if (rows == 0)
+            throw new InvalidOperationException($"LoanScheduler {loanSchedulerId} could not be updated.");
+    }
+
+    public async Task ApplyOverdueRecoveryAsync(
+        int loanSchedulerId,
+        int collectedBy,
+        string? comments,
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var rows = await _context.LoanSchedulers
+            .Where(ls => ls.LoanSchedulerId == loanSchedulerId)
+            .ExecuteUpdateAsync(
+                s => s
+                    .SetProperty(ls => ls.PaymentDate, now)
+                    .SetProperty(ls => ls.CollectedBy, collectedBy)
+                    .SetProperty(ls => ls.Comments, comments)
+                    .SetProperty(ls => ls.Status, "Overdue"),
                 cancellationToken);
 
         if (rows == 0)
