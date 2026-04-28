@@ -17,12 +17,12 @@ public class RecoveryPostingSchedulersRequest
 public class RecoveryPostingPostLine
 {
     public int LoanSchedulerId { get; set; }
-    public decimal PaymentAmount { get; set; }
-    public decimal PrincipalAmount { get; set; }
-    public decimal InterestAmount { get; set; }
-    /// <summary>Required. How the payment was collected (e.g. cash, UPI).</summary>
+    public decimal? PaymentAmount { get; set; }
+    public decimal? PrincipalAmount { get; set; }
+    public decimal? InterestAmount { get; set; }
+    /// <summary>Optional when status is Overdue. How the payment was collected (e.g. cash, UPI).</summary>
     public string? PaymentMode { get; set; }
-    /// <summary>Required. Expected posting outcome: &quot;Paid&quot; (full EMI) or &quot;Partial Paid&quot; (partial).</summary>
+    /// <summary>Required. Expected posting outcome: &quot;Paid&quot;, &quot;Partial Paid&quot;, or &quot;Overdue&quot;.</summary>
     public string? Status { get; set; }
     /// <summary>Optional.</summary>
     public string? Comments { get; set; }
@@ -47,6 +47,7 @@ public class RecoveryPostingSchedulerSnapshot
     public int LoanSchedulerId { get; set; }
     public int LoanId { get; set; }
     public int InstallmentNo { get; set; }
+    public DateTime ScheduleDate { get; set; }
     public string Status { get; set; } = "";
     public decimal ActualEmiAmount { get; set; }
     public decimal ActualPrincipalAmount { get; set; }

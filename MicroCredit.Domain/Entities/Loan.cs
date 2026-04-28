@@ -116,6 +116,13 @@ public class Loan
         ModifiedAt = DateTime.UtcNow;
     }
 
+    public void UpdateStatus(string status, int modifiedBy)
+    {
+        Status = status;
+        ModifiedBy = modifiedBy;
+        ModifiedAt = DateTime.UtcNow;
+    }
+
     public void MarkDefaulted()
     {
         Status = "Defaulted";
@@ -124,6 +131,14 @@ public class Loan
     public void MarkDeleted(int modifiedBy)
     {
         IsDeleted = true;
+        ModifiedBy = modifiedBy;
+        ModifiedAt = DateTime.UtcNow;
+    }
+
+    public void ClaimLoan(int modifiedBy)
+    {
+        Status = "Claimed";
+        ClosureDate = DateTime.UtcNow;
         ModifiedBy = modifiedBy;
         ModifiedAt = DateTime.UtcNow;
     }

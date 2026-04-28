@@ -5,6 +5,7 @@ public class ActiveLoanResponse
     public int LoanId { get; set; }
     public int MemberId { get; set; }
     public string FullName { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
     public decimal LoanTotalAmount { get; set; }
     public string NoOfTerms { get; set; } = string.Empty;
     public decimal TotalAmountPaid { get; set; }

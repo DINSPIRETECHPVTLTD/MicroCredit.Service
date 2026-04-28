@@ -52,6 +52,86 @@ public class LoansService : ILoansService
         return await _unitOfWork.Loans.GetLoanByMemId(memberId, cancellationToken);
     }
 
+    public async Task<LoanResponse> UpdateLoanStatusAsync(int loanId, string status, int userId, CancellationToken cancellationToken = default)
+    {
+        var normalizedStatus = status?.Trim();
+        if (!string.Equals(normalizedStatus, "Pending", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(normalizedStatus, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Loan status must be Pending or Active.");
+        }
+
+        var loan = await _unitOfWork.Loans.GetByIdAsync(loanId, cancellationToken);
+        if (loan == null)
+            throw new NotFoundException($"Loan with id {loanId} not found.");
+
+        var finalStatus = string.Equals(normalizedStatus, "Pending", StringComparison.OrdinalIgnoreCase)
+            ? "Pending"
+            : "Active";
+        loan.UpdateStatus(finalStatus, userId);
+        await _unitOfWork.CompleteAsync();
+
+        return loan.ToLoanResponse();
+    }
+
+    public async Task<ClaimLoanResponse> ClaimLoanAsync(int loanId, int userId, CancellationToken cancellationToken = default)
+    {
+        var loan = await _unitOfWork.Loans.GetByIdAsync(loanId, cancellationToken);
+        if (loan == null)
+            throw new NotFoundException($"Loan with id {loanId} not found.");
+
+        if (string.Equals(loan.Status, "Claimed", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Loan is already claimed.");
+
+        var schedulers = (await _unitOfWork.LoanSchedulers.GetLoanSchedulersByIdAsync(loanId, cancellationToken)).ToList();
+        var pendingSchedulers = schedulers
+            .Where(s => !string.Equals(s.Status, "Paid", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(s.Status, "Claimed", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (pendingSchedulers.Count == 0)
+            throw new InvalidOperationException("No pending installments found for claim.");
+
+        var totalPendingEmiAmount = pendingSchedulers.Sum(s => s.ActualEmiAmount > 0 ? s.ActualEmiAmount : s.PaymentAmount);
+        var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(userId, cancellationToken);
+        if (ledger == null)
+            throw new NotFoundException($"Ledger for user id {userId} not found.");
+
+        var insuranceAmount = ledger.InsuranceAmount ?? 0m;
+        var remainingInsuranceAmount = insuranceAmount - totalPendingEmiAmount;
+
+        using var transaction = _unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            ledger.ApplyClaimAmounts(remainingInsuranceAmount, totalPendingEmiAmount);
+
+            foreach (var scheduler in pendingSchedulers)
+            {
+                scheduler.MarkClaimed(userId);
+            }
+
+            loan.ClaimLoan(userId);
+            await _unitOfWork.CompleteAsync();
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+
+        return new ClaimLoanResponse
+        {
+            LoanId = loan.Id,
+            Status = "Claimed",
+            TotalPendingEmiAmount = totalPendingEmiAmount,
+            InsuranceAmountBeforeClaim = insuranceAmount,
+            RemainingInsuranceAmount = remainingInsuranceAmount,
+            ClaimedAmount = totalPendingEmiAmount,
+            UpdatedSchedulersCount = pendingSchedulers.Count
+        };
+    }
+
     public async Task<Loan> AddLoanAsync(CreateLoanRequest request, int userId, CancellationToken cancellationToken = default)
     {
         var member = await _unitOfWork.Members.GetByIdAsync(request.MemberId, cancellationToken);
@@ -144,6 +224,13 @@ public class LoansService : ILoansService
                     transactionType: "Insurance fee",
                     comments: $"Insurance fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}"
                 );
+
+                await _ledgerRecordService.UpdateLedgerInsuranceAmountAsync(
+                    userId,
+                    loan.InsuranceFee,
+                    cancellationToken);
+
+                await _unitOfWork.CompleteAsync();
             }
 
             await transaction.CommitAsync(cancellationToken);

@@ -11,6 +11,11 @@ namespace MicroCredit.Application.Services;
 public class RecoveryPostingService : IRecoveryPostingService
 {
     private const string EmiRecoveryTransactionType = "EMI Recovery";
+    private const string StatusNotPaid = "Not Paid";
+    private const string StatusPaid = "Paid";
+    private const string StatusPartialPaid = "Partial Paid";
+    private const string StatusPartial = "Partial";
+    private const string StatusOverdue = "Overdue";
 
     private readonly IUnitOfWork _unitOfWork;  // ✅ CHANGED: Use UnitOfWork instead of direct repository
     private readonly ILedgerRecordService _ledgerRecordService;
@@ -83,21 +88,41 @@ public class RecoveryPostingService : IRecoveryPostingService
             if (line.LoanSchedulerId <= 0)
                 throw new ArgumentException("Each item must include a valid LoanSchedulerId.");
 
-            if (line.PaymentAmount <= 0)
+            if (string.IsNullOrWhiteSpace(line.Status))
+                throw new ArgumentException(
+                    $"LoanScheduler {line.LoanSchedulerId}: Status is required (use \"Paid\", \"Partial Paid\", or \"Overdue\").");
+
+            var normalizedStatus = NormalizePostedStatus(line.Status);
+            if (normalizedStatus == null)
+                throw new ArgumentException(
+                    $"LoanScheduler {line.LoanSchedulerId}: Unsupported status \"{line.Status}\".");
+
+            if (string.Equals(normalizedStatus, StatusOverdue, StringComparison.OrdinalIgnoreCase))
+            {
+                var overduePayment = line.PaymentAmount ?? 0m;
+                var overduePrincipal = line.PrincipalAmount ?? 0m;
+                var overdueInterest = line.InterestAmount ?? 0m;
+                if (overduePayment != 0m || overduePrincipal != 0m || overdueInterest != 0m)
+                    throw new ArgumentException(
+                        $"LoanScheduler {line.LoanSchedulerId}: Overdue requires PaymentAmount, PrincipalAmount, and InterestAmount to be zero or blank.");
+                continue;
+            }
+
+            var payment = line.PaymentAmount ?? 0m;
+            var principal = line.PrincipalAmount ?? 0m;
+            var interest = line.InterestAmount ?? 0m;
+
+            if (payment <= 0)
                 throw new ArgumentException(
                     $"LoanScheduler {line.LoanSchedulerId}: PaymentAmount is required and must be greater than zero.");
 
-            if (line.PrincipalAmount < 0 || line.InterestAmount < 0)
+            if (principal < 0 || interest < 0)
                 throw new ArgumentException(
                     $"LoanScheduler {line.LoanSchedulerId}: PrincipalAmount and InterestAmount cannot be negative.");
 
             if (string.IsNullOrWhiteSpace(line.PaymentMode))
                 throw new ArgumentException(
-                    $"LoanScheduler {line.LoanSchedulerId}: PaymentMode is required.");
-
-            if (string.IsNullOrWhiteSpace(line.Status))
-                throw new ArgumentException(
-                    $"LoanScheduler {line.LoanSchedulerId}: Status is required (use \"Paid\" or \"Partial Paid\").");
+                    $"LoanScheduler {line.LoanSchedulerId}: PaymentMode is required unless status is Overdue.");
         }
 
         var distinctIds = request.Items.Select(i => i.LoanSchedulerId).Distinct().ToList();
@@ -146,23 +171,33 @@ public class RecoveryPostingService : IRecoveryPostingService
             {
                 var line = request.Items.First(i => i.LoanSchedulerId == row.LoanSchedulerId);
 
-                if (!string.Equals(row.Status, "Not Paid", StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(row.Status, StatusNotPaid, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException(
                         $"LoanScheduler {row.LoanSchedulerId}: this installment is not in \"Not Paid\" status and cannot be posted.");
                 }
 
-                var payment = line.PaymentAmount;
-                var pr = line.PrincipalAmount;
-                var ir = line.InterestAmount;
+                var normalizedStatus = NormalizePostedStatus(line.Status);
+                if (normalizedStatus == null)
+                {
+                    throw new InvalidOperationException(
+                        $"LoanScheduler {row.LoanSchedulerId}: Status must be \"Paid\", \"Partial Paid\", or \"Overdue\".");
+                }
+
+                var payment = line.PaymentAmount ?? 0m;
+                var pr = line.PrincipalAmount ?? 0m;
+                var ir = line.InterestAmount ?? 0m;
 
                 if (payment <= 0)
                 {
-                    throw new InvalidOperationException(
-                        $"LoanScheduler {row.LoanSchedulerId}: PaymentAmount must be greater than zero.");
+                    if (!string.Equals(normalizedStatus, StatusOverdue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidOperationException(
+                            $"LoanScheduler {row.LoanSchedulerId}: PaymentAmount must be greater than zero.");
+                    }
                 }
 
-                if (payment != pr + ir)
+                if (!string.Equals(normalizedStatus, StatusOverdue, StringComparison.OrdinalIgnoreCase) && payment != pr + ir)
                 {
                     throw new InvalidOperationException(
                         $"LoanScheduler {row.LoanSchedulerId}: PrincipalAmount plus InterestAmount must equal PaymentAmount.");
@@ -172,61 +207,33 @@ public class RecoveryPostingService : IRecoveryPostingService
                 var dueP = row.ActualPrincipalAmount;
                 var dueI = row.ActualInterestAmount;
 
-                if (dueEmi > 0 && payment > dueEmi)
+                if (!string.Equals(normalizedStatus, StatusOverdue, StringComparison.OrdinalIgnoreCase) && dueEmi > 0 && payment > dueEmi)
                 {
                     throw new InvalidOperationException(
                         $"LoanScheduler {row.LoanSchedulerId}: PaymentAmount cannot exceed the scheduled EMI (ActualEmiAmount).");
                 }
 
-                if (dueEmi <= 0 && payment > 0)
+                if (!string.Equals(normalizedStatus, StatusOverdue, StringComparison.OrdinalIgnoreCase) && dueEmi <= 0 && payment > 0)
                 {
                     throw new InvalidOperationException(
                         $"LoanScheduler {row.LoanSchedulerId}: scheduled EMI is zero; a payment cannot be posted.");
                 }
 
-                var isFullPayment = dueEmi > 0 && payment >= dueEmi;
-
-                if (!PostedStatusMatchesPayment(line.Status, isFullPayment))
+                if (string.Equals(normalizedStatus, StatusOverdue, StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new InvalidOperationException(
-                        $"LoanScheduler {row.LoanSchedulerId}: Status must be \"Paid\" when the payment covers the full scheduled EMI, or \"Partial Paid\" when it is a partial payment.");
-                }
-
-                if (isFullPayment)
-                {
-                    // ✅ CHANGED: Use UnitOfWork repository
-                    await _unitOfWork.RecoveryPostings.ApplyFullRecoveryPaymentAsync(
-                        row.LoanSchedulerId,
-                        payment,
-                        pr,
-                        ir,
-                        request.CollectedBy,
-                        line.PaymentMode,
-                        line.Comments,
-                        cancellationToken);
-                }
-                else
-                {
-                    // ✅ CHANGED: Use UnitOfWork repository
-                    await _unitOfWork.RecoveryPostings.ApplyPartialRecoveryPaymentAsync(
-                        row.LoanSchedulerId,
-                        payment,
-                        pr,
-                        ir,
-                        request.CollectedBy,
-                        line.PaymentMode,
-                        line.Comments,
-                        cancellationToken);
-
-                    var shortfallP = dueP - pr;
-                    var shortfallI = dueI - ir;
-                    if (shortfallP < 0 || shortfallI < 0)
+                    var today = DateTime.Today;
+                    if (row.ScheduleDate.Date >= today)
                     {
                         throw new InvalidOperationException(
-                            $"LoanScheduler {row.LoanSchedulerId}: PrincipalAmount and InterestAmount do not match the scheduled split for a partial payment.");
+                            $"LoanScheduler {row.LoanSchedulerId}: Overdue is allowed only after schedule date has passed.");
                     }
 
-                    // ✅ CHANGED: Use UnitOfWork repository
+                    await _unitOfWork.RecoveryPostings.ApplyOverdueRecoveryAsync(
+                        row.LoanSchedulerId,
+                        request.CollectedBy,
+                        line.Comments,
+                        cancellationToken);
+
                     var nextId = await _unitOfWork.RecoveryPostings.GetNextUnpaidLoanSchedulerIdAsync(
                         row.LoanId,
                         row.InstallmentNo,
@@ -235,54 +242,115 @@ public class RecoveryPostingService : IRecoveryPostingService
                     if (nextId == null)
                     {
                         throw new InvalidOperationException(
-                            $"LoanScheduler {row.LoanSchedulerId}: there is no next unpaid installment to carry the shortfall to.");
+                            $"LoanScheduler {row.LoanSchedulerId}: there is no next unpaid installment to carry overdue amount to.");
                     }
 
-                    // ✅ CHANGED: Use UnitOfWork repository
                     await _unitOfWork.RecoveryPostings.AddCarryForwardToScheduleAsync(
                         nextId.Value,
-                        shortfallP,
-                        shortfallI,
+                        dueP,
+                        dueI,
                         cancellationToken);
-                }
-
-                // Recovery collection should credit ledger balance for the collector.
-                var alreadyRecorded = await _unitOfWork.LedgerTransaction.ExistsByTypeAndReferenceIdAsync(
-                    EmiRecoveryTransactionType,
-                    row.LoanSchedulerId,
-                    cancellationToken);
-
-                if (!alreadyRecorded)
-                {
-                    var memberInfo = loanMemberMap.TryGetValue(row.LoanId, out var v) ? v : null;
-                    var memberLabel = memberInfo?.MemberName;
-                    if (string.IsNullOrWhiteSpace(memberLabel))
-                    {
-                        memberLabel = memberInfo != null ? memberInfo.MemberId.ToString() : "Unknown";
-                    }
-
-                    var defaultComment =
-                        $"Loan Payment for Loan ID: {row.LoanId}, Loan Scheduler: {row.LoanSchedulerId}, Member ID: {memberLabel}";
-                    var finalComment = string.IsNullOrWhiteSpace(line.Comments)
-                        ? defaultComment
-                        : $"{defaultComment} | Reason: {line.Comments.Trim()}";
-
-                    await _ledgerRecordService.RecordDepositAsync(
-                        paidToUserId: request.CollectedBy,
-                        amount: payment,
-                        paymentDate: DateTime.UtcNow,
-                        createdBy: userContext.UserId,
-                        createdDate: DateTime.UtcNow,
-                        transactionType: EmiRecoveryTransactionType,
-                        referenceId: row.LoanSchedulerId,
-                        comments: finalComment,
-                        cancellationToken: cancellationToken);
                 }
                 else
                 {
-                    _logger.LogInformation(
-                        "Skipping duplicate EMI Recovery ledger entry for LoanSchedulerId={LoanSchedulerId}.",
-                        row.LoanSchedulerId);
+                    var isFullPayment = dueEmi > 0 && payment >= dueEmi;
+                    if (!PostedStatusMatchesPayment(normalizedStatus, isFullPayment))
+                    {
+                        throw new InvalidOperationException(
+                            $"LoanScheduler {row.LoanSchedulerId}: Status must be \"Paid\" when the payment covers the full scheduled EMI, or \"Partial Paid\" when it is a partial payment.");
+                    }
+
+                    if (isFullPayment)
+                    {
+                        await _unitOfWork.RecoveryPostings.ApplyFullRecoveryPaymentAsync(
+                            row.LoanSchedulerId,
+                            payment,
+                            pr,
+                            ir,
+                            request.CollectedBy,
+                            line.PaymentMode,
+                            line.Comments,
+                            cancellationToken);
+                    }
+                    else
+                    {
+                        await _unitOfWork.RecoveryPostings.ApplyPartialRecoveryPaymentAsync(
+                            row.LoanSchedulerId,
+                            payment,
+                            pr,
+                            ir,
+                            request.CollectedBy,
+                            line.PaymentMode,
+                            line.Comments,
+                            cancellationToken);
+
+                        var shortfallP = dueP - pr;
+                        var shortfallI = dueI - ir;
+                        if (shortfallP < 0 || shortfallI < 0)
+                        {
+                            throw new InvalidOperationException(
+                                $"LoanScheduler {row.LoanSchedulerId}: PrincipalAmount and InterestAmount do not match the scheduled split for a partial payment.");
+                        }
+
+                        var nextId = await _unitOfWork.RecoveryPostings.GetNextUnpaidLoanSchedulerIdAsync(
+                            row.LoanId,
+                            row.InstallmentNo,
+                            cancellationToken);
+
+                        if (nextId == null)
+                        {
+                            throw new InvalidOperationException(
+                                $"LoanScheduler {row.LoanSchedulerId}: there is no next unpaid installment to carry the shortfall to.");
+                        }
+
+                        await _unitOfWork.RecoveryPostings.AddCarryForwardToScheduleAsync(
+                            nextId.Value,
+                            shortfallP,
+                            shortfallI,
+                            cancellationToken);
+                    }
+                }
+
+                if (!string.Equals(normalizedStatus, StatusOverdue, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Recovery collection should credit ledger balance for the collector.
+                    var alreadyRecorded = await _unitOfWork.LedgerTransaction.ExistsByTypeAndReferenceIdAsync(
+                        EmiRecoveryTransactionType,
+                        row.LoanSchedulerId,
+                        cancellationToken);
+
+                    if (!alreadyRecorded)
+                    {
+                        var memberInfo = loanMemberMap.TryGetValue(row.LoanId, out var v) ? v : null;
+                        var memberLabel = memberInfo?.MemberName;
+                        if (string.IsNullOrWhiteSpace(memberLabel))
+                        {
+                            memberLabel = memberInfo != null ? memberInfo.MemberId.ToString() : "Unknown";
+                        }
+
+                        var defaultComment =
+                            $"Loan Payment for Loan ID: {row.LoanId}, Loan Scheduler: {row.LoanSchedulerId}, Member ID: {memberLabel}";
+                        var finalComment = string.IsNullOrWhiteSpace(line.Comments)
+                            ? defaultComment
+                            : $"{defaultComment} | Reason: {line.Comments.Trim()}";
+
+                        await _ledgerRecordService.RecordDepositAsync(
+                            paidToUserId: request.CollectedBy,
+                            amount: payment,
+                            paymentDate: DateTime.UtcNow,
+                            createdBy: userContext.UserId,
+                            createdDate: DateTime.UtcNow,
+                            transactionType: EmiRecoveryTransactionType,
+                            referenceId: row.LoanSchedulerId,
+                            comments: finalComment,
+                            cancellationToken: cancellationToken);
+                    }
+                    else
+                    {
+                        _logger.LogInformation(
+                            "Skipping duplicate EMI Recovery ledger entry for LoanSchedulerId={LoanSchedulerId}.",
+                            row.LoanSchedulerId);
+                    }
                 }
             }
 
@@ -312,14 +380,29 @@ public class RecoveryPostingService : IRecoveryPostingService
     /// <summary>Client-sent Status must align with full vs partial payment (same meaning as UI labels).</summary>
     private static bool PostedStatusMatchesPayment(string? status, bool isFullPayment)
     {
-        if (string.IsNullOrWhiteSpace(status))
+        var normalizedStatus = NormalizePostedStatus(status);
+        if (normalizedStatus == null)
             return false;
 
-        var s = status.Trim();
         if (isFullPayment)
-            return string.Equals(s, "Paid", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(normalizedStatus, StatusPaid, StringComparison.OrdinalIgnoreCase);
 
-        return string.Equals(s, "Partial Paid", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(s, "Partial", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(normalizedStatus, StatusPartialPaid, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? NormalizePostedStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            return null;
+
+        var s = status.Trim();
+        if (string.Equals(s, StatusPaid, StringComparison.OrdinalIgnoreCase))
+            return StatusPaid;
+        if (string.Equals(s, StatusPartialPaid, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(s, StatusPartial, StringComparison.OrdinalIgnoreCase))
+            return StatusPartialPaid;
+        if (string.Equals(s, StatusOverdue, StringComparison.OrdinalIgnoreCase))
+            return StatusOverdue;
+        return null;
     }
 }

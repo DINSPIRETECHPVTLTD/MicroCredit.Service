@@ -65,6 +65,43 @@ namespace MicroCredit.Api.Controllers
             return Ok(branches);
         }
 
+        [HttpPost("{id:int}/status")]
+        public async Task<IActionResult> UpdateLoanStatusPost(int id, [FromBody] UpdateLoanStatusRequest request, CancellationToken cancellationToken = default)
+        {
+            if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+                return Unauthorized();
+
+            if (request == null || string.IsNullOrWhiteSpace(request.Status))
+                return BadRequest("Loan status is required.");
+
+            try
+            {
+                var loan = await _loansService.UpdateLoanStatusAsync(id, request.Status, _userContext.UserId, cancellationToken);
+                return Ok(loan);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("{id:int}/claim")]
+        public async Task<IActionResult> ClaimLoan(int id, CancellationToken cancellationToken = default)
+        {
+            if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+                return Unauthorized();
+
+            try
+            {
+                var result = await _loansService.ClaimLoanAsync(id, _userContext.UserId, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpPut("{id:int}/close")]
         public async Task<IActionResult> CloseLoan(int id, CancellationToken cancellationToken = default)
         {

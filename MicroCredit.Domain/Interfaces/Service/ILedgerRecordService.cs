@@ -62,6 +62,11 @@ public interface ILedgerRecordService
        decimal balanceChange,
        CancellationToken cancellationToken);
 
+    public Task UpdateLedgerInsuranceAmountAsync(
+       int userId,
+       decimal insuranceAmountChange,
+       CancellationToken cancellationToken);
+
     public Task<LedgerTransaction> RecordWithdrawalAsync(
         int paidFromUserId,
         decimal amount,

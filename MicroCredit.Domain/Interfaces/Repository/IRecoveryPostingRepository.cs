@@ -43,6 +43,12 @@ public interface IRecoveryPostingRepository
         string? comments,
         CancellationToken cancellationToken = default);
 
+    Task ApplyOverdueRecoveryAsync(
+        int loanSchedulerId,
+        int collectedBy,
+        string? comments,
+        CancellationToken cancellationToken = default);
+
     Task AddCarryForwardToScheduleAsync(
         int loanSchedulerId,
         decimal shortfallPrincipal,

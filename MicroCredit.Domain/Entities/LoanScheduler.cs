@@ -123,4 +123,11 @@ public class LoanScheduler
         ActualInterestAmount = Math.Round(newInterest, 2);
         ActualEmiAmount = ActualPrincipalAmount + ActualInterestAmount;
     }
+
+    public void MarkClaimed(int collectedBy)
+    {
+        PaymentDate = DateTime.UtcNow;
+        Status = "Claimed";
+        CollectedBy = collectedBy;
+    }
 }
