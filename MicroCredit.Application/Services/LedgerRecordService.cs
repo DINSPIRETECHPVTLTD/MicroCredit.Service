@@ -166,6 +166,22 @@ public class LedgerRecordService : ILedgerRecordService
             throw new InvalidOperationException("Transaction would result in negative balance");
     }
 
+    public async Task UpdateLedgerInsuranceAmountAsync(
+    int userId,
+    decimal insuranceAmountChange,
+    CancellationToken cancellationToken)
+    {
+        var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(userId, cancellationToken);
+
+        if (ledger == null)
+        {
+            ledger = new Ledger(userId, 0);
+            await _unitOfWork.LedgerBalances.AddAsync(ledger, cancellationToken);
+        }
+
+        ledger.AddInsuranceAmount(insuranceAmountChange);
+    }
+
     public async Task<LedgerTransaction> RecordWithdrawalAsync(
         int paidFromUserId,
         decimal amount,

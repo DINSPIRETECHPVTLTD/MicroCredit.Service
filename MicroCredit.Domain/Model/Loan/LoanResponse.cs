@@ -10,5 +10,7 @@ namespace MicroCredit.Domain.Model.Loan;
         public string Status { get; set; } = string.Empty;
         public DateTime? DisbursementDate { get; set; }
         public DateTime? ClosureDate { get; set; }
+        public int? ModifiedBy { get; set; }
+        public DateTime? ModifiedAt { get; set; }
     }
 

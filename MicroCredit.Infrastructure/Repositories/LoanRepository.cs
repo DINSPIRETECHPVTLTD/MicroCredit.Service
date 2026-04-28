@@ -46,14 +46,42 @@ public class LoanRepository : ILoanRepository
     }
 
     public async Task<IEnumerable<ActiveLoanResponse>> GetActiveLoansAsync(int branchId, CancellationToken cancellationToken = default)
-
     {
-        var branchIdParam = new Microsoft.Data.SqlClient.SqlParameter("@BranchId", branchId);
-
-        return await _context.Database
-            .SqlQueryRaw<ActiveLoanResponse>(
-                "EXEC sp_BranchLoansReport @BranchId",
-                branchIdParam)
+        return await _context.Loans
+            .AsNoTracking()
+            .Where(loan =>
+                !loan.IsDeleted &&
+                (loan.Status.Trim().ToUpper() == "ACTIVE" ||
+                 loan.Status.Trim().ToUpper() == "PENDING" ||
+                 loan.Status.Trim().ToUpper() == "CLAIMED") &&
+                loan.Member.Center.BranchId == branchId)
+            .Select(loan => new ActiveLoanResponse
+            {
+                LoanId = loan.Id,
+                MemberId = loan.MemberId,
+                FullName = (
+                    loan.Member.FirstName + " " +
+                    (loan.Member.MiddleName == null || loan.Member.MiddleName == ""
+                        ? ""
+                        : loan.Member.MiddleName + " ") +
+                    loan.Member.LastName).Trim(),
+                Status = loan.Status,
+                LoanTotalAmount = loan.TotalAmount,
+                NoOfTerms =
+                    loan.LoanSchedulers!.Count().ToString() + "/" +
+                    loan.LoanSchedulers!.Count(scheduler => scheduler.Status == "Paid").ToString(),
+                TotalAmountPaid = loan.LoanSchedulers!
+                    .Where(scheduler => scheduler.Status == "Paid")
+                    .Sum(scheduler => scheduler.PaymentAmount),
+                SchedulerTotalAmount = loan.LoanSchedulers!
+                    .Sum(scheduler => scheduler.ActualEmiAmount),
+                RemainingBal =
+                    loan.LoanSchedulers!.Sum(scheduler => scheduler.ActualEmiAmount) -
+                    loan.LoanSchedulers!
+                        .Where(scheduler => scheduler.Status == "Paid")
+                        .Sum(scheduler => scheduler.PaymentAmount),
+            })
+            .OrderBy(loan => loan.LoanId)
             .ToListAsync(cancellationToken);
     }
 

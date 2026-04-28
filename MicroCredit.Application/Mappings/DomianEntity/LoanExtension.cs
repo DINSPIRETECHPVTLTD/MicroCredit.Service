@@ -14,7 +14,9 @@ public static class LoanExtension
             InterestAmount = loan.InterestAmount,
             Status = loan.Status,
             DisbursementDate = loan.DisbursementDate,
-            ClosureDate = loan.ClosureDate
+            ClosureDate = loan.ClosureDate,
+            ModifiedBy = loan.ModifiedBy,
+            ModifiedAt = loan.ModifiedAt
         };
 
     }

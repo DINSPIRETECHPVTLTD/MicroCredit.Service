@@ -15,5 +15,9 @@ public interface ILoansService
 
     Task<IEnumerable<ActiveLoanResponse>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default);
 
+    Task<LoanResponse> UpdateLoanStatusAsync(int loanId, string status, int userId, CancellationToken cancellationToken = default);
+
+    Task<ClaimLoanResponse> ClaimLoanAsync(int loanId, int userId, CancellationToken cancellationToken = default);
+
     Task<CloseLoanResponse> CloseLoanAsync(int loanId, int userId, CancellationToken cancellationToken = default);
 }
