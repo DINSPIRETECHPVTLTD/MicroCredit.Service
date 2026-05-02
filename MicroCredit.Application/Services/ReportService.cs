@@ -1,3 +1,4 @@
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Model.Report;
@@ -37,8 +38,8 @@ public class ReportService : IReportService
         return await _unitOfWork.Reports.GetSummaryAsync(cancellationToken);
     }
 
-    public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId)
+    public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId, UserRole? role)
     {
-        return await _unitOfWork.Reports.GetMemberWiseCollectionSheet(orgId, branchId);
+        return await _unitOfWork.Reports.GetMemberWiseCollectionSheet(orgId, branchId, role);
     }
 }

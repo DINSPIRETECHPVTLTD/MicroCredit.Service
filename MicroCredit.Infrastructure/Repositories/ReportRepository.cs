@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using ClosedXML.Excel;
 using System.Drawing;
 using MicroCredit.Domain.Model.Fund;
+using MicroCredit.Domain.Entities;
 
 namespace MicroCredit.Infrastructure.Repositories;
 
@@ -194,7 +195,7 @@ CROSS JOIN
         return result ?? new ReportSummaryResponseDto();
     }
 
-    public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId)
+    public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId, UserRole? role)
     {
         var rawData = await (
                 from m in _context.Members
@@ -320,10 +321,34 @@ CROSS JOIN
         for (int idx = 0; idx < expenses.Count; idx++)
             expenses[idx].Id = idx + 1;
 
-        return Generate(dtoList, expenses);
+         List<LedgerReportDto> ledgers = null;
+
+        if (role == UserRole.Owner)
+        {
+            //Ledger Balance logic
+            ledgers = await (
+                from l in _context.Ledgers
+                join u in _context.Users on l.UserId equals u.Id
+                where u.OrgId == orgId
+                orderby u.FirstName, u.LastName
+                select new LedgerReportDto
+                {
+                    UserName = (u.FirstName + " " + u.LastName).Trim(),
+                    Amount = l.Amount,
+                    InsuranceAmount = l.InsuranceAmount,
+                    ClaimedAmount = l.ClaimedAmount,
+                }
+            ).AsNoTracking().ToListAsync();
+
+            // Assign serial numbers
+            for (int idx = 0; idx < ledgers.Count; idx++)
+                ledgers[idx].id = idx + 1;
+        }
+
+        return Generate(dtoList, expenses, ledgers);
     }
 
-    public byte[] Generate(List<MemberWiseCollectionResponseDto> data, List<ExpenseResponse> expenses = null)
+    public byte[] Generate(List<MemberWiseCollectionResponseDto> data, List<ExpenseResponse> expenses = null, List<LedgerReportDto> ledgers = null)
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Member Wise Collection");
@@ -537,6 +562,9 @@ CROSS JOIN
 
         if (expenses != null && expenses.Count > 0)
             GenerateExpensesSheet(wb, expenses);
+
+        if (ledgers != null && ledgers.Count > 0)
+            GenerateLedgerSheet(wb, ledgers);
 
         using var ms = new MemoryStream();
         wb.SaveAs(ms);
@@ -820,5 +848,130 @@ CROSS JOIN
         ws.Row(row).Height = 18;
 
         ws.SheetView.FreezeRows(2); // freeze title + header
+    }
+
+    private void GenerateLedgerSheet(XLWorkbook wb, List<LedgerReportDto> ledgers)
+    {
+        var ws = wb.Worksheets.Add("Ledger Balance");
+
+        // ── Colors ────────────────────────────────────────────────
+        var titleFill = XLColor.FromHtml("#1F4E79");
+        var headerFill = XLColor.FromHtml("#BDB07A");
+        var totalFill = XLColor.FromHtml("#BDB07A");
+        var altFill = XLColor.FromHtml("#F5F5F0");
+
+        // ── Column widths ──────────────────────────────────────────
+        ws.Column(1).Width = 6;    // Sl.N
+        ws.Column(2).Width = 28;   // User Name
+        ws.Column(3).Width = 18;   // Amount
+        ws.Column(4).Width = 18;   // Insurance Amount
+        ws.Column(5).Width = 18;   // Claimed Amount
+
+        // ── Title row ─────────────────────────────────────────────
+        int row = 1;
+        var titleRange = ws.Range(row, 1, row, 5);
+        titleRange.Merge();
+        titleRange.Value = "Ledger Balance Sheet";
+        titleRange.Style
+            .Font.SetBold(true)
+            .Font.SetFontSize(13)
+            .Font.SetFontColor(XLColor.FromHtml("#1F4E79"))
+            .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center)
+            .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
+        ws.Row(row).Height = 22;
+
+        // ── Header row ────────────────────────────────────────────
+        row++;
+        string[] headers = ["Sl.N", "User Name", "Amount", "Insurance Amount", "Claimed Amount"];
+        for (int col = 1; col <= headers.Length; col++)
+        {
+            var cell = ws.Cell(row, col);
+            cell.Value = headers[col - 1];
+            cell.Style
+                .Font.SetBold(true)
+                .Font.SetFontSize(10)
+                .Font.SetFontColor(XLColor.White)
+                .Fill.SetBackgroundColor(headerFill)
+                .Border.SetOutsideBorder(XLBorderStyleValues.Thin)
+                .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center)
+                .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
+        }
+        ws.Row(row).Height = 22;
+        ws.Range(row, 1, row, 5).SetAutoFilter();
+
+        // ── Data rows ─────────────────────────────────────────────
+        int dataStartRow = row + 1;
+
+        for (int i = 0; i < ledgers.Count; i++)
+        {
+            row++;
+            var bg = i % 2 == 0 ? XLColor.White : altFill;
+            var l = ledgers[i];
+
+            void WriteCell(int col, object value, bool isRed = false, bool isBold = false)
+            {
+                var cell = ws.Cell(row, col);
+                cell.Value = XLCellValue.FromObject(value);
+                cell.Style
+                    .Font.SetFontSize(9)
+                    .Font.SetBold(isBold)
+                    .Fill.SetBackgroundColor(bg)
+                    .Border.SetOutsideBorder(XLBorderStyleValues.Thin)
+                    .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
+
+                if (isRed)
+                    cell.Style.Font.SetFontColor(XLColor.Red);
+
+                if (value is decimal or double)
+                    cell.Style.NumberFormat.SetFormat("#,##0.00");
+            }
+
+            WriteCell(1, l.id);
+            WriteCell(2, l.UserName);
+            WriteCell(3, l.Amount,
+                isRed: l.Amount < 0);                    // negative amounts in red
+            WriteCell(4, l.InsuranceAmount,
+                isRed: l.InsuranceAmount < 0);            // negative in red (like -23543.52)
+            WriteCell(5, l.ClaimedAmount);
+
+            // Right-align numeric columns
+            ws.Cell(row, 1).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+            ws.Cell(row, 3).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+            ws.Cell(row, 4).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+            ws.Cell(row, 5).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+
+            ws.Row(row).Height = 16;
+        }
+
+        int dataEndRow = row;
+
+        // ── Total row ──────────────────────────────────────────────
+        row++;
+        for (int col = 1; col <= 5; col++)
+        {
+            ws.Cell(row, col).Style
+                .Fill.SetBackgroundColor(totalFill)
+                .Border.SetOutsideBorder(XLBorderStyleValues.Thin)
+                .Font.SetBold(true)
+                .Font.SetFontSize(10);
+        }
+
+        ws.Cell(row, 2).Value = "Total:-";
+        ws.Cell(row, 2).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+
+        // Total for Amount, InsuranceAmount, ClaimedAmount
+        ws.Cell(row, 3).FormulaA1 = $"SUM(C{dataStartRow}:C{dataEndRow})";
+        ws.Cell(row, 4).FormulaA1 = $"SUM(D{dataStartRow}:D{dataEndRow})";
+        ws.Cell(row, 5).FormulaA1 = $"SUM(E{dataStartRow}:E{dataEndRow})";
+
+        for (int col = 3; col <= 5; col++)
+        {
+            ws.Cell(row, col).Style
+                .NumberFormat.SetFormat("#,##0.00")
+                .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+        }
+
+        ws.Row(row).Height = 18;
+        ws.SheetView.FreezeRows(2);
     }
 }
