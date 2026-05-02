@@ -133,7 +133,9 @@ public class ReportController : ControllerBase
         if (_userContext.UserId == 0 || _userContext.OrgId == 0 || _userContext.BranchId == 0)
             return Unauthorized();
 
-        var fileBytes = await _reportService.GetMemberWiseCollectionSheet(_userContext.OrgId, _userContext.BranchId);
+        var role = UserClaimsHelper.GetUserRole(User);
+
+        var fileBytes = await _reportService.GetMemberWiseCollectionSheet(_userContext.OrgId, _userContext.BranchId, role);
 
         if (fileBytes == null || fileBytes.Length == 0)
             return NotFound("No data found for the given organisation.");
@@ -141,7 +143,7 @@ public class ReportController : ControllerBase
         return File(
             fileBytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            $"MemberWiseCollection_{DateTime.Today:yyyyMMdd}.xlsx"
+            $"Report_{DateTime.Today:yyyyMMdd}.xlsx"
         );
     }
 }
