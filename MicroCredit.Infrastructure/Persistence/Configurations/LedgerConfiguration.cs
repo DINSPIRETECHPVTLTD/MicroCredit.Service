@@ -18,6 +18,12 @@ public class LedgerConfiguration : IEntityTypeConfiguration<Ledger>
             .HasColumnType("decimal(18,2)")
             .IsRequired();
 
+        builder.Property(x => x.InsuranceAmount)
+            .HasColumnType("decimal(18,2)");
+
+        builder.Property(x => x.ClaimedAmount)
+            .HasColumnType("decimal(18,2)");
+
         builder.HasOne(x => x.User)
             .WithMany()
             .HasForeignKey(x => x.UserId)

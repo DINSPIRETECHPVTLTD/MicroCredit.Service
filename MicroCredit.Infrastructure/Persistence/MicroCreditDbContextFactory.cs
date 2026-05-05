@@ -5,30 +5,48 @@ using Microsoft.Extensions.Configuration;
 namespace MicroCredit.Infrastructure.Persistence;
 
 /// <summary>
-/// Used by EF Core tools (<c>dotnet ef migrations</c>) so the API project does not need to be the startup project.
-/// Connection string is read from <c>MicroCredit.Api/appsettings.json</c> (or Development) relative to the Infrastructure project folder.
+/// Used by EF Core tools (<c>dotnet ef</c>) so migrations work without starting the web host.
+/// Resolves <c>MicroCredit.Api</c> from the current directory or any parent folder, then loads
+/// the same configuration as the API (including <c>ConnectionStrings:DefaultConnection</c>).
 /// </summary>
-public class MicroCreditDbContextFactory : IDesignTimeDbContextFactory<MicroCreditDbContext>
+public sealed class MicroCreditDbContextFactory : IDesignTimeDbContextFactory<MicroCreditDbContext>
 {
     public MicroCreditDbContext CreateDbContext(string[] args)
     {
-        var infrastructureDir = Directory.GetCurrentDirectory();
-        var apiDir = Path.GetFullPath(Path.Combine(infrastructureDir, "..", "MicroCredit.Api"));
+        var apiRoot = ResolveApiProjectDirectory()
+            ?? throw new InvalidOperationException(
+                "Could not locate MicroCredit.Api. Run dotnet ef from the solution/repo root, or set ConnectionStrings__DefaultConnection.");
 
         var configuration = new ConfigurationBuilder()
-            .SetBasePath(apiDir)
-            .AddJsonFile("appsettings.json", optional: false)
+            .SetBasePath(apiRoot)
+            .AddJsonFile("appsettings.json", optional: true)
             .AddJsonFile("appsettings.Development.json", optional: true)
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException(
-                $"Connection string 'DefaultConnection' not found. Checked base path: {apiDir}");
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Connection string 'DefaultConnection' is missing. Add it under ConnectionStrings in appsettings.Development.json or set environment variable ConnectionStrings__DefaultConnection.");
+        }
 
         var optionsBuilder = new DbContextOptionsBuilder<MicroCreditDbContext>();
         optionsBuilder.UseSqlServer(connectionString);
 
         return new MicroCreditDbContext(optionsBuilder.Options);
+    }
+
+    private static string? ResolveApiProjectDirectory()
+    {
+        for (var dir = new DirectoryInfo(Directory.GetCurrentDirectory()); dir != null; dir = dir.Parent)
+        {
+            var candidate = Path.Combine(dir.FullName, "MicroCredit.Api");
+            if (Directory.Exists(candidate) &&
+                File.Exists(Path.Combine(candidate, "MicroCredit.Api.csproj")))
+                return candidate;
+        }
+
+        return null;
     }
 }
