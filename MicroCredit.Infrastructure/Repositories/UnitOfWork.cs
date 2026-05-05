@@ -24,6 +24,7 @@ public class UnitOfWork : IUnitOfWork
     public IMemberMembershipFeeRepository MemberMembershipFees { get; }
     public IRecoveryPostingRepository RecoveryPostings { get; }
     public IReportRepository Reports { get; }
+    public IInsuranceClaimFinancialSummaryRepository InsuranceClaimFinancialSummaries { get; }
 
     public UnitOfWork(MicroCreditDbContext context)
     {
@@ -43,7 +44,7 @@ public class UnitOfWork : IUnitOfWork
         MemberMembershipFees = new MemberMembershipFeeRepository(_context);
         RecoveryPostings = new RecoveryPostingRepository(_context);
         Reports = new ReportRepository(_context);
-
+        InsuranceClaimFinancialSummaries = new InsuranceClaimFinancialSummaryRepository(_context);
     }
 
     public async Task<int> CompleteAsync()

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Model.Loan;
@@ -31,13 +33,56 @@ public class LoanRepository : ILoanRepository
 
     public async Task<IEnumerable<ActiveLoanResponse>> GetLoanByMemId(int memberId, CancellationToken cancellationToken = default)
     {
-        var memberIdParam = new Microsoft.Data.SqlClient.SqlParameter("@MemberId", memberId);
-
-        return await _context.Database
-            .SqlQueryRaw<ActiveLoanResponse>(
-                "EXEC sp_MemberLoanReport @MemberId",
-                memberIdParam)
+        // Load entities from Loans (Status column is on Loans) and map in memory — never use SqlQueryRaw<ActiveLoanResponse>
+        // against sp_MemberLoanReport: proc columns must match the DTO exactly or EF throws "FromSql" / missing Status.
+        var loans = await _context.Loans
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(l => l.Member)
+            .Include(l => l.LoanSchedulers)
+            .Where(loan => !loan.IsDeleted && loan.MemberId == memberId)
+            .OrderBy(loan => loan.Id)
             .ToListAsync(cancellationToken);
+
+        return loans
+            .Where(loan =>
+            {
+                var s = loan.Status.Trim().ToUpperInvariant();
+                return s is "ACTIVE" or "PENDING" or "CLAIMED";
+            })
+            .Select(MapLoanToActiveLoanResponse)
+            .ToList();
+    }
+
+    private static ActiveLoanResponse MapLoanToActiveLoanResponse(Loan loan)
+    {
+        var schedulers = loan.LoanSchedulers?.ToList() ?? new List<LoanScheduler>();
+
+        return new ActiveLoanResponse
+        {
+            LoanId = loan.Id,
+            MemberId = loan.MemberId,
+            FullName = (
+                loan.Member.FirstName + " " +
+                (loan.Member.MiddleName == null || loan.Member.MiddleName == ""
+                    ? ""
+                    : loan.Member.MiddleName + " ") +
+                loan.Member.LastName).Trim(),
+            Status = loan.Status,
+            LoanTotalAmount = loan.TotalAmount,
+            NoOfTerms =
+                schedulers.Count.ToString() + "/" +
+                schedulers.Count(s => string.Equals(s.Status, "Paid", StringComparison.OrdinalIgnoreCase)),
+            TotalAmountPaid = schedulers
+                .Where(s => string.Equals(s.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                .Sum(s => s.PaymentAmount),
+            SchedulerTotalAmount = schedulers.Sum(s => s.ActualEmiAmount),
+            RemainingBal =
+                schedulers.Sum(s => s.ActualEmiAmount) -
+                schedulers
+                    .Where(s => string.Equals(s.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                    .Sum(s => s.PaymentAmount),
+        };
     }
 
     public async Task AddLoanAsync(Loan loan, CancellationToken cancellationToken = default)
@@ -51,10 +96,11 @@ public class LoanRepository : ILoanRepository
             .AsNoTracking()
             .Where(loan =>
                 !loan.IsDeleted &&
+                loan.Member.Center.BranchId == branchId &&
                 (loan.Status.Trim().ToUpper() == "ACTIVE" ||
                  loan.Status.Trim().ToUpper() == "PENDING" ||
-                 loan.Status.Trim().ToUpper() == "CLAIMED") &&
-                loan.Member.Center.BranchId == branchId)
+                 loan.Status.Trim().ToUpper() == "CLAIMED" ||
+                 loan.Status.Trim().ToUpper() == "CLOSED"))
             .Select(loan => new ActiveLoanResponse
             {
                 LoanId = loan.Id,

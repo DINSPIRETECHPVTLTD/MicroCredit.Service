@@ -4,7 +4,6 @@ using MicroCredit.Domain.Interfaces.Services;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Model.Loan;
 using MicroCredit.Application.Mappings.DomianEntity;
-using Microsoft.AspNetCore.Http.HttpResults;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Application.Core;
 using Microsoft.EntityFrameworkCore;
@@ -93,17 +92,27 @@ public class LoansService : ILoansService
             throw new InvalidOperationException("No pending installments found for claim.");
 
         var totalPendingEmiAmount = pendingSchedulers.Sum(s => s.ActualEmiAmount > 0 ? s.ActualEmiAmount : s.PaymentAmount);
-        var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(userId, cancellationToken);
-        if (ledger == null)
-            throw new NotFoundException($"Ledger for user id {userId} not found.");
 
-        var insuranceAmount = ledger.InsuranceAmount ?? 0m;
-        var remainingInsuranceAmount = insuranceAmount - totalPendingEmiAmount;
+        decimal insuranceAmountBeforeClaim = 0m;
+        decimal remainingInsuranceAmount = 0m;
 
         using var transaction = _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            ledger.ApplyClaimAmounts(remainingInsuranceAmount, totalPendingEmiAmount);
+            (insuranceAmountBeforeClaim, remainingInsuranceAmount) =
+                await _unitOfWork.InsuranceClaimFinancialSummaries.ApplyInsuranceClaimAsync(
+                    totalPendingEmiAmount,
+                    cancellationToken);
+
+            await _ledgerRecordService.RecordDepositAsync(
+                paidToUserId: userId,
+                amount: totalPendingEmiAmount,
+                paymentDate: DateTime.UtcNow,
+                createdBy: userId,
+                createdDate: DateTime.UtcNow,
+                transactionType: "Insurance claim",
+                referenceId: loan.Id,
+                comments: $"Insurance claim for Loan ID: {loan.Id}, Member ID: {loan.MemberId}");
 
             foreach (var scheduler in pendingSchedulers)
             {
@@ -125,7 +134,7 @@ public class LoansService : ILoansService
             LoanId = loan.Id,
             Status = "Claimed",
             TotalPendingEmiAmount = totalPendingEmiAmount,
-            InsuranceAmountBeforeClaim = insuranceAmount,
+            InsuranceAmountBeforeClaim = insuranceAmountBeforeClaim,
             RemainingInsuranceAmount = remainingInsuranceAmount,
             ClaimedAmount = totalPendingEmiAmount,
             UpdatedSchedulersCount = pendingSchedulers.Count
@@ -198,40 +207,13 @@ public class LoansService : ILoansService
                 comments: $"Loan disbursement for Loan ID: {loan.Id}, Member ID: {loan.MemberId}"
                 );
 
-            if (loan.ProcessingFee > 0)
-            {
-                await _ledgerRecordService.RecordDepositAsync(
-                    paidToUserId: userId,
-                    amount: loan.ProcessingFee,
-                    paymentDate: loan.DisbursementDate?? DateTime.UtcNow,
-                    createdBy: userId,
-                    createdDate: DateTime.UtcNow,
-                    referenceId: loan.Id,
-                    transactionType: "Processing fee",
-                    comments: $"Processing fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}"
-                );
-            }
-
-            if (loan.InsuranceFee > 0)
-            {
-                await _ledgerRecordService.RecordDepositAsync(
-                    paidToUserId: userId,
-                    amount: loan.InsuranceFee,
-                    paymentDate: loan.DisbursementDate ?? DateTime.UtcNow,
-                    createdBy: userId,
-                    createdDate: DateTime.UtcNow,
-                    referenceId: loan.Id,
-                    transactionType: "Insurance fee",
-                    comments: $"Insurance fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}"
-                );
-
-                await _ledgerRecordService.UpdateLedgerInsuranceAmountAsync(
-                    userId,
-                    loan.InsuranceFee,
-                    cancellationToken);
-
-                await _unitOfWork.CompleteAsync();
-            }
+            // As per latest requirement, do not create ledger transactions for insurance/processing fees.
+            // Keep running totals only in Insurance_Claim_Financial_Summary.
+            await _unitOfWork.InsuranceClaimFinancialSummaries.AccumulateLoanCreationTotalsAsync(
+                loan.InsuranceFee,
+                loan.ProcessingFee,
+                cancellationToken);
+            await _unitOfWork.CompleteAsync();
 
             await transaction.CommitAsync(cancellationToken);
 
@@ -251,7 +233,7 @@ public class LoansService : ILoansService
 
     }
 
-    public async Task<CloseLoanResponse> CloseLoanAsync(int loanId, int userId, CancellationToken cancellationToken = default)
+    public async Task<CloseLoanResponse> CloseLoanAsync(int loanId, int userId, decimal? receivedAmount = null, CancellationToken cancellationToken = default)
     {
         var loan = await _unitOfWork.Loans.GetByIdAsync(loanId, cancellationToken);
         if (loan == null)
@@ -282,6 +264,18 @@ public class LoansService : ILoansService
 
         loan.CloseLoan(userId);
         await _unitOfWork.CompleteAsync();
+
+        await _ledgerRecordService.CreateTransactionAsync(
+            paidFromUserId: null,
+            paidToUserId: userId,
+            amount: Math.Max(0m, receivedAmount ?? 0m),
+            paymentDate: loan.ClosureDate ?? DateTime.UtcNow,
+            createdBy: userId,
+            createdDate: DateTime.UtcNow,
+            transactionType: "Loan Closed",
+            referenceId: loan.Id,
+            comments: $"Loan closed for Loan ID: {loan.Id}, Member ID: {loan.MemberId}",
+            cancellationToken: cancellationToken);
 
         return new CloseLoanResponse
         {

@@ -103,13 +103,13 @@ namespace MicroCredit.Api.Controllers
         }
 
         [HttpPut("{id:int}/close")]
-        public async Task<IActionResult> CloseLoan(int id, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> CloseLoan(int id, [FromBody] CloseLoanRequest? request, CancellationToken cancellationToken = default)
         {
             if (_userContext.UserId == 0 || _userContext.OrgId == 0)
                 return Unauthorized();
             try
             {
-                var result = await _loansService.CloseLoanAsync(id, _userContext.UserId, cancellationToken);
+                var result = await _loansService.CloseLoanAsync(id, _userContext.UserId, request?.ReceivedAmount, cancellationToken);
                 return Ok(result);
             }
             catch (InvalidOperationException ex)

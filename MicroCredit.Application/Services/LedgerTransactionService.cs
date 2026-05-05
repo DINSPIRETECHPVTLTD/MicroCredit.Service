@@ -37,8 +37,7 @@ namespace MicroCredit.Application.Services
                 null,
                 request.Comments,
                 cancellationToken);
-
-            await _unitOfWork.CompleteAsync();
+            // RecordExpenseAsync → CreateTransactionAsync already calls UnitOfWork.CompleteAsync.
         }
 
         public async Task<IEnumerable<ExpenseResponse>> GetTransactionsByUserIdAsync(

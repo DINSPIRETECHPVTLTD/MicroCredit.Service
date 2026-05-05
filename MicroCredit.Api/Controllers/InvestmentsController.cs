@@ -41,7 +41,8 @@ namespace MicroCredit.Api.Controllers
             if (ids == null) return Unauthorized();
             var (userId, _) = ids.Value;
             var id = await _investmentsService.CreateInvestmentAsync(request, userId, cancellationToken);
-            return CreatedAtAction(nameof(GetInvestments), new { id }, new { id });
+            // Do not use CreatedAtAction(GetInvestments): that action has no route parameter for id, which breaks URL generation and yields 500 after the DB work completes.
+            return StatusCode(StatusCodes.Status201Created, new { id });
         }
     }
 }
