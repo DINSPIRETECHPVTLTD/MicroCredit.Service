@@ -12,6 +12,9 @@ public class MicroCreditDbContext : DbContext
 
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<Center> Centers => Set<Center>();
+    public DbSet<InsuranceClaimFinancialSummary> InsuranceClaimFinancialSummaries =>
+        Set<InsuranceClaimFinancialSummary>();
+
     public DbSet<Investment> Investments => Set<Investment>();
     public DbSet<Ledger> Ledgers => Set<Ledger>();
     public DbSet<LedgerTransaction> LedgerTransactions => Set<LedgerTransaction>();
@@ -28,6 +31,9 @@ public class MicroCreditDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Align with database objects (e.g. [dinspire_sa].[Ledgers]); login default schema is not always used by EF-generated SQL.
+        modelBuilder.HasDefaultSchema("dinspire_sa");
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(MicroCreditDbContext).Assembly);
     }

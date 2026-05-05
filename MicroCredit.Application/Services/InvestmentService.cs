@@ -41,9 +41,12 @@ namespace MicroCredit.Application.Services
 
             await _unitOfWork.CompleteAsync();
 
-            var investor = await _usersService.GetByIdAsync(request.UserId);
+            var investor = await _usersService.GetByIdAsync(request.UserId, cancellationToken);
+            var investorLabel = investor is null
+                ? $"UserId {request.UserId}"
+                : $"{investor.FirstName} {investor.Surname}".Trim();
 
-            var investmentComment = $"Investment of {request.Amount} from {investor.FirstName} {investor.Surname}";
+            var investmentComment = $"Investment of {request.Amount} from {investorLabel}";
 
             await _ledgerRecordService.RecordInvestmentAsync(
                 request.UserId,

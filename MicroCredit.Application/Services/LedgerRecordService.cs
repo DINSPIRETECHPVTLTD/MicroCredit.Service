@@ -29,7 +29,9 @@ public class LedgerRecordService : ILedgerRecordService
     string? comments = null,
     CancellationToken cancellationToken = default)
     {
-        if (amount <= 0)
+        // "Loan Closed" is a marker transaction and can be recorded with zero amount.
+        var isLoanClosedMarker = string.Equals(transactionType, "Loan Closed", StringComparison.OrdinalIgnoreCase);
+        if (amount < 0 || (amount == 0 && !isLoanClosedMarker))
             throw new InvalidOperationException("Transaction amount must be greater than zero");
 
         if (paidFromUserId == null && paidToUserId == null)
@@ -95,12 +97,12 @@ public class LedgerRecordService : ILedgerRecordService
     CancellationToken cancellationToken = default)
     {
         var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(paidFromUserId, cancellationToken);
-
-        if (ledger == null)
-            throw new InvalidOperationException("Ledger balance not found for this user.");
-
-        if (ledger.Amount < amount)
-            throw new InvalidOperationException("Insufficient balance");
+        var available = ledger?.Amount ?? 0m;
+        if (available < amount)
+        {
+            throw new InvalidOperationException(
+                $"Insufficient ledger balance for this expense (user {paidFromUserId}). Available: {available:N2}, requested: {amount:N2}.");
+        }
 
         return await CreateTransactionAsync(
             paidFromUserId,
@@ -126,13 +128,10 @@ public class LedgerRecordService : ILedgerRecordService
     string? comments = null,
     CancellationToken cancellationToken = default)
     {
-        var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(paidFromUserId, cancellationToken); ;
-
-        if (ledger == null)
-            throw new InvalidOperationException("Ledger balance not found for this user.");
-
-        if (ledger.Amount < amount)
-            throw new InvalidOperationException("Insufficient balance");
+        var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(paidFromUserId, cancellationToken);
+        var available = ledger?.Amount ?? 0m;
+        if (available < amount)
+            throw new InvalidOperationException("Insufficient balance.");
 
         return await CreateTransactionAsync(
             paidFromUserId,
@@ -164,22 +163,6 @@ public class LedgerRecordService : ILedgerRecordService
 
         if (ledger.Amount < 0)
             throw new InvalidOperationException("Transaction would result in negative balance");
-    }
-
-    public async Task UpdateLedgerInsuranceAmountAsync(
-    int userId,
-    decimal insuranceAmountChange,
-    CancellationToken cancellationToken)
-    {
-        var ledger = await _unitOfWork.LedgerBalances.GetByUserIdAsync(userId, cancellationToken);
-
-        if (ledger == null)
-        {
-            ledger = new Ledger(userId, 0);
-            await _unitOfWork.LedgerBalances.AddAsync(ledger, cancellationToken);
-        }
-
-        ledger.AddInsuranceAmount(insuranceAmountChange);
     }
 
     public async Task<LedgerTransaction> RecordWithdrawalAsync(

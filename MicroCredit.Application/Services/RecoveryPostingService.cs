@@ -167,6 +167,8 @@ public class RecoveryPostingService : IRecoveryPostingService
 
         try
         {
+            var ledgerRecoveryTotalsByLoan = new Dictionary<int, (decimal TotalAmount, int Count)>();
+
             foreach (var row in ordered)
             {
                 var line = request.Items.First(i => i.LoanSchedulerId == row.LoanSchedulerId);
@@ -313,44 +315,48 @@ public class RecoveryPostingService : IRecoveryPostingService
 
                 if (!string.Equals(normalizedStatus, StatusOverdue, StringComparison.OrdinalIgnoreCase))
                 {
-                    // Recovery collection should credit ledger balance for the collector.
-                    var alreadyRecorded = await _unitOfWork.LedgerTransaction.ExistsByTypeAndReferenceIdAsync(
-                        EmiRecoveryTransactionType,
-                        row.LoanSchedulerId,
-                        cancellationToken);
-
-                    if (!alreadyRecorded)
+                    if (ledgerRecoveryTotalsByLoan.TryGetValue(row.LoanId, out var agg))
                     {
-                        var memberInfo = loanMemberMap.TryGetValue(row.LoanId, out var v) ? v : null;
-                        var memberLabel = memberInfo?.MemberName;
-                        if (string.IsNullOrWhiteSpace(memberLabel))
-                        {
-                            memberLabel = memberInfo != null ? memberInfo.MemberId.ToString() : "Unknown";
-                        }
-
-                        var defaultComment =
-                            $"Loan Payment for Loan ID: {row.LoanId}, Loan Scheduler: {row.LoanSchedulerId}, Member ID: {memberLabel}";
-                        var finalComment = string.IsNullOrWhiteSpace(line.Comments)
-                            ? defaultComment
-                            : $"{defaultComment} | Reason: {line.Comments.Trim()}";
-
-                        await _ledgerRecordService.RecordDepositAsync(
-                            paidToUserId: request.CollectedBy,
-                            amount: payment,
-                            paymentDate: DateTime.UtcNow,
-                            createdBy: userContext.UserId,
-                            createdDate: DateTime.UtcNow,
-                            transactionType: EmiRecoveryTransactionType,
-                            referenceId: row.LoanSchedulerId,
-                            comments: finalComment,
-                            cancellationToken: cancellationToken);
+                        ledgerRecoveryTotalsByLoan[row.LoanId] = (agg.TotalAmount + payment, agg.Count + 1);
                     }
                     else
                     {
-                        _logger.LogInformation(
-                            "Skipping duplicate EMI Recovery ledger entry for LoanSchedulerId={LoanSchedulerId}.",
-                            row.LoanSchedulerId);
+                        ledgerRecoveryTotalsByLoan[row.LoanId] = (payment, 1);
                     }
+                }
+            }
+
+            if (!request.SkipLedgerTransaction)
+            {
+                // Create one ledger transaction per loan with summed posted EMI amount.
+                foreach (var kvp in ledgerRecoveryTotalsByLoan)
+                {
+                    var loanId = kvp.Key;
+                    var totalAmount = kvp.Value.TotalAmount;
+                    var count = kvp.Value.Count;
+                    if (totalAmount <= 0) continue;
+
+                    var memberInfo = loanMemberMap.TryGetValue(loanId, out var v) ? v : null;
+                    var memberLabel = memberInfo?.MemberName;
+                    if (string.IsNullOrWhiteSpace(memberLabel))
+                    {
+                        memberLabel = memberInfo != null ? memberInfo.MemberId.ToString() : "Unknown";
+                    }
+
+                    var comment = count == 1
+                        ? $"EMI recovery posted for Loan ID: {loanId}, Member ID: {memberLabel}."
+                        : $"EMI recovery posted for Loan ID: {loanId}, Member ID: {memberLabel}. Total from {count} EMI rows.";
+
+                    await _ledgerRecordService.RecordDepositAsync(
+                        paidToUserId: request.CollectedBy,
+                        amount: totalAmount,
+                        paymentDate: DateTime.UtcNow,
+                        createdBy: userContext.UserId,
+                        createdDate: DateTime.UtcNow,
+                        transactionType: EmiRecoveryTransactionType,
+                        referenceId: loanId,
+                        comments: comment,
+                        cancellationToken: cancellationToken);
                 }
             }
 

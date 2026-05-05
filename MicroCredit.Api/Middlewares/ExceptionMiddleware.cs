@@ -1,5 +1,6 @@
 using MicroCredit.Application.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 using System.Net;
 
@@ -8,10 +9,12 @@ namespace MicroCredit.Api.Middlewares;
 public class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly IHostEnvironment _environment;
 
-    public ExceptionMiddleware(RequestDelegate next)
+    public ExceptionMiddleware(RequestDelegate next, IHostEnvironment environment)
     {
         _next = next;
+        _environment = environment;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -48,7 +51,10 @@ public class ExceptionMiddleware
             Log.Error(ex, "Unhandled exception occurred");
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred. Please try again later." });
+            var message = _environment.IsDevelopment()
+                ? $"{ex.GetType().Name}: {ex.Message}"
+                : "An unexpected error occurred. Please try again later.";
+            await context.Response.WriteAsJsonAsync(new { error = message });
         }
     }
 }

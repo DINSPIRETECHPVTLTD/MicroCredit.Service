@@ -16,12 +16,6 @@ public class Ledger
     [Column(TypeName = "decimal(18,2)")]
     public decimal Amount { get; private set; }
 
-    [Column(TypeName = "decimal(18,2)")]
-    public decimal? InsuranceAmount { get; private set; }
-
-    [Column(TypeName = "decimal(18,2)")]
-    public decimal? ClaimedAmount { get; private set; }
-
     // Navigation
     [ForeignKey("UserId")]
     public virtual User User { get; private set; } = null!;
@@ -37,16 +31,5 @@ public class Ledger
     public void UpdateAmount(decimal amount)
     {
         Amount = amount;
-    }
-
-    public void AddInsuranceAmount(decimal amount)
-    {
-        InsuranceAmount = (InsuranceAmount ?? 0m) + amount;
-    }
-
-    public void ApplyClaimAmounts(decimal remainingInsuranceAmount, decimal claimedAmount)
-    {
-        InsuranceAmount = remainingInsuranceAmount;
-        ClaimedAmount = claimedAmount;
     }
 }

@@ -33,6 +33,11 @@ public class RecoveryPostingPostRequest
 {
     public int CollectedBy { get; set; }
     public List<RecoveryPostingPostLine> Items { get; set; } = new();
+    /// <summary>
+    /// When true, do not create EMI Recovery entries in LedgerTransactions for this post batch.
+    /// Used by full-loan closure flow where a separate Loan Closed transaction is recorded.
+    /// </summary>
+    public bool SkipLedgerTransaction { get; set; }
 }
 
 public class RecoveryPostingPostResponse

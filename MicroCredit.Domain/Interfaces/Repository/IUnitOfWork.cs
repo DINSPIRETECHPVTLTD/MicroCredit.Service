@@ -18,7 +18,7 @@ public interface IUnitOfWork : IDisposable
     IMemberMembershipFeeRepository MemberMembershipFees { get; }
     IRecoveryPostingRepository RecoveryPostings { get; }
     IReportRepository Reports { get; }
-
+    IInsuranceClaimFinancialSummaryRepository InsuranceClaimFinancialSummaries { get; }
 
     Task<int> CompleteAsync();
     public IDbContextTransaction BeginTransactionAsync(CancellationToken cancellationToken = default);

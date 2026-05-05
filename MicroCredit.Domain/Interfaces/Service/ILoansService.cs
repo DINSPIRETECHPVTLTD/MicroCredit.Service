@@ -19,5 +19,5 @@ public interface ILoansService
 
     Task<ClaimLoanResponse> ClaimLoanAsync(int loanId, int userId, CancellationToken cancellationToken = default);
 
-    Task<CloseLoanResponse> CloseLoanAsync(int loanId, int userId, CancellationToken cancellationToken = default);
+    Task<CloseLoanResponse> CloseLoanAsync(int loanId, int userId, decimal? receivedAmount = null, CancellationToken cancellationToken = default);
 }

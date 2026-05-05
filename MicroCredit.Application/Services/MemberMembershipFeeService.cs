@@ -10,10 +10,12 @@ namespace MicroCredit.Application.Services;
 public class MemberMembershipFeeService : IMemberMembershipFeeService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILedgerRecordService _ledgerRecordService;
 
-    public MemberMembershipFeeService(IUnitOfWork unitOfWork)
+    public MemberMembershipFeeService(IUnitOfWork unitOfWork, ILedgerRecordService ledgerRecordService)
     {
         _unitOfWork = unitOfWork;
+        _ledgerRecordService = ledgerRecordService;
     }
 
     public async Task<MemberMembershipFeeResponse> CreateAsync(CreateMemberMembershipFeeRequest request, IUserContext context, CancellationToken cancellationToken = default)
@@ -36,7 +38,29 @@ public class MemberMembershipFeeService : IMemberMembershipFeeService
         );
 
         await _unitOfWork.MemberMembershipFees.CreateAsync(fee, cancellationToken);
+        await _unitOfWork.InsuranceClaimFinancialSummaries.AccumulateJoiningFeeAsync(
+            fee.Amount,
+            cancellationToken);
         await _unitOfWork.CompleteAsync();
+
+        if (fee.Amount > 0m)
+        {
+            var paidToUserId = request.CollectedBy is > 0 ? request.CollectedBy.Value : context.UserId;
+            var paymentDate = request.PaidDate ?? DateTime.UtcNow;
+
+            await _ledgerRecordService.RecordDepositAsync(
+                paidToUserId: paidToUserId,
+                amount: fee.Amount,
+                paymentDate: paymentDate,
+                createdBy: context.UserId,
+                createdDate: DateTime.UtcNow,
+                transactionType: "Member Joining Fee",
+                referenceId: fee.Id,
+                comments: string.IsNullOrWhiteSpace(request.Comments)
+                    ? $"Member joining fee for Member ID: {fee.MemberId} (fee record {fee.Id})."
+                    : request.Comments,
+                cancellationToken: cancellationToken);
+        }
 
         return fee.ToResponse();
     }

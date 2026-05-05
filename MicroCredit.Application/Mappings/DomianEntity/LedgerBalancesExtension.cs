@@ -17,7 +17,6 @@ namespace MicroCredit.Application.Mappings.DomianEntity
                 Id = ledger.Id,
                 UserId = ledger.UserId,
                 Amount = ledger.Amount,
-                InsuranceAmount = ledger.InsuranceAmount ?? 0m
             };
 
         }

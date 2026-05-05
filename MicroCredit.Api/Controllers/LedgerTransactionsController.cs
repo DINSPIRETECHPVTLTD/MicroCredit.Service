@@ -36,6 +36,8 @@ namespace MicroCredit.Api.Controllers
         {
             if (request == null || request.Amount <= 0)
                 return BadRequest("Valid amount is required.");
+            if (request.PaidFromUserId <= 0)
+                return BadRequest("Paid from user is required.");
             var ids = UserClaimsHelper.GetUserIdAndOrgId(User);
             if (ids == null) return Unauthorized();
             var (userId, _) = ids.Value;
