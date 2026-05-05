@@ -335,8 +335,8 @@ CROSS JOIN
                 {
                     UserName = (u.FirstName + " " + u.LastName).Trim(),
                     Amount = l.Amount,
-                    InsuranceAmount = l.InsuranceAmount,
-                    ClaimedAmount = l.ClaimedAmount,
+                    InsuranceAmount = null,
+                    ClaimedAmount = null,
                 }
             ).AsNoTracking().ToListAsync();
 
