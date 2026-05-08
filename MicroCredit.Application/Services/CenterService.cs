@@ -54,6 +54,14 @@ namespace MicroCredit.Application.Services
             var center = await _unitOfWork.Centers.GetByCenterId(CenterId, cancellationToken);
             if (center == null)
                 throw new NotFoundException("Center not found.");
+
+            var activeDependencies = await _unitOfWork.Centers.GetActiveDependencyNamesAsync(CenterId, cancellationToken);
+            if (activeDependencies.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Center cannot be inactivated because it has active {string.Join(", ", activeDependencies)}.");
+            }
+
             center.MarkDeleted(modifiedby);
 
             await _unitOfWork.Centers.UpdateAsync(center, cancellationToken);

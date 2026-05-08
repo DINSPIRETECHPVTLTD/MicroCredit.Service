@@ -31,6 +31,36 @@ namespace MicroCredit.Infrastructure.Repositories
                 .Where(b => b.Id == centerId && !b.IsDeleted)
                 .FirstOrDefaultAsync(cancellationToken);
         }
+        public async Task<IReadOnlyList<string>> GetActiveDependencyNamesAsync(
+            int centerId,
+            CancellationToken cancellationToken = default)
+        {
+            var activeDependencies = new List<string>();
+
+            var hasActivePocs = await _context.POCs
+                .AnyAsync(p => p.CenterId == centerId && !p.IsDeleted, cancellationToken);
+            if (hasActivePocs)
+                activeDependencies.Add("POCs");
+
+            var hasActiveMembers = await _context.Members
+                .AnyAsync(m => m.CenterId == centerId && !m.IsDeleted, cancellationToken);
+            if (hasActiveMembers)
+                activeDependencies.Add("Members");
+
+            var hasActiveLoans = await (
+                from l in _context.Loans
+                join m in _context.Members on l.MemberId equals m.Id
+                where m.CenterId == centerId
+                      && !m.IsDeleted
+                      && !l.IsDeleted
+                      && l.Status == "Active"
+                select l.Id
+            ).AnyAsync(cancellationToken);
+            if (hasActiveLoans)
+                activeDependencies.Add("Loans");
+
+            return activeDependencies;
+        }
         public Task CreateAsync(Center center, CancellationToken cancellationToken = default)
         {
             _context.Centers.Add(center);

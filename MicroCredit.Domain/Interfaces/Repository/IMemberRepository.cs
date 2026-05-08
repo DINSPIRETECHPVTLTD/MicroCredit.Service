@@ -7,6 +7,9 @@ public interface IMemberRepository
 {
     Task<Member?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
     Task<IEnumerable<Member>> GetMembersByBranchAsync(int branchId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> GetActiveDependencyNamesAsync(
+        int memberId,
+        CancellationToken cancellationToken = default);
     Task<bool> ExistsByAadhaarAsync(string aadhaar, int? excludeMemberId = null, CancellationToken cancellationToken = default);
     Task CreateAsync(Member member, CancellationToken cancellationToken = default);
     Task UpdateAsync(Member member, CancellationToken cancellationToken = default);

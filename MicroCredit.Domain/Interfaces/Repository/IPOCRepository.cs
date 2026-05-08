@@ -7,6 +7,9 @@ public interface IPOCRepository
     Task<POC?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
     Task<IEnumerable<POC>> GetByBranchIdAsync(int branchId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> GetActiveDependencyNamesAsync(
+        int pocId,
+        CancellationToken cancellationToken = default);
 
     Task CreateAsync(POC poc, CancellationToken cancellationToken = default);
 

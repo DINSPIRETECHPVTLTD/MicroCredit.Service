@@ -146,14 +146,16 @@ public class ReportRepository : IReportRepository
 SELECT
   COALESCE(inv.TotalOwnerAmount,0)         AS TotalOwnerAmount,
   COALESCE(inv.TotalInvestorAmount,0)      AS TotalInvestorAmount,
-  COALESCE(loan.TotalInsuranceAmount,0)    AS TotalInsuranceAmount,
-  COALESCE(loan.TotalProcessingFee,0)      AS TotalProcessingFee,
+  COALESCE(ICF_S.TotalInsuranceAmount,0)   AS TotalInsuranceAmount,
+  COALESCE(ICF_S.TotalClaimedAmount,0)     AS TotalClaimedAmount,
+  COALESCE(ICF_S.TotalProcessingFee,0)     AS TotalProcessingFee,
   COALESCE(ls.ReceivedPrinciple,0)         AS ReceivedPrinciple,
   COALESCE(ls.ReceivedInterest,0)          AS ReceivedInterest,
   COALESCE(ls.OutstandingPrinciple,0)      AS OutstandingPrinciple,
   COALESCE(ls.InterestAccured,0)           AS InterestAccured,
-  COALESCE(fees.TotalJoiningFee,0)         AS TotalJoiningFee,
-  COALESCE(exp.TotalLedgerExpenseAmount,0) AS TotalLedgerExpenseAmount
+  COALESCE(ICF_S.TotalJoiningFee,0)        AS TotalJoiningFee,
+  COALESCE(ICF_S.TotalExpenseAmount,0)     AS TotalExpenseAmount,
+  COALESCE(ICF_S.TotalExpenseAmount,0)     AS TotalLedgerExpenseAmount
 FROM
 (
   SELECT SUM(CASE WHEN UPPER(U.Role) = 'OWNER' THEN I.Amount ELSE 0 END)    AS TotalOwnerAmount,
@@ -163,10 +165,14 @@ FROM
 ) inv
 CROSS JOIN
 (
-  SELECT SUM(InsuranceFee) AS TotalInsuranceAmount,
-         SUM(ProcessingFee) AS TotalProcessingFee
-  FROM Loans
-) loan
+  SELECT
+      SUM(COALESCE(TotalInsuranceAmount, 0)) AS TotalInsuranceAmount,
+      SUM(COALESCE(TotalClaimedAmount, 0))   AS TotalClaimedAmount,
+      SUM(COALESCE(TotalProcessingFee, 0))   AS TotalProcessingFee,
+      SUM(COALESCE(TotalJoiningFee, 0))      AS TotalJoiningFee,
+      SUM(COALESCE(TotalExpenseAmount, 0))   AS TotalExpenseAmount
+  FROM Insurance_Claim_Financial_Summary
+) ICF_S
 CROSS JOIN
 (
   SELECT
@@ -175,18 +181,7 @@ CROSS JOIN
     SUM(CASE WHEN Status = 'Not Paid' THEN ActualPrincipalAmount ELSE 0 END)      AS OutstandingPrinciple,
     SUM(CASE WHEN Status = 'Not Paid' THEN ActualInterestAmount ELSE 0 END)       AS InterestAccured
   FROM LoanSchedulers
-) ls
-CROSS JOIN
-(
-  SELECT SUM(MF.Amount) AS TotalJoiningFee
-  FROM MemberMembershipFees MF
-) fees
-CROSS JOIN
-(
-  SELECT SUM(Amount) AS TotalLedgerExpenseAmount
-  FROM LedgerTransactions
-  WHERE TransactionType = 'Expense'
-) exp";
+) ls";
 
         var result = await _context.Database
             .SqlQueryRaw<ReportSummaryResponseDto>(sql)

@@ -11,6 +11,9 @@ namespace MicroCredit.Domain.Interfaces.Repository
     {
         Task<IEnumerable<Center>> GetCenters(int branchId, CancellationToken cancellationToken = default);
         Task<Center> GetByCenterId(int centerId, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<string>> GetActiveDependencyNamesAsync(
+            int centerId,
+            CancellationToken cancellationToken = default);
         Task CreateAsync(Center center, CancellationToken cancellationToken = default);
         Task UpdateAsync(Center center, CancellationToken cancellationToken = default);
     }

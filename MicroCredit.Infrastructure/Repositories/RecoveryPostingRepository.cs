@@ -29,6 +29,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
             from ls in _context.LoanSchedulers
             join l in _context.Loans on ls.LoanId equals l.Id
             join m in _context.Members on l.MemberId equals m.Id
+            join p in _context.POCs on m.POCId equals p.Id
             join c in _context.Centers on m.CenterId equals c.Id
             join b in _context.Branches on c.BranchId equals b.Id
             where ls.ScheduleDate >= dayStart
@@ -36,6 +37,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                   && l.Status == "Active"
                   && !l.IsDeleted
                   && !m.IsDeleted
+                  && !p.IsDeleted
                   && !c.IsDeleted
                   && !b.IsDeleted
                   && b.OrgId == orgId
@@ -49,6 +51,8 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
             {
                 LoanId = l.Id,
                 MemberId = l.MemberId,
+                MemberName = ((m.FirstName ?? "") + " " + (m.MiddleName ?? "") + " " + (m.LastName ?? "")).Trim(),
+                PocName = ((p.FirstName ?? "") + " " + (p.MiddleName ?? "") + " " + (p.LastName ?? "")).Trim(),
                 LoanStatus = l.Status,
                 LoanSchedulerId = ls.LoanSchedulerId,
                 SchedulerLoanId = ls.LoanId,

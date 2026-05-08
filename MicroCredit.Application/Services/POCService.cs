@@ -90,6 +90,14 @@ public class POCService : IPOCService
         var poc = await unitOfWork.POCs.GetByIdAsync(id, cancellationToken);
         if (poc == null)
             throw new Exception("POC not found");
+
+        var activeDependencies = await unitOfWork.POCs.GetActiveDependencyNamesAsync(id, cancellationToken);
+        if (activeDependencies.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"POC cannot be inactivated because it has active {string.Join(", ", activeDependencies)}.");
+        }
+
         poc.MarkDeleted(modifiedBy);
         await unitOfWork.POCs.UpdateAsync(poc, cancellationToken);
         await unitOfWork.CompleteAsync();
