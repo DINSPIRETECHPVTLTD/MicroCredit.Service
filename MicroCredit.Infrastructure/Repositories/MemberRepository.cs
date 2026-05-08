@@ -33,6 +33,24 @@ public class MemberRepository : IMemberRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<string>> GetActiveDependencyNamesAsync(
+        int memberId,
+        CancellationToken cancellationToken = default)
+    {
+        var activeDependencies = new List<string>();
+
+        var hasActiveLoans = await _context.Loans
+            .AnyAsync(l =>
+                l.MemberId == memberId &&
+                !l.IsDeleted &&
+                l.Status == "Active",
+                cancellationToken);
+        if (hasActiveLoans)
+            activeDependencies.Add("Loans");
+
+        return activeDependencies;
+    }
+
     public async Task<bool> ExistsByAadhaarAsync(string aadhaar, int? excludeMemberId = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(aadhaar))

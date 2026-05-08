@@ -7,6 +7,8 @@ public class RecoveryPostingSchedulerResponse
 {
     public int LoanId { get; set; }
     public int MemberId { get; set; }
+    public string MemberName { get; set; } = string.Empty;
+    public string PocName { get; set; } = string.Empty;
     public string LoanStatus { get; set; } = string.Empty;
 
     public int LoanSchedulerId { get; set; }

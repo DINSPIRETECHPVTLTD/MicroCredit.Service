@@ -1,5 +1,4 @@
 using MicroCredit.Api.Helpers;
-using MicroCredit.Application.Services;
 using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Services;
@@ -17,13 +16,11 @@ namespace MicroCredit.Api.Controllers
     public class BranchesController : ControllerBase
     {
         private readonly IBranchsService _branchService;
-        private readonly ILogger<BranchesController> _logger;
         private readonly IUserContext _userContext;
 
-        public BranchesController(IBranchsService branchService, ILogger<BranchesController> logger,IUserContext userContext)
+        public BranchesController(IBranchsService branchService, IUserContext userContext)
         {
             _branchService = branchService;
-            _logger = logger;
             _userContext = userContext;
         }
 

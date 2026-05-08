@@ -127,6 +127,14 @@ public class MemberService : IMemberService
         var member = await unitOfWork.Members.GetByIdAsync(id, cancellationToken);
         if (member == null)
             throw new Exception("Member not found");
+
+        var activeDependencies = await unitOfWork.Members.GetActiveDependencyNamesAsync(id, cancellationToken);
+        if (activeDependencies.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Member cannot be inactivated because it has active {string.Join(", ", activeDependencies)}.");
+        }
+
         member.MarkDeleted(modifiedBy);
         await unitOfWork.Members.UpdateAsync(member, cancellationToken);
         await unitOfWork.CompleteAsync();

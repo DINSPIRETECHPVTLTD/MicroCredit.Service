@@ -5,8 +5,6 @@ using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Interfaces.Services;
 using MicroCredit.Domain.Model.Branch;
-using MicroCredit.Domain.Model.User;
-using Microsoft.AspNetCore.Mvc;
 
 namespace MicroCredit.Application.Services;
 
@@ -46,6 +44,17 @@ public class BranchsService : IBranchsService
         var branch = await _unitOfWork.Branches.GetByIdAndOrgIdAsync(branchId, context.OrgId, cancellationToken);
         if (branch == null)
             throw new NotFoundException("branch not found.");
+
+        var activeDependencies = await _unitOfWork.Branches.GetActiveDependencyNamesAsync(
+            branchId,
+            context.OrgId,
+            cancellationToken);
+        if (activeDependencies.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Branch cannot be inactivated because it has active {string.Join(", ", activeDependencies)}.");
+        }
+
         branch.MarkDeleted(context.UserId);
 
         await _unitOfWork.Branches.UpdateAsync(branch, cancellationToken);

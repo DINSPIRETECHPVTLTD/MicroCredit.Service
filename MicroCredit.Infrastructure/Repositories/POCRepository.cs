@@ -30,6 +30,31 @@ public class POCRepository : IPOCRepository
       .AsNoTracking()
       .ToListAsync(cancellationToken);
     }
+    public async Task<IReadOnlyList<string>> GetActiveDependencyNamesAsync(
+        int pocId,
+        CancellationToken cancellationToken = default)
+    {
+        var activeDependencies = new List<string>();
+
+        var hasActiveMembers = await _context.Members
+            .AnyAsync(m => m.POCId == pocId && !m.IsDeleted, cancellationToken);
+        if (hasActiveMembers)
+            activeDependencies.Add("Members");
+
+        var hasActiveLoans = await (
+            from l in _context.Loans
+            join m in _context.Members on l.MemberId equals m.Id
+            where m.POCId == pocId
+                  && !m.IsDeleted
+                  && !l.IsDeleted
+                  && l.Status == "Active"
+            select l.Id
+        ).AnyAsync(cancellationToken);
+        if (hasActiveLoans)
+            activeDependencies.Add("Loans");
+
+        return activeDependencies;
+    }
     public Task CreateAsync(POC poc, CancellationToken cancellationToken = default)
     {
         _context.POCs.Add(poc);
