@@ -37,7 +37,11 @@ namespace MicroCredit.Application.Services
                 null,
                 request.Comments,
                 cancellationToken);
-            // RecordExpenseAsync → CreateTransactionAsync already calls UnitOfWork.CompleteAsync.
+            // Keep Insurance_Claim_Financial_Summary.TotalExpenseAmount in sync with all expenses.
+            await _unitOfWork.InsuranceClaimFinancialSummaries
+                .RefreshTotalExpenseAmountAsync(cancellationToken);
+
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task<IEnumerable<ExpenseResponse>> GetTransactionsByUserIdAsync(
