@@ -24,7 +24,12 @@ public class LoanSchedulerConfiguration : IEntityTypeConfiguration<LoanScheduler
         builder.Property(x => x.InterestAmount).HasColumnType("decimal(18,2)");
 
         builder.Property(x => x.InstallmentNo).IsRequired();
-        builder.Property(x => x.Status).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.Status)
+            .HasConversion(
+                status => status.ToDbValue(),
+                value => LoanSchedulerStatusExtensions.FromDbValue(value))
+            .IsRequired()
+            .HasMaxLength(20);
         builder.Property(x => x.PaymentMode).HasMaxLength(50);
         builder.Property(x => x.Comments).HasMaxLength(500);
         builder.Property(x => x.CreatedBy).IsRequired();

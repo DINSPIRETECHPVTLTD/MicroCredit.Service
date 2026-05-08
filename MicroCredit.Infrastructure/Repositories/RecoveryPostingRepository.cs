@@ -1,4 +1,5 @@
 using MicroCredit.Domain.Interfaces.Repository;
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Model.RecoveryPosting;
 using MicroCredit.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +43,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                   && !b.IsDeleted
                   && b.OrgId == orgId
                   && b.Id == branchId
-                  && ls.Status == "Not Paid" // Only include Not Paid
+                  && ls.Status == LoanSchedulerStatus.NotPaid // Only include Not Paid
                   && (!centerId.HasValue || c.Id == centerId.Value)
                   && (!pocId.HasValue
                       || _context.POCs.Any(p =>
@@ -65,7 +66,12 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                 PaymentAmount = ls.PaymentAmount,
                 InterestAmount = ls.InterestAmount,
                 PrincipalAmount = ls.PrincipalAmount,
-                SchedulerStatus = ls.Status,
+                SchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
+                    : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
+                    : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
+                    : ls.Status == LoanSchedulerStatus.Claimed ? "Claimed"
+                    : ls.Status == LoanSchedulerStatus.Overdue ? "Overdue"
+                    : "Not Paid",
                 PaymentMode = ls.PaymentMode,
                 CollectedBy = ls.CollectedBy,
                 Comments = ls.Comments,
@@ -111,7 +117,12 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                 LoanId = ls.LoanId,
                 InstallmentNo = ls.InstallmentNo,
                 ScheduleDate = ls.ScheduleDate,
-                Status = ls.Status,
+                Status = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
+                    : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
+                    : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
+                    : ls.Status == LoanSchedulerStatus.Claimed ? "Claimed"
+                    : ls.Status == LoanSchedulerStatus.Overdue ? "Overdue"
+                    : "Not Paid",
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ActualPrincipalAmount = ls.ActualPrincipalAmount,
                 ActualInterestAmount = ls.ActualInterestAmount,
@@ -131,7 +142,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
             .Where(ls =>
                 ls.LoanId == loanId
                 && ls.InstallmentNo > afterInstallmentNo
-                && ls.Status == "Not Paid")
+                && ls.Status == LoanSchedulerStatus.NotPaid)
             .OrderBy(ls => ls.InstallmentNo)
             .Select(ls => ls.LoanSchedulerId)
             .FirstOrDefaultAsync(cancellationToken);
@@ -164,7 +175,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                     .SetProperty(ls => ls.CollectedBy, collectedBy)
                     .SetProperty(ls => ls.PaymentMode, paymentMode)
                     .SetProperty(ls => ls.Comments, comments)
-                    .SetProperty(ls => ls.Status, "Paid"),
+                    .SetProperty(ls => ls.Status, LoanSchedulerStatus.Paid),
                 cancellationToken);
 
         if (rows == 0)
@@ -193,7 +204,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                     .SetProperty(ls => ls.CollectedBy, collectedBy)
                     .SetProperty(ls => ls.PaymentMode, paymentMode)
                     .SetProperty(ls => ls.Comments, comments)
-                    .SetProperty(ls => ls.Status, "Partial"),
+                    .SetProperty(ls => ls.Status, LoanSchedulerStatus.Partial),
                 cancellationToken);
 
         if (rows == 0)
@@ -214,7 +225,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                     .SetProperty(ls => ls.PaymentDate, now)
                     .SetProperty(ls => ls.CollectedBy, collectedBy)
                     .SetProperty(ls => ls.Comments, comments)
-                    .SetProperty(ls => ls.Status, "Overdue"),
+                    .SetProperty(ls => ls.Status, LoanSchedulerStatus.Overdue),
                 cancellationToken);
 
         if (rows == 0)

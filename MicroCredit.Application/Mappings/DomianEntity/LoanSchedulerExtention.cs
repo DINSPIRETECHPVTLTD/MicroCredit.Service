@@ -27,7 +27,7 @@ namespace MicroCredit.Application.Mappings.DomianEntity
                     InterestAmount = loanScheduler.InterestAmount,
                    
                     InstallmentNo = loanScheduler.InstallmentNo,
-                    Status = loanScheduler.Status,
+                    Status = loanScheduler.Status.ToDbValue(),
                     PaymentMode = loanScheduler.PaymentMode,
                     
                     Comments = loanScheduler.Comments,

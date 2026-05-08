@@ -43,7 +43,7 @@ public class LoanScheduler
 
     [Required]
     [StringLength(20)]
-    public string Status { get; private set; } = "Not Paid"; // Paid, Partial, Not Paid
+    public LoanSchedulerStatus Status { get; private set; } = LoanSchedulerStatus.NotPaid;
 
     [StringLength(50)]
     public string? PaymentMode { get; private set; }
@@ -83,7 +83,7 @@ public class LoanScheduler
         InstallmentNo = installmentNo;
         CreatedBy = createdBy;
         CreatedDate = DateTime.UtcNow;
-        Status = "Not Paid";
+        Status = LoanSchedulerStatus.NotPaid;
         ActualEmiAmount = actualEmiAmount;
         ActualPrincipalAmount = actualPrincipalAmount;
         ActualInterestAmount = actualInterestAmount;
@@ -101,7 +101,7 @@ public class LoanScheduler
         PaymentMode = paymentMode;
         SavingAmount = savingAmount;
         Comments = comments;
-        Status = "Paid";
+        Status = LoanSchedulerStatus.Paid;
     }
 
     public void RecordPartialPayment(decimal amountPaid, decimal actualPrincipalAmount, decimal actualInterestAmount,
@@ -114,7 +114,7 @@ public class LoanScheduler
         CollectedBy = collectedBy;
         PaymentMode = paymentMode;
         Comments = comments;
-        Status = "Partial";
+        Status = LoanSchedulerStatus.Partial;
     }
 
     public void AdjustAmounts(decimal newPrincipal, decimal newInterest)
@@ -127,7 +127,12 @@ public class LoanScheduler
     public void MarkClaimed(int collectedBy)
     {
         PaymentDate = DateTime.UtcNow;
-        Status = "Claimed";
+        Status = LoanSchedulerStatus.Claimed;
         CollectedBy = collectedBy;
+    }
+
+    public void ShiftScheduleDateByDays(int offsetDays)
+    {
+        ScheduleDate = ScheduleDate.AddDays(offsetDays);
     }
 }

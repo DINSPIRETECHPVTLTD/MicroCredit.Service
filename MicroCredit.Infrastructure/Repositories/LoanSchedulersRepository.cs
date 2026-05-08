@@ -42,5 +42,24 @@ public class LoanSchedulersRepository : ILoanSchedulersRepository
         return schedulers;
     }
 
+    public async Task<IReadOnlyList<LoanScheduler>> GetFutureUnpaidByPocIdAsync(
+        int pocId,
+        DateTime fromDate,
+        CancellationToken cancellationToken = default)
+    {
+        return await (
+            from schedule in _context.LoanSchedulers
+            join loan in _context.Loans on schedule.LoanId equals loan.Id
+            join member in _context.Members on loan.MemberId equals member.Id
+            where member.POCId == pocId
+                  && !member.IsDeleted
+                  && !loan.IsDeleted
+                  && schedule.Status == LoanSchedulerStatus.NotPaid
+                  && schedule.ScheduleDate.Date >= fromDate.Date
+            orderby schedule.LoanId, schedule.InstallmentNo
+            select schedule
+        ).ToListAsync(cancellationToken);
+    }
+
 
 }
