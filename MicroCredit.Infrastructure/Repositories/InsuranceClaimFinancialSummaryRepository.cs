@@ -91,4 +91,29 @@ public class InsuranceClaimFinancialSummaryRepository : IInsuranceClaimFinancial
             summary.AddJoiningFee(joiningFeeAmount);
         }
     }
+
+    public async Task RefreshTotalExpenseAmountAsync(CancellationToken cancellationToken = default)
+    {
+        var totalExpenseAmount = await _context.LedgerTransactions
+            .Where(lt => lt.TransactionType == "Expense")
+            .SumAsync(lt => (decimal?)lt.Amount, cancellationToken) ?? 0m;
+
+        var summary = await _context.InsuranceClaimFinancialSummaries
+            .OrderBy(s => s.SummaryId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (summary == null)
+        {
+            summary = new InsuranceClaimFinancialSummary(
+                totalInsuranceAmount: 0m,
+                totalClaimedAmount: 0m,
+                totalProcessingFee: 0m,
+                totalJoiningFee: 0m,
+                totalExpenseAmount: totalExpenseAmount);
+            await _context.InsuranceClaimFinancialSummaries.AddAsync(summary, cancellationToken);
+            return;
+        }
+
+        summary.UpdateTotalExpenseAmount(totalExpenseAmount);
+    }
 }

@@ -23,4 +23,10 @@ public interface IInsuranceClaimFinancialSummaryRepository
     Task AccumulateJoiningFeeAsync(
         decimal joiningFeeAmount,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Recomputes TotalExpenseAmount as the sum of all Expense transactions.
+    /// Creates the singleton summary row when none exists.
+    /// </summary>
+    Task RefreshTotalExpenseAmountAsync(CancellationToken cancellationToken = default);
 }

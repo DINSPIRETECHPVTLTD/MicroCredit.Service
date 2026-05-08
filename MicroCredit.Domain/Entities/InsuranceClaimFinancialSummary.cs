@@ -75,4 +75,12 @@ public class InsuranceClaimFinancialSummary
 
         TotalClaimedAmount += claimAmount;
     }
+
+    public void UpdateTotalExpenseAmount(decimal totalExpenseAmount)
+    {
+        if (totalExpenseAmount < 0m)
+            throw new InvalidOperationException("Total expense amount cannot be negative.");
+
+        TotalExpenseAmount = totalExpenseAmount;
+    }
 }
