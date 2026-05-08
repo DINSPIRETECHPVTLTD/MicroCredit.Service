@@ -84,8 +84,8 @@ public class LoansService : ILoansService
 
         var schedulers = (await _unitOfWork.LoanSchedulers.GetLoanSchedulersByIdAsync(loanId, cancellationToken)).ToList();
         var pendingSchedulers = schedulers
-            .Where(s => !string.Equals(s.Status, "Paid", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(s.Status, "Claimed", StringComparison.OrdinalIgnoreCase))
+            .Where(s => s.Status != LoanSchedulerStatus.Paid
+                        && s.Status != LoanSchedulerStatus.Claimed)
             .ToList();
 
         if (pendingSchedulers.Count == 0)

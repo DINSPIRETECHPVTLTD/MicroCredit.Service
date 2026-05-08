@@ -68,19 +68,25 @@ public class LoanRepository : ILoanRepository
                     ? ""
                     : loan.Member.MiddleName + " ") +
                 loan.Member.LastName).Trim(),
+            PocName = (
+                loan.Member.POC.FirstName + " " +
+                (loan.Member.POC.MiddleName == null || loan.Member.POC.MiddleName == ""
+                    ? ""
+                    : loan.Member.POC.MiddleName + " ") +
+                loan.Member.POC.LastName).Trim(),
             Status = loan.Status,
             LoanTotalAmount = loan.TotalAmount,
             NoOfTerms =
                 schedulers.Count.ToString() + "/" +
-                schedulers.Count(s => string.Equals(s.Status, "Paid", StringComparison.OrdinalIgnoreCase)),
+                schedulers.Count(s => s.Status == LoanSchedulerStatus.Paid),
             TotalAmountPaid = schedulers
-                .Where(s => string.Equals(s.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                .Where(s => s.Status == LoanSchedulerStatus.Paid)
                 .Sum(s => s.PaymentAmount),
             SchedulerTotalAmount = schedulers.Sum(s => s.ActualEmiAmount),
             RemainingBal =
                 schedulers.Sum(s => s.ActualEmiAmount) -
                 schedulers
-                    .Where(s => string.Equals(s.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                    .Where(s => s.Status == LoanSchedulerStatus.Paid)
                     .Sum(s => s.PaymentAmount),
         };
     }
@@ -111,20 +117,26 @@ public class LoanRepository : ILoanRepository
                         ? ""
                         : loan.Member.MiddleName + " ") +
                     loan.Member.LastName).Trim(),
+                PocName = (
+                    loan.Member.POC.FirstName + " " +
+                    (loan.Member.POC.MiddleName == null || loan.Member.POC.MiddleName == ""
+                        ? ""
+                        : loan.Member.POC.MiddleName + " ") +
+                    loan.Member.POC.LastName).Trim(),
                 Status = loan.Status,
                 LoanTotalAmount = loan.TotalAmount,
                 NoOfTerms =
                     loan.LoanSchedulers!.Count().ToString() + "/" +
-                    loan.LoanSchedulers!.Count(scheduler => scheduler.Status == "Paid").ToString(),
+                    loan.LoanSchedulers!.Count(scheduler => scheduler.Status == LoanSchedulerStatus.Paid).ToString(),
                 TotalAmountPaid = loan.LoanSchedulers!
-                    .Where(scheduler => scheduler.Status == "Paid")
+                    .Where(scheduler => scheduler.Status == LoanSchedulerStatus.Paid)
                     .Sum(scheduler => scheduler.PaymentAmount),
                 SchedulerTotalAmount = loan.LoanSchedulers!
                     .Sum(scheduler => scheduler.ActualEmiAmount),
                 RemainingBal =
                     loan.LoanSchedulers!.Sum(scheduler => scheduler.ActualEmiAmount) -
                     loan.LoanSchedulers!
-                        .Where(scheduler => scheduler.Status == "Paid")
+                        .Where(scheduler => scheduler.Status == LoanSchedulerStatus.Paid)
                         .Sum(scheduler => scheduler.PaymentAmount),
             })
             .OrderBy(loan => loan.LoanId)
@@ -135,7 +147,7 @@ public class LoanRepository : ILoanRepository
     {
         return await _context.LoanSchedulers
             .AnyAsync(
-                ls => ls.LoanId == loanId && ls.Status != "Paid",
+                ls => ls.LoanId == loanId && ls.Status != LoanSchedulerStatus.Paid,
                 cancellationToken);
     }
 
