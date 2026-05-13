@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-    <PackageReference Include="ClosedXML" Version="0.105.0" />
     <ProjectReference Include="..\MicroCredit.Domain\MicroCredit.Domain.csproj" />
     <ProjectReference Include="..\MicroCredit.Infrastructure\MicroCredit.Infrastructure.csproj" />
   </ItemGroup>

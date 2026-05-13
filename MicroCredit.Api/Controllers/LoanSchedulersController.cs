@@ -12,12 +12,11 @@ namespace MicroCredit.Api.Controllers
     public class LoanSchedulersController : ControllerBase
     {
         private readonly IUserContext _userContext;
-        private readonly ILogger<LoanSchedulersController> _logger;
         private readonly ILoanSchedulerService _loanSchedulerService;
-        public LoanSchedulersController(ILoanSchedulerService loanSchedulerService,ILogger<LoanSchedulersController> logger,IUserContext userContext)
+
+        public LoanSchedulersController(ILoanSchedulerService loanSchedulerService, IUserContext userContext)
         {
             _loanSchedulerService = loanSchedulerService;
-            _logger = logger;
             _userContext = userContext;
         }
 

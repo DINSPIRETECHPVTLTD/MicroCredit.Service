@@ -13,12 +13,10 @@ namespace MicroCredit.Api.Controllers
     public class LedgerTransactionsController : ControllerBase
     {
         private readonly ILedgerTransactionService _ledgerTransactionService;
-        private readonly ILogger<LedgerTransactionsController> _logger;
 
-        public LedgerTransactionsController(ILedgerTransactionService ledgerTransactionService, ILogger<LedgerTransactionsController> logger)
+        public LedgerTransactionsController(ILedgerTransactionService ledgerTransactionService)
         {
             _ledgerTransactionService = ledgerTransactionService;
-            _logger = logger;
         }
 
         [HttpGet("Expenses")]

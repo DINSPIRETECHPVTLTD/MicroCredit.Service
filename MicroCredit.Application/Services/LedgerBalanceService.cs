@@ -1,15 +1,7 @@
-﻿using System;
-using MicroCredit.Domain.Interfaces.Service;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Model.Fund;
 using MicroCredit.Application.Mappings.DomianEntity;
-using MicroCredit.Domain.Interfaces.Service;
-using MicroCredit.Domain.Entities;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace MicroCredit.Application.Services
 {

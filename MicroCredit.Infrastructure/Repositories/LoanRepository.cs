@@ -39,6 +39,7 @@ public class LoanRepository : ILoanRepository
             .AsNoTracking()
             .AsSplitQuery()
             .Include(l => l.Member)
+                .ThenInclude(m => m.POC)
             .Include(l => l.LoanSchedulers)
             .Where(loan => !loan.IsDeleted && loan.MemberId == memberId)
             .OrderBy(loan => loan.Id)
@@ -63,17 +64,17 @@ public class LoanRepository : ILoanRepository
             LoanId = loan.Id,
             MemberId = loan.MemberId,
             FullName = (
-                loan.Member.FirstName + " " +
-                (loan.Member.MiddleName == null || loan.Member.MiddleName == ""
+                loan.Member?.FirstName + " " +
+                (string.IsNullOrEmpty(loan.Member?.MiddleName)
                     ? ""
                     : loan.Member.MiddleName + " ") +
-                loan.Member.LastName).Trim(),
+                loan.Member?.LastName).Trim(),
             PocName = (
-                loan.Member.POC.FirstName + " " +
-                (loan.Member.POC.MiddleName == null || loan.Member.POC.MiddleName == ""
+                loan.Member?.POC?.FirstName + " " +
+                (string.IsNullOrEmpty(loan.Member?.POC?.MiddleName)
                     ? ""
                     : loan.Member.POC.MiddleName + " ") +
-                loan.Member.POC.LastName).Trim(),
+                loan.Member?.POC?.LastName).Trim(),
             Status = loan.Status,
             LoanTotalAmount = loan.TotalAmount,
             NoOfTerms =
