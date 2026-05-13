@@ -14,12 +14,10 @@ namespace MicroCredit.Api.Controllers
     public class InvestmentsController : ControllerBase
     {
         private readonly IInvestmentsService _investmentsService;
-        private readonly ILogger<InvestmentsController> _logger;
 
-        public InvestmentsController(IInvestmentsService investmentsService, ILogger<InvestmentsController> logger)
+        public InvestmentsController(IInvestmentsService investmentsService)
         {
             _investmentsService = investmentsService;
-            _logger = logger;
         }
 
         [HttpGet]

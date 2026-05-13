@@ -17,13 +17,11 @@ public class UsersController : ControllerBase
 {
     private readonly IUsersService _userService;
     private readonly IUserContext _userContext;
-    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUsersService userService, IUserContext userContext, ILogger<UsersController> logger)
+    public UsersController(IUsersService userService, IUserContext userContext)
     {
         _userService = userService;
         _userContext = userContext;
-        _logger = logger;
     }
 
     [HttpGet("org")]

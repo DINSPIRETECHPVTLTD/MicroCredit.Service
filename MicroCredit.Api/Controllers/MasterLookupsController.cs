@@ -6,8 +6,6 @@ using MicroCredit.Domain.Model.Master;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Threading;
 
 namespace MicroCredit.Api.Controllers
 {
@@ -18,12 +16,11 @@ namespace MicroCredit.Api.Controllers
     {
         private readonly IMasterLookupservice _masterlookupsService;
         private readonly IUserContext _userContext;
-        private readonly ILogger<MasterLookupsController> _logger;
-        public MasterLookupsController(IMasterLookupservice masterlookupsService, IUserContext userContext, ILogger<MasterLookupsController> logger)
+
+        public MasterLookupsController(IMasterLookupservice masterlookupsService, IUserContext userContext)
         {
             _masterlookupsService = masterlookupsService;
             _userContext = userContext;
-            _logger = logger;
         }
 
         [HttpGet]
@@ -85,15 +82,10 @@ namespace MicroCredit.Api.Controllers
             return NoContent();
         }
 
-        
-        // GET: api/MasterLookups/keys - Returns valid LookupKey values for the Add Master Lookup dropdown.
-        
         [HttpGet("keys")]
         public ActionResult<IEnumerable<string>> GetLookupKeys()
         {
             return new[] {
-                //LookupKeys.LoanTerm,
-               // LookupKeys.PaymentType,
                 LookupKeys.Relationship,
                 LookupKeys.State,
                 LookupKeys.PaymentMode,

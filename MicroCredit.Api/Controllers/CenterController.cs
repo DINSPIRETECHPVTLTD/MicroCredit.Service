@@ -1,8 +1,6 @@
-﻿using MicroCredit.Application.Services;
-using MicroCredit.Domain.Common;
+﻿using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Interfaces.Services;
-using MicroCredit.Domain.Model.Branch;
 using MicroCredit.Domain.Model.Center;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -16,12 +14,11 @@ namespace MicroCredit.Api.Controllers
     public class CenterController : ControllerBase
     {
         private readonly ICenterService _centerService;
-        private readonly ILogger<BranchesController> _logger;
         private readonly IUserContext _userContext;
-        public CenterController(ICenterService centerService, ILogger<BranchesController> logger, IUserContext userContext)
+
+        public CenterController(ICenterService centerService, IUserContext userContext)
         {
             _centerService = centerService;
-            _logger = logger;
             _userContext = userContext;
         }
 

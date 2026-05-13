@@ -14,12 +14,10 @@ namespace MicroCredit.Api.Controllers
     public class LedgerBalancesController : ControllerBase
     {
         private readonly ILedgerBalanceService _ledgerBalancesService;
-        private readonly ILogger<LedgerBalancesController> _logger;
 
-        public LedgerBalancesController(ILedgerBalanceService ledgerBalanceService, ILogger<LedgerBalancesController> logger)
+        public LedgerBalancesController(ILedgerBalanceService ledgerBalanceService)
         {
             _ledgerBalancesService = ledgerBalanceService;
-            _logger = logger;
         }
 
         [HttpGet]
@@ -37,7 +35,7 @@ namespace MicroCredit.Api.Controllers
         {
             var ids = UserClaimsHelper.GetUserIdAndOrgId(User);
             if (ids == null) return Unauthorized();
-            var (userId, orgId) = ids.Value;
+            var (userId, _) = ids.Value;
             await _ledgerBalancesService.CreateFundTransferAsync(request, userId, cancellationToken);
             return Ok("Fund transfer completed successfully.");
         }

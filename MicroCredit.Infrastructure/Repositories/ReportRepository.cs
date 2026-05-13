@@ -138,6 +138,34 @@ public class ReportRepository : IReportRepository
             .ToListAsync();
     }
 
+    public async Task<List<ReportPaidToUserTransactionResponseDto>> GetRecentPaidToUserTransactionsByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    {
+        var windowStart = DateTime.Today.AddDays(-1);
+        var windowEndExclusive = DateTime.Today.AddDays(1);
+
+        return await (
+            from lt in _context.LedgerTransactions
+            join u in _context.Users on lt.PaidToUserId equals u.Id
+            where u.BranchId == branchId
+               && lt.PaymentDate >= windowStart
+               && lt.PaymentDate < windowEndExclusive
+            orderby lt.PaymentDate descending
+            select new ReportPaidToUserTransactionResponseDto
+            {
+                Id = lt.Id,
+                PaidToUserFullName = ((u.FirstName ?? string.Empty) + " " +
+                                      (u.MiddleName ?? string.Empty) + " " +
+                                      (u.LastName ?? string.Empty)).Trim(),
+                PaidToUserId = lt.PaidToUserId,
+                Amount = lt.Amount,
+                PaymentDate = lt.PaymentDate,
+                TransactionType = lt.TransactionType
+            }
+        )
+        .AsNoTracking()
+        .ToListAsync(cancellationToken);
+    }
+
     public async Task<ReportSummaryResponseDto> GetSummaryAsync(CancellationToken cancellationToken = default)
     {
         const string sql = @"
