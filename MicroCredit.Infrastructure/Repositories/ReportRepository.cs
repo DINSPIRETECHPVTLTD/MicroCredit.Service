@@ -140,7 +140,7 @@ public class ReportRepository : IReportRepository
             .ToListAsync();
     }
 
-    public async Task<List<PaidToUserLedgerReportRow>> GetRecentPaidToUserTransactionsAsync(int branchId, CancellationToken cancellationToken = default)
+    public async Task<List<ReportPaidToUserTransactionResponseDto>> GetRecentPaidToUserTransactionsByBranchAsync(int branchId, CancellationToken cancellationToken = default)
     {
         var windowStart = DateTime.Today.AddDays(-1);
         var windowEndExclusive = DateTime.Today.AddDays(1);
@@ -152,7 +152,7 @@ public class ReportRepository : IReportRepository
                && lt.PaymentDate >= windowStart
                && lt.PaymentDate < windowEndExclusive
             orderby lt.PaymentDate descending
-            select new PaidToUserLedgerReportRow
+            select new ReportPaidToUserTransactionResponseDto
             {
                 Id = lt.Id,
                 PaidToUserFullName = ((u.FirstName ?? string.Empty) + " " +

@@ -109,28 +109,6 @@ public class ReportController : ControllerBase
         return Ok(data ?? new List<ReportMembersByPocResponseDto>());
     }
 
-    [HttpGet("recent-paid-to-user-transactions")]
-    public async Task<IActionResult> GetRecentPaidToUserTransactions([FromQuery] int branchId, CancellationToken cancellationToken)
-    {
-        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
-            return Unauthorized();
-
-        var role = UserClaimsHelper.GetUserRole(User);
-        if (role == UserRole.BranchAdmin || role == UserRole.Staff)
-        {
-            if (!_userContext.BranchId.HasValue)
-                return StatusCode(StatusCodes.Status403Forbidden, "Branch context is required.");
-            if (_userContext.BranchId.Value != branchId)
-                return StatusCode(StatusCodes.Status403Forbidden, "You can access only your branch data.");
-        }
-
-        if (branchId <= 0)
-            return BadRequest("branchId must be greater than 0.");
-
-        var data = await _reportService.GetRecentPaidToUserTransactionsAsync(branchId, cancellationToken);
-        return Ok(data);
-    }
-
     [HttpGet("/report/summary")]
     public async Task<IActionResult> GetSummary(CancellationToken cancellationToken = default)
     {

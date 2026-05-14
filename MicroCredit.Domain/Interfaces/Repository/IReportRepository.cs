@@ -12,7 +12,6 @@ public interface IReportRepository
     Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdsAsync(int branchId, IReadOnlyList<int> pocIds);
     Task<List<ReportPaidToUserTransactionResponseDto>> GetRecentPaidToUserTransactionsByBranchAsync(int branchId, CancellationToken cancellationToken = default);
     Task<ReportSummaryResponseDto> GetSummaryAsync(CancellationToken cancellationToken = default);
-    Task<List<PaidToUserLedgerReportRow>> GetRecentPaidToUserTransactionsAsync(int branchId, CancellationToken cancellationToken = default);
     Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId, UserRole? role);
     byte[] Generate(List<MemberWiseCollectionResponseDto> data, List<ExpenseResponse> expenses = null, List<LedgerReportDto> ledgers = null);
     public void GenerateRepaymentSheet(XLWorkbook wb, List<MemberWiseCollectionResponseDto> data);
