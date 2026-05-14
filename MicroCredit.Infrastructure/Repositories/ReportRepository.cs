@@ -68,7 +68,7 @@ public class ReportRepository : IReportRepository
                   && c.BranchId == branchId
                   && p.Id == pocId
                   && ls != null
-                  && ls.Status == LoanSchedulerStatus.NotPaid
+                  && ls.Status != LoanSchedulerStatus.Paid
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
             select new ReportMembersByPocResponseDto
@@ -80,6 +80,7 @@ public class ReportRepository : IReportRepository
                                    (m.LastName ?? string.Empty)).Trim(),
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
+                LoanSchedulerStatus = ls.Status.ToString(),
             };
 
         return await query
@@ -115,7 +116,7 @@ public class ReportRepository : IReportRepository
                   && c.BranchId == branchId
                   && distinctPocIds.Contains(p.Id)
                   && ls != null
-                  && ls.Status == LoanSchedulerStatus.NotPaid
+                  && ls.Status != LoanSchedulerStatus.Paid
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
             select new ReportMembersByPocResponseDto
@@ -127,6 +128,7 @@ public class ReportRepository : IReportRepository
                                    (m.LastName ?? string.Empty)).Trim(),
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
+                LoanSchedulerStatus = ls.Status.ToString(),
             };
 
         return await query
@@ -138,7 +140,7 @@ public class ReportRepository : IReportRepository
             .ToListAsync();
     }
 
-    public async Task<List<ReportPaidToUserTransactionResponseDto>> GetRecentPaidToUserTransactionsByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    public async Task<List<PaidToUserLedgerReportRow>> GetRecentPaidToUserTransactionsAsync(int branchId, CancellationToken cancellationToken = default)
     {
         var windowStart = DateTime.Today.AddDays(-1);
         var windowEndExclusive = DateTime.Today.AddDays(1);
@@ -150,7 +152,7 @@ public class ReportRepository : IReportRepository
                && lt.PaymentDate >= windowStart
                && lt.PaymentDate < windowEndExclusive
             orderby lt.PaymentDate descending
-            select new ReportPaidToUserTransactionResponseDto
+            select new PaidToUserLedgerReportRow
             {
                 Id = lt.Id,
                 PaidToUserFullName = ((u.FirstName ?? string.Empty) + " " +
@@ -159,7 +161,7 @@ public class ReportRepository : IReportRepository
                 PaidToUserId = lt.PaidToUserId,
                 Amount = lt.Amount,
                 PaymentDate = lt.PaymentDate,
-                TransactionType = lt.TransactionType
+                TransactionType = lt.TransactionType,
             }
         )
         .AsNoTracking()

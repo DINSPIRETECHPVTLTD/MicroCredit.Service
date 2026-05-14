@@ -43,6 +43,11 @@ public class ReportService : IReportService
         return await _unitOfWork.Reports.GetSummaryAsync(cancellationToken);
     }
 
+    public async Task<List<PaidToUserLedgerReportRow>> GetRecentPaidToUserTransactionsAsync(int branchId, CancellationToken cancellationToken = default)
+    {
+        return await _unitOfWork.Reports.GetRecentPaidToUserTransactionsAsync(branchId, cancellationToken);
+    }
+
     public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId, UserRole? role)
     {
         return await _unitOfWork.Reports.GetMemberWiseCollectionSheet(orgId, branchId, role);

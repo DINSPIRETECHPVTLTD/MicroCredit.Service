@@ -8,4 +8,5 @@ public class ReportMembersByPocResponseDto
     public decimal ActualEmiAmount { get; set; }
     /// <summary>Loan schedule due date (UTC/local per DB). Used with today/tomorrow window filter.</summary>
     public DateTime ScheduleDate { get; set; }
+    public string LoanSchedulerStatus { get; set; } = string.Empty;
 }
