@@ -43,8 +43,8 @@ public class ReportService : IReportService
         return await _unitOfWork.Reports.GetSummaryAsync(cancellationToken);
     }
 
-    public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId, UserRole? role)
+    public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId)
     {
-        return await _unitOfWork.Reports.GetMemberWiseCollectionSheet(orgId, branchId, role);
+        return await _unitOfWork.Reports.GetMemberWiseCollectionSheet(orgId, branchId);
     }
 }

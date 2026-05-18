@@ -165,7 +165,7 @@ public class ReportController : ControllerBase
 
         var role = UserClaimsHelper.GetUserRole(User);
 
-        var fileBytes = await _reportService.GetMemberWiseCollectionSheet(_userContext.OrgId, _userContext.BranchId, role);
+        var fileBytes = await _reportService.GetMemberWiseCollectionSheet(_userContext.OrgId, _userContext.BranchId);
 
         if (fileBytes == null || fileBytes.Length == 0)
             return NotFound("No data found for the given organisation.");

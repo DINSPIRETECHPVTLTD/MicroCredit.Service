@@ -216,7 +216,7 @@ CROSS JOIN
         return result ?? new ReportSummaryResponseDto();
     }
 
-    public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId, UserRole? role)
+    public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId)
     {
         var rawData = await (
                 from m in _context.Members
@@ -228,7 +228,6 @@ CROSS JOIN
                 where !m.IsDeleted
                    && !p.IsDeleted
                    && b.OrgId == orgId
-                   && b.Id == branchId
                    && l.Status == "Active"
                 select new
                 {
@@ -325,7 +324,6 @@ CROSS JOIN
             join u in _context.Users on lt.PaidFromUserId equals u.Id
             join b in _context.Branches on u.BranchId equals b.Id
             where b.OrgId == orgId
-               && b.Id == branchId
                && lt.TransactionType == "Expense"
             orderby lt.PaymentDate
             select new ExpenseResponse
@@ -344,27 +342,22 @@ CROSS JOIN
 
          List<LedgerReportDto> ledgers = null;
 
-        if (role == UserRole.Owner)
-        {
             //Ledger Balance logic
-            ledgers = await (
-                from l in _context.Ledgers
-                join u in _context.Users on l.UserId equals u.Id
-                where u.OrgId == orgId
-                orderby u.FirstName, u.LastName
-                select new LedgerReportDto
-                {
-                    UserName = (u.FirstName + " " + u.LastName).Trim(),
-                    Amount = l.Amount,
-                    InsuranceAmount = null,
-                    ClaimedAmount = null,
-                }
-            ).AsNoTracking().ToListAsync();
+        ledgers = await (
+            from l in _context.Ledgers
+            join u in _context.Users on l.UserId equals u.Id
+            where u.OrgId == orgId
+            orderby u.FirstName, u.LastName
+            select new LedgerReportDto
+            {
+                UserName = (u.FirstName + " " + u.LastName).Trim(),
+                Amount = l.Amount,
+            }
+        ).AsNoTracking().ToListAsync();
 
-            // Assign serial numbers
-            for (int idx = 0; idx < ledgers.Count; idx++)
-                ledgers[idx].id = idx + 1;
-        }
+        // Assign serial numbers
+        for (int idx = 0; idx < ledgers.Count; idx++)
+            ledgers[idx].id = idx + 1;
 
         return Generate(dtoList, expenses, ledgers);
     }
@@ -903,7 +896,7 @@ CROSS JOIN
 
         // ── Header row ────────────────────────────────────────────
         row++;
-        string[] headers = ["Sl.N", "User Name", "Amount", "Insurance Amount", "Claimed Amount"];
+        string[] headers = ["Sl.N", "User Name", "Amount"];
         for (int col = 1; col <= headers.Length; col++)
         {
             var cell = ws.Cell(row, col);
@@ -951,15 +944,10 @@ CROSS JOIN
             WriteCell(2, l.UserName);
             WriteCell(3, l.Amount,
                 isRed: l.Amount < 0);                    // negative amounts in red
-            WriteCell(4, l.InsuranceAmount,
-                isRed: l.InsuranceAmount < 0);            // negative in red (like -23543.52)
-            WriteCell(5, l.ClaimedAmount);
 
             // Right-align numeric columns
             ws.Cell(row, 1).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
             ws.Cell(row, 3).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
-            ws.Cell(row, 4).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
-            ws.Cell(row, 5).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
 
             ws.Row(row).Height = 16;
         }
@@ -980,10 +968,8 @@ CROSS JOIN
         ws.Cell(row, 2).Value = "Total:-";
         ws.Cell(row, 2).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
 
-        // Total for Amount, InsuranceAmount, ClaimedAmount
+        // Total for Amount
         ws.Cell(row, 3).FormulaA1 = $"SUM(C{dataStartRow}:C{dataEndRow})";
-        ws.Cell(row, 4).FormulaA1 = $"SUM(D{dataStartRow}:D{dataEndRow})";
-        ws.Cell(row, 5).FormulaA1 = $"SUM(E{dataStartRow}:E{dataEndRow})";
 
         for (int col = 3; col <= 5; col++)
         {

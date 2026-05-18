@@ -11,7 +11,5 @@ namespace MicroCredit.Domain.Model.Fund
         public int id { get; set; }
         public string UserName { get; set; }
         public decimal? Amount { get; set; }
-        public decimal? InsuranceAmount { get; set; }
-        public decimal? ClaimedAmount { get; set; }
     }
 }
