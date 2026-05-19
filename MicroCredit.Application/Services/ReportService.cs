@@ -32,6 +32,16 @@ public class ReportService : IReportService
         return await _unitOfWork.Reports.GetMembersByPocIdsAsync(branchId, pocIds);
     }
 
+    public async Task<List<StaffScheduleReportRowDto>> GetStaffSchedulesByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    {
+        return await _unitOfWork.Reports.GetStaffSchedulesByBranchAsync(branchId, cancellationToken);
+    }
+
+    public async Task<List<PocCollectionStaffReportDto>> GetPocCollectionStaffByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    {
+        return await _unitOfWork.Reports.GetPocCollectionStaffByBranchAsync(branchId, cancellationToken);
+    }
+
     public async Task<List<ReportPaidToUserTransactionResponseDto>> GetRecentPaidToUserTransactionsByBranchAsync(int branchId, CancellationToken cancellationToken = default)
     {
         return await _unitOfWork.Reports.GetRecentPaidToUserTransactionsByBranchAsync(branchId, cancellationToken);
