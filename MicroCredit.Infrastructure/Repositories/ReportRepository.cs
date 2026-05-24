@@ -68,7 +68,7 @@ public class ReportRepository : IReportRepository
                   && c.BranchId == branchId
                   && p.Id == pocId
                   && ls != null
-                  && ls.Status == LoanSchedulerStatus.NotPaid
+                  && ls.Status != LoanSchedulerStatus.Paid
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
             select new ReportMembersByPocResponseDto
@@ -80,6 +80,7 @@ public class ReportRepository : IReportRepository
                                    (m.LastName ?? string.Empty)).Trim(),
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
+                LoanSchedulerStatus = ls.Status.ToString(),
             };
 
         return await query
@@ -115,7 +116,7 @@ public class ReportRepository : IReportRepository
                   && c.BranchId == branchId
                   && distinctPocIds.Contains(p.Id)
                   && ls != null
-                  && ls.Status == LoanSchedulerStatus.NotPaid
+                  && ls.Status != LoanSchedulerStatus.Paid
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
             select new ReportMembersByPocResponseDto
@@ -127,6 +128,7 @@ public class ReportRepository : IReportRepository
                                    (m.LastName ?? string.Empty)).Trim(),
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
+                LoanSchedulerStatus = ls.Status.ToString(),
             };
 
         return await query
@@ -136,6 +138,73 @@ public class ReportRepository : IReportRepository
             .ThenBy(x => x.ScheduleDate)
             .AsNoTracking()
             .ToListAsync();
+    }
+
+    public async Task<List<StaffScheduleReportRowDto>> GetStaffSchedulesByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    {
+        var windowStart = DateTime.Today;
+        var windowEndExclusive = DateTime.Today.AddDays(2);
+
+        return await (
+            from p in _context.POCs
+            join u in _context.Users on p.CollectionBy equals u.Id
+            join m in _context.Members on p.Id equals m.POCId
+            join l in _context.Loans on m.Id equals l.MemberId
+            join ls in _context.LoanSchedulers on l.Id equals ls.LoanId
+            join b in _context.Branches on u.BranchId equals b.Id
+            where !p.IsDeleted
+                  && b.Id == branchId
+                  && ls.ScheduleDate >= windowStart
+                  && ls.ScheduleDate < windowEndExclusive
+            orderby u.Id, p.Id, m.Id, ls.ScheduleDate
+            select new StaffScheduleReportRowDto
+            {
+                PocId = p.Id,
+                PocStaffId = p.CollectionBy,
+                UserId = u.Id,
+                PocFullName = ((p.FirstName ?? string.Empty) + " " +
+                               (p.MiddleName ?? string.Empty) + " " +
+                               (p.LastName ?? string.Empty)).Trim(),
+                UserFullName = ((u.FirstName ?? string.Empty) + " " +
+                                (u.MiddleName ?? string.Empty) + " " +
+                                (u.LastName ?? string.Empty)).Trim(),
+                MemberFullName = ((m.FirstName ?? string.Empty) + " " +
+                                  (m.MiddleName ?? string.Empty) + " " +
+                                  (m.LastName ?? string.Empty)).Trim(),
+                MemberId = m.Id,
+                CenterId = p.CenterId,
+                PocIsDeleted = p.IsDeleted,
+                LoanSchedulerId = ls.LoanSchedulerId,
+                ActualEmiAmount = ls.ActualEmiAmount,
+                ScheduleDate = ls.ScheduleDate,
+                BranchId = b.Id,
+                UserRole = u.Role.ToString(),
+            }
+        )
+        .AsNoTracking()
+        .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<PocCollectionStaffReportDto>> GetPocCollectionStaffByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    {
+        return await (
+            from u in _context.Users
+            join p in _context.POCs on u.Id equals p.CollectionBy
+            join b in _context.Branches on u.BranchId equals b.Id
+            where !p.IsDeleted && b.Id == branchId
+            group u by new { u.Id, u.FirstName, u.MiddleName, u.LastName, u.Role } into g
+            orderby g.Key.Id
+            select new PocCollectionStaffReportDto
+            {
+                UserId = g.Key.Id,
+                UserFullName = ((g.Key.FirstName ?? string.Empty) + " " +
+                                (g.Key.MiddleName ?? string.Empty) + " " +
+                                (g.Key.LastName ?? string.Empty)).Trim(),
+                UserRole = g.Key.Role.ToString(),
+            }
+        )
+        .AsNoTracking()
+        .ToListAsync(cancellationToken);
     }
 
     public async Task<List<ReportPaidToUserTransactionResponseDto>> GetRecentPaidToUserTransactionsByBranchAsync(int branchId, CancellationToken cancellationToken = default)
@@ -159,7 +228,7 @@ public class ReportRepository : IReportRepository
                 PaidToUserId = lt.PaidToUserId,
                 Amount = lt.Amount,
                 PaymentDate = lt.PaymentDate,
-                TransactionType = lt.TransactionType
+                TransactionType = lt.TransactionType,
             }
         )
         .AsNoTracking()

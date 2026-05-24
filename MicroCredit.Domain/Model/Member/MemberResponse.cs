@@ -34,6 +34,11 @@ public class MemberResponse
     /// <summary>POC display name from POC table (joined on POCId). For Member grid display.</summary>
     public string? Poc { get; set; }
 
+    /// <summary>
+    /// When populated, member has at least one Active/Pending/Claimed loan; value is the loan id used for View Schedule (max id, same as Add Loan flow).
+    /// </summary>
+    public int? PrimaryOpenLoanId { get; set; }
+
     public string GuardianName => string.Join(" ", new[]
     {
         GuardianFirstName,

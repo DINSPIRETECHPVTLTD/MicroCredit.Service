@@ -160,4 +160,27 @@ public class LoanRepository : ILoanRepository
                     (loan.Status == "Active" || loan.Status == "Defaulted"),
             cancellationToken);
     }
+
+    public async Task<Dictionary<int, int>> GetMaxViewableLoanIdsByMemberIdsAsync(
+        IReadOnlyList<int> memberIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (memberIds == null || memberIds.Count == 0)
+            return new Dictionary<int, int>();
+
+        var distinctIds = memberIds.Distinct().ToList();
+
+        var rows = await _context.Loans
+            .AsNoTracking()
+            .Where(l => !l.IsDeleted && distinctIds.Contains(l.MemberId))
+            .Where(l =>
+                l.Status == "Active" || l.Status == "Pending" || l.Status == "Claimed" ||
+                l.Status == "ACTIVE" || l.Status == "PENDING" || l.Status == "CLAIMED")
+            .Select(l => new { l.MemberId, l.Id })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(x => x.MemberId)
+            .ToDictionary(g => g.Key, g => g.Max(x => x.Id));
+    }
 }
