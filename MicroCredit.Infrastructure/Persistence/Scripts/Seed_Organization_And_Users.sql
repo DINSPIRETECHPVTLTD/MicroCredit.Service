@@ -17,20 +17,20 @@
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
-DECLARE @OrgName nvarchar(200) = N'Default Organization';
-DECLARE @OwnerEmail nvarchar(200) = N'owner@localhost';
+DECLARE @OrgName nvarchar(200) = N'Navya Financial Services';
+DECLARE @OwnerEmail nvarchar(200) = N'owner@navyafinservices.com';
 DECLARE @OwnerFirstName nvarchar(100) = N'System';
 DECLARE @OwnerLastName nvarchar(100) = N'Owner';
 -- BCrypt (work factor 11) for: ChangeMeOnFirstLogin!1
 DECLARE @PasswordHash nvarchar(max) = N'$2a$11$M4.6CWcLn9xcIzQtddGf3eByBZhrgQe0CHtksgVJT//WRRnpFUkEe';
 
-IF EXISTS (SELECT 1 FROM dbo.Organizations WHERE Id = 1)
+IF EXISTS (SELECT 1 FROM dinspire_sa.Organizations WHERE Id = 1)
 BEGIN
     RAISERROR ('Organization Id = 1 already exists. Remove it or adjust this script.', 16, 1);
     RETURN;
 END;
 
-IF EXISTS (SELECT 1 FROM dbo.Users WHERE Id = 1 OR Email = @OwnerEmail)
+IF EXISTS (SELECT 1 FROM dinspire_sa.Users WHERE Id = 1 OR Email = @OwnerEmail)
 BEGIN
     RAISERROR ('User Id = 1 or duplicate email already exists. Remove rows or adjust this script.', 16, 1);
     RETURN;
@@ -39,14 +39,14 @@ END;
 BEGIN TRANSACTION;
 
 -- Breaks circular FKs: Organization.CreatedBy -> User, User.CreatedBy -> User (self)
-ALTER TABLE dbo.Organizations NOCHECK CONSTRAINT FK_Organizations_Users_CreatedBy;
-ALTER TABLE dbo.Organizations NOCHECK CONSTRAINT FK_Organizations_Users_ModifiedBy;
-ALTER TABLE dbo.Users NOCHECK CONSTRAINT FK_Users_Users_CreatedBy;
-ALTER TABLE dbo.Users NOCHECK CONSTRAINT FK_Users_Users_ModifiedBy;
+ALTER TABLE dinspire_sa.Organizations NOCHECK CONSTRAINT FK_Organizations_Users_CreatedBy;
+ALTER TABLE dinspire_sa.Organizations NOCHECK CONSTRAINT FK_Organizations_Users_ModifiedBy;
+ALTER TABLE dinspire_sa.Users NOCHECK CONSTRAINT FK_Users_Users_CreatedBy;
+ALTER TABLE dinspire_sa.Users NOCHECK CONSTRAINT FK_Users_Users_ModifiedBy;
 
-SET IDENTITY_INSERT dbo.Organizations ON;
+SET IDENTITY_INSERT dinspire_sa.Organizations ON;
 
-INSERT INTO dbo.Organizations
+INSERT INTO dinspire_sa.Organizations
 (
     Id,
     Name,
@@ -79,11 +79,11 @@ VALUES
     0
 );
 
-SET IDENTITY_INSERT dbo.Organizations OFF;
+SET IDENTITY_INSERT dinspire_sa.Organizations OFF;
 
-SET IDENTITY_INSERT dbo.Users ON;
+SET IDENTITY_INSERT dinspire_sa.Users ON;
 
-INSERT INTO dbo.Users
+INSERT INTO dinspire_sa.Users
 (
     Id,
     FirstName,
@@ -132,12 +132,12 @@ VALUES
     0
 );
 
-SET IDENTITY_INSERT dbo.Users OFF;
+SET IDENTITY_INSERT dinspire_sa.Users OFF;
 
-ALTER TABLE dbo.Organizations CHECK CONSTRAINT FK_Organizations_Users_CreatedBy;
-ALTER TABLE dbo.Organizations CHECK CONSTRAINT FK_Organizations_Users_ModifiedBy;
-ALTER TABLE dbo.Users CHECK CONSTRAINT FK_Users_Users_CreatedBy;
-ALTER TABLE dbo.Users CHECK CONSTRAINT FK_Users_Users_ModifiedBy;
+ALTER TABLE dinspire_sa.Organizations CHECK CONSTRAINT FK_Organizations_Users_CreatedBy;
+ALTER TABLE dinspire_sa.Organizations CHECK CONSTRAINT FK_Organizations_Users_ModifiedBy;
+ALTER TABLE dinspire_sa.Users CHECK CONSTRAINT FK_Users_Users_CreatedBy;
+ALTER TABLE dinspire_sa.Users CHECK CONSTRAINT FK_Users_Users_ModifiedBy;
 
 COMMIT TRANSACTION;
 
