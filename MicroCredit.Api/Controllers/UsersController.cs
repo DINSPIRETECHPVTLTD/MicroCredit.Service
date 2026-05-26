@@ -56,7 +56,17 @@ public class UsersController : ControllerBase
         {
             var (orgId, branchId) = _userContext.GetBranchContext();
             var users = await _userService.GetBranchUsersAsync(orgId, branchId, cancellationToken);
-            return Ok(users);
+            var list = users.ToList();
+            if (list.Count == 0)
+            {
+                return Ok(new
+                {
+                    message = "No Staff found",
+                    data = list
+                });
+            }
+
+            return Ok(list);
         }
         catch (InvalidOperationException)
         {

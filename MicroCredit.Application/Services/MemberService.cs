@@ -27,7 +27,22 @@ public class MemberService : IMemberService
         var members = await unitOfWork.Members.GetMembersByBranchAsync(branchId, cancellationToken);
         if (members == null)
             return Enumerable.Empty<MemberResponse>();
-        return members.Select(m => m.ToMemberResponse());
+
+        var list = members.Select(m => m.ToMemberResponse()).ToList();
+        if (list.Count == 0)
+            return list;
+
+        var loanByMember = await unitOfWork.Loans.GetMaxViewableLoanIdsByMemberIdsAsync(
+            list.Select(m => m.Id).ToList(),
+            cancellationToken);
+
+        foreach (var r in list)
+        {
+            if (loanByMember.TryGetValue(r.Id, out var loanId))
+                r.PrimaryOpenLoanId = loanId;
+        }
+
+        return list;
     }
 
     public async Task<MemberResponse> CreateAsync(CreateMemberRequest request, IUserContext userContext, CancellationToken cancellationToken = default)

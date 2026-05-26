@@ -30,8 +30,18 @@ namespace MicroCredit.Api.Controllers
             if (!_userContext.BranchId.HasValue)
                 return BadRequest("BranchId is required to get centers.");
 
-            var branches = await _centerService.GetCentersAsync(_userContext.BranchId.Value);
-            return Ok(branches);
+            var centers = await _centerService.GetCentersAsync(_userContext.BranchId.Value);
+            var list = centers.ToList();
+            if (list.Count == 0)
+            {
+                return Ok(new
+                {
+                    message = "No centers found",
+                    data = list
+                });
+            }
+
+            return Ok(list);
         }
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateCenterRequest request, CancellationToken cancellationToken)

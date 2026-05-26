@@ -57,9 +57,17 @@ public class MemberController : ControllerBase
         }
 
         var members = await _memberService.GetMembersByBranchAsync(branchId, cancellationToken);
-        if (members == null || !members.Any())
-            return Ok(Enumerable.Empty<MemberResponse>());
-        return Ok(members);
+        var list = members?.ToList() ?? new List<MemberResponse>();
+        if (list.Count == 0)
+        {
+            return Ok(new
+            {
+                message = "No Members found",
+                data = list
+            });
+        }
+
+        return Ok(list);
     }
 
     [HttpPost]
