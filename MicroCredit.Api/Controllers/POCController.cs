@@ -40,11 +40,17 @@ namespace MicroCredit.Api.Controllers
             }
 
             var pocs = await _pocService.GetPOCsByBranchIdAsync(branchId, cancellationToken);
+            var list = pocs?.ToList() ?? new List<PocResponse>();
+            if (list.Count == 0)
+            {
+                return Ok(new
+                {
+                    message = "No POCs found.",
+                    data = list
+                });
+            }
 
-            if (pocs == null || !pocs.Any())
-                return NotFound(new { message = "No POCs found for the given branch." });
-
-            return Ok(pocs);
+            return Ok(list);
         }
 
         [HttpGet("{id:int}")]
