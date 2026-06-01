@@ -8,6 +8,7 @@ public interface IUserContext
     int UserId { get; }
     int OrgId { get; }
     int? BranchId { get; }
+    string TimeZoneId { get; }
 
     /// <summary>Gets (OrgId, BranchId). Throws if not in branch context (BranchId is null).</summary>
     (int OrgId, int BranchId) GetBranchContext();

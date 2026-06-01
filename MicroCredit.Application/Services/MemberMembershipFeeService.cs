@@ -4,6 +4,7 @@ using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Model.MemberMembershipFee;
+using MicroCredit.Application.Utilities;
 
 namespace MicroCredit.Application.Services;
 
@@ -27,12 +28,16 @@ public class MemberMembershipFeeService : IMemberMembershipFeeService
         if (member == null)
             throw new Exception("Member not found.");
 
+        var paidDate = request.PaidDate.HasValue
+            ? ClientDateTimeConverter.NormalizeForStorage(request.PaidDate.Value, context.TimeZoneId)
+            : (DateTime?)null;
+
         var fee = new MemberMembershipFee(
             memberId: request.MemberId,
             amount: request.Amount,
             createdBy: context.UserId,
             collectedBy: request.CollectedBy,
-            paidDate: request.PaidDate,
+            paidDate: paidDate,
             paymentMode: request.PaymentMode,
             comments: request.Comments
         );
@@ -46,7 +51,7 @@ public class MemberMembershipFeeService : IMemberMembershipFeeService
         if (fee.Amount > 0m)
         {
             var paidToUserId = request.CollectedBy is > 0 ? request.CollectedBy.Value : context.UserId;
-            var paymentDate = request.PaidDate ?? DateTime.UtcNow;
+            var paymentDate = paidDate ?? DateTime.UtcNow;
 
             await _ledgerRecordService.RecordDepositAsync(
                 paidToUserId: paidToUserId,

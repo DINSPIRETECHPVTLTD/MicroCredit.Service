@@ -1,9 +1,11 @@
 using MicroCredit.Domain.Entities;
+using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Application.Mappings.DomianEntity;
 using MicroCredit.Domain.Model.Fund;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Interfaces.Services;
+using MicroCredit.Application.Utilities;
 
 namespace MicroCredit.Application.Services
 {
@@ -12,12 +14,14 @@ namespace MicroCredit.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILedgerRecordService _ledgerRecordService;
         private readonly IUsersService _usersService;
+        private readonly IUserContext _userContext;
 
-        public InvestmentService(IUnitOfWork unitOfWork, ILedgerRecordService ledgerRecordService, IUsersService usersService)
+        public InvestmentService(IUnitOfWork unitOfWork, ILedgerRecordService ledgerRecordService, IUsersService usersService, IUserContext userContext)
         {
             _unitOfWork = unitOfWork;
             _ledgerRecordService = ledgerRecordService;
             _usersService = usersService;
+            _userContext = userContext;
         }
 
         public async Task<IEnumerable<InvestmentResponse>> GetInvestmentsAsync(int orgId, CancellationToken cancellationToken = default)
@@ -30,12 +34,15 @@ namespace MicroCredit.Application.Services
 
         public async Task<int> CreateInvestmentAsync(CreateInvestmentRequest request, int createdByUserId, CancellationToken cancellationToken = default)
         {
+            var investmentDate = ClientDateTimeConverter.NormalizeForStorage(request.InvestmentDate, _userContext.TimeZoneId);
+            var createdDate = ClientDateTimeConverter.NormalizeForStorage(request.CreatedDate, _userContext.TimeZoneId);
+
             var investment = new Investment(
                 userId: request.UserId,
                 amount: request.Amount,
-                investmentDate: request.InvestmentDate,
+                investmentDate: investmentDate,
                 createdById: createdByUserId,
-                createdDate: request.CreatedDate);
+                createdDate: createdDate);
 
             await _unitOfWork.Investments.AddInvestmentAsync(investment, cancellationToken);
 
@@ -51,9 +58,9 @@ namespace MicroCredit.Application.Services
             await _ledgerRecordService.RecordInvestmentAsync(
                 request.UserId,
                 request.Amount,
-                request.InvestmentDate,
+                investmentDate,
                 createdByUserId,
-                request.CreatedDate,
+                createdDate,
                 "Investment",
                 referenceId: investment.Id,
                 comments: investmentComment,
