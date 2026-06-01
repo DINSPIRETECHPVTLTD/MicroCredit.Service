@@ -6,6 +6,8 @@ using MicroCredit.Domain.Model.Loan;
 using MicroCredit.Application.Mappings.DomianEntity;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Application.Core;
+using MicroCredit.Application.Utilities;
+using MicroCredit.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
 namespace MicroCredit.Application.Services;
@@ -16,16 +18,19 @@ public class LoansService : ILoansService
     private readonly ILedgerBalanceService _ledgerBalanceService;
     private readonly ILoanSchedulerService _loanSchedulerService;
     private readonly ILedgerRecordService _ledgerRecordService;
+    private readonly IUserContext _userContext;
 
     public LoansService(IUnitOfWork unitOfWork, 
                         ILedgerBalanceService ledgerBalanceService, 
                         ILoanSchedulerService loanSchedulerService,
-                        ILedgerRecordService ledgerRecordService)
+                        ILedgerRecordService ledgerRecordService,
+                        IUserContext userContext)
     {
         _unitOfWork = unitOfWork;
         _ledgerBalanceService = ledgerBalanceService;
         _loanSchedulerService = loanSchedulerService;
         _ledgerRecordService = ledgerRecordService;
+        _userContext = userContext;
     }
 
     public async Task<IEnumerable<LoanResponse>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -163,6 +168,13 @@ public class LoansService : ILoansService
         try
         {
 
+            var disbursementDate = request.DisbursementDate == default
+                ? request.DisbursementDate
+                : ClientDateTimeConverter.NormalizeForStorage(request.DisbursementDate, _userContext.TimeZoneId);
+            var collectionStartDate = request.CollectionStartDate == default
+                ? request.CollectionStartDate
+                : ClientDateTimeConverter.NormalizeForStorage(request.CollectionStartDate, _userContext.TimeZoneId);
+
             var loan = new Loan
             (
                 memberId: request.MemberId,
@@ -173,9 +185,9 @@ public class LoansService : ILoansService
                 isSavingEnabled: request.IsSavingEnabled,
                 savingAmount: request.SavingAmount,
                 totalAmount: request.TotalAmount,
-                disbursementDate: request.DisbursementDate,
+                disbursementDate: disbursementDate,
                 collectionTerm: request.CollectionTerm,
-                collectionStartDate: request.CollectionStartDate,
+                collectionStartDate: collectionStartDate,
                 noOfTerms: request.NoOfTerms,
                 createdBy: userId
             );

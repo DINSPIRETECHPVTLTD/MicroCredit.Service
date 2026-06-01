@@ -177,36 +177,6 @@ public class ReportController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Recent ledger rows paid to users in the branch. Pass <c>branchId</c> from the client in branch mode;
-    /// BranchAdmin/Staff may only query their current branch (must match token context).
-    /// </summary>
-    [HttpGet("recent-paid-to-user-transactions")]
-    public async Task<IActionResult> GetRecentPaidToUserTransactions(
-        [FromQuery] int? branchId,
-        CancellationToken cancellationToken = default)
-    {
-        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
-            return Unauthorized();
-
-        var role = UserClaimsHelper.GetUserRole(User);
-        var effectiveBranchId = branchId ?? _userContext.BranchId;
-
-        if (!effectiveBranchId.HasValue || effectiveBranchId.Value <= 0)
-            return BadRequest("branchId must be provided (or valid branch context on the token).");
-
-        if (role == UserRole.BranchAdmin || role == UserRole.Staff)
-        {
-            if (!_userContext.BranchId.HasValue)
-                return StatusCode(StatusCodes.Status403Forbidden, "Branch context is required.");
-            if (_userContext.BranchId.Value != effectiveBranchId.Value)
-                return StatusCode(StatusCodes.Status403Forbidden, "You can access only your branch data.");
-        }
-
-        var data = await _reportService.GetRecentPaidToUserTransactionsByBranchAsync(effectiveBranchId.Value, cancellationToken);
-        return Ok(data ?? new List<ReportPaidToUserTransactionResponseDto>());
-    }
-
     [HttpGet("MemberWiseCollectionSheet")]
     public async Task<IActionResult> GetMemberWiseCollectionsheet()
     {

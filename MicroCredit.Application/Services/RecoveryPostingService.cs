@@ -2,6 +2,7 @@ using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Interfaces.Service;
 using MicroCredit.Domain.Model.RecoveryPosting;
+using MicroCredit.Application.Utilities;
 using MicroCredit.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -223,7 +224,7 @@ public class RecoveryPostingService : IRecoveryPostingService
 
                 if (string.Equals(normalizedStatus, StatusOverdue, StringComparison.OrdinalIgnoreCase))
                 {
-                    var today = DateTime.Today;
+                    var today = ClientDateTimeConverter.GetCurrentDateInTimeZone(userContext.TimeZoneId);
                     if (row.ScheduleDate.Date >= today)
                     {
                         throw new InvalidOperationException(
