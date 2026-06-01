@@ -42,11 +42,6 @@ public class ReportService : IReportService
         return await _unitOfWork.Reports.GetPocCollectionStaffByBranchAsync(branchId, cancellationToken);
     }
 
-    public async Task<List<ReportPaidToUserTransactionResponseDto>> GetRecentPaidToUserTransactionsByBranchAsync(int branchId, CancellationToken cancellationToken = default)
-    {
-        return await _unitOfWork.Reports.GetRecentPaidToUserTransactionsByBranchAsync(branchId, cancellationToken);
-    }
-
     public async Task<ReportSummaryResponseDto> GetSummaryAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Fetching report summary data.");
