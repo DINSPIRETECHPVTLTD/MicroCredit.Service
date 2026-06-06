@@ -9,6 +9,9 @@ public class Member
     [Key]
     public int Id { get; private set; }
 
+    [StringLength(20)]
+    public string? MemberCode { get; private set; }
+
     [Required]
     [StringLength(100)]
     public string FirstName { get; private set; } = string.Empty;
@@ -115,7 +118,7 @@ public class Member
         string? middleName = null, string? altPhone = null, string? address1 = null, string? address2 = null,
         string? city = null, string? state = null, string? zipCode = null, string? aadhaar = null,
         string? occupation = null, string? relationship = null, DateOnly? dob = null, string? guardianMiddleName = null,
-        DateOnly? guardianDob = null)
+        DateOnly? guardianDob = null, string? memberCode = null)
     {
         FirstName = firstName;
         LastName = lastName;
@@ -143,12 +146,14 @@ public class Member
         DOB = dob;
         GuardianMiddleName = guardianMiddleName;
         GuardianDOB = guardianDob;
+        MemberCode = memberCode;
     }
 
     public void UpdateDetails(int centerId, int pocId, string firstName, string? middleName, string lastName, string phoneNumber, string? altPhone,
         string? address1, string? address2, string? city, string? state, string? zipCode, string? aadhaar,
         string? occupation, string? relationship, DateOnly? dob, int age, string guardianFirstName, string? guardianMiddleName,
-        string guardianLastName, string guardianPhone, DateOnly? guardianDob, int guardianAge, int modifiedBy)
+        string guardianLastName, string guardianPhone, DateOnly? guardianDob, int guardianAge, int modifiedBy,
+        string? memberCode = null)
     {
         CenterId = centerId;
         POCId = pocId;
@@ -173,6 +178,7 @@ public class Member
         GuardianPhone = guardianPhone;
         GuardianDOB = guardianDob;
         GuardianAge = guardianAge;
+        MemberCode = memberCode;
         ModifiedBy = modifiedBy;
         ModifiedAt = DateTime.UtcNow;
     }

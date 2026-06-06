@@ -10,6 +10,7 @@ public static class MemberExtensions
         return new MemberResponse
         {
             Id = member.Id,
+            MemberCode = member.MemberCode,
             FirstName = member.FirstName,
             MiddleName = member.MiddleName,
             LastName = member.LastName,

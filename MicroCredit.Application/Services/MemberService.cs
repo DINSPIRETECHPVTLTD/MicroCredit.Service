@@ -1,3 +1,4 @@
+using MicroCredit.Application.Core;
 using MicroCredit.Application.Mappings;
 using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Entities;
@@ -70,7 +71,8 @@ public class MemberService : IMemberService
             relationship: request.Relationship,
             dob: dob,
             guardianMiddleName: request.GuardianMiddleName,
-            guardianDob: guardianDob
+            guardianDob: guardianDob,
+            memberCode: request.MemberCode?.Trim().NullIfEmpty()
         );
 
         await unitOfWork.Members.CreateAsync(entity, cancellationToken);
@@ -114,7 +116,8 @@ public class MemberService : IMemberService
             guardianPhone: request.GuardianPhone ?? string.Empty,
             guardianDob: guardianDob,
             guardianAge: request.GuardianAge,
-            modifiedBy: userContext.UserId
+            modifiedBy: userContext.UserId,
+            memberCode: request.MemberCode?.Trim().NullIfEmpty()
         );
 
         await unitOfWork.Members.UpdateAsync(member, cancellationToken);

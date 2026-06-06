@@ -12,6 +12,9 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
 
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.MemberCode).HasMaxLength(20);
+        builder.HasIndex(x => x.MemberCode).IsUnique().HasFilter("[MemberCode] IS NOT NULL");
+
         builder.Property(x => x.FirstName).IsRequired().HasMaxLength(100);
         builder.Property(x => x.MiddleName).HasMaxLength(100);
         builder.Property(x => x.LastName).IsRequired().HasMaxLength(100);
