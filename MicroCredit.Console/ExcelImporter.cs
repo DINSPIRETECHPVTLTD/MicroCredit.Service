@@ -280,7 +280,7 @@ public class ExcelImporter
         using var ins = _conn.CreateCommand();
         ins.CommandText = @"
             INSERT INTO Members
-                (FirstName, LastName, PhoneNumber, AltPhone, Address1, Address2,
+                (FirstName, LastName, PhoneNumber, AltPhone, Address1, MemberCode,
                  Age, GuardianFirstName, GuardianLastName, GuardianPhone, GuardianAge,
                  CenterId, POCId, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
@@ -293,7 +293,7 @@ public class ExcelImporter
         ins.Parameters.AddWithValue("@phone", phone);
         ins.Parameters.AddWithValue("@altPhone", (object?)altPhone ?? DBNull.Value);
         ins.Parameters.AddWithValue("@village", row.Village);
-        ins.Parameters.AddWithValue("@memberCode", row.MemberCode);  // stored in Address2
+        ins.Parameters.AddWithValue("@memberCode", (object?)row.MemberCode.NullIfEmpty() ?? DBNull.Value);
         ins.Parameters.AddWithValue("@age", row.Age > 0 ? row.Age : 0);
         ins.Parameters.AddWithValue("@gfn", gFirst);
         ins.Parameters.AddWithValue("@gln", gLast);
