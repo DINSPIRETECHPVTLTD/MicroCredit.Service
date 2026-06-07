@@ -240,7 +240,7 @@ Console.WriteLine($"  investment  id = {investmentId}, amount = {investmentAmoun
 Console.WriteLine($"\n[PAYMENT TERMS] Seeding payment terms...");
 var paymentTerms = new[]
 {
-    (PaymentTermName: "Weekly", PaymentType: "30Week-ROI-24", NoOfTerms: 30, ProcessingFee: 2.5m, RateOfInterest: 20m, InsuranceFee: 0.75m),
+    (PaymentTermName: "Weekly", PaymentType: "30Week-ROI-24", NoOfTerms: 30, ProcessingFee: 2.25m, RateOfInterest: 20m, InsuranceFee: 0.75m),
 };
 foreach (var pt in paymentTerms)
 {
