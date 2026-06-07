@@ -250,6 +250,20 @@ if (File.Exists(excelFile))
     Console.WriteLine($"\n[REMITTANCE/CREDITS] Starting import...");
     var rcImporter = new RemittanceCreditsImporter(conn, orgId, importUserId);
     await rcImporter.RunAsync(excelFile, excelPassword);
+
+    // ── Step 8: Backfill MemberCode from Address2 (one-time migration) ───────
+    Console.WriteLine($"\n[BACKFILL] Migrating MemberCode from Address2...");
+    using var backfillCmd = conn.CreateCommand();
+    backfillCmd.CommandText = @"
+        UPDATE Members
+        SET    MemberCode = Address2,
+               Address2   = NULL
+        WHERE  MemberCode IS NULL
+          AND  Address2 IS NOT NULL
+          AND  Address2 LIKE 'NM%'
+          AND  IsDeleted = 0";
+    var backfillCount = await backfillCmd.ExecuteNonQueryAsync();
+    Console.WriteLine($"[BACKFILL] MemberCode migrated for {backfillCount} member(s).");
 }
 else
 {
