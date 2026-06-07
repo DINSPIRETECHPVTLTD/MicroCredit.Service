@@ -269,38 +269,6 @@ if (File.Exists(excelFile))
     {
         Console.WriteLine($"[STAFF] Branch '{branchName}' not found — skipped.");
     }
-
-    // ── Step 8: Backfill MemberCode from Address2 (one-time migration) ───────
-    Console.WriteLine($"\n[BACKFILL] Migrating MemberCode from Address2...");
-
-    // Case A: code not yet in MemberCode column → migrate it
-    using var backfillCmd = conn.CreateCommand();
-    backfillCmd.CommandText = @"
-        UPDATE Members
-        SET    MemberCode = Address2,
-               Address2   = NULL
-        WHERE  MemberCode IS NULL
-          AND  Address2 IS NOT NULL
-          AND  Address2 LIKE 'NM%'
-          AND  IsDeleted = 0
-          AND  Address2 NOT IN (
-                SELECT MemberCode FROM Members
-                WHERE  MemberCode IS NOT NULL AND IsDeleted = 0)";
-    var backfillCount = await backfillCmd.ExecuteNonQueryAsync();
-    Console.WriteLine($"[BACKFILL] MemberCode migrated for {backfillCount} member(s).");
-
-    // Case B: code already exists in MemberCode (duplicate row) → just clear Address2
-    using var clearDupCmd = conn.CreateCommand();
-    clearDupCmd.CommandText = @"
-        UPDATE Members
-        SET    Address2 = NULL
-        WHERE  MemberCode IS NULL
-          AND  Address2 IS NOT NULL
-          AND  Address2 LIKE 'NM%'
-          AND  IsDeleted = 0";
-    var clearCount = await clearDupCmd.ExecuteNonQueryAsync();
-    if (clearCount > 0)
-        Console.WriteLine($"[BACKFILL] Cleared Address2 for {clearCount} duplicate member(s) whose MemberCode was already migrated.");
 }
 else
 {
