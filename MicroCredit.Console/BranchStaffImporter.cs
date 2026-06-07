@@ -82,7 +82,7 @@ public class BranchStaffImporter
             ins.CommandText = @"
                 INSERT INTO Users
                     (FirstName, LastName, Email, PasswordHash,
-                     Role, UserLevel, OrgId, BranchId,
+                     Role, [Level], OrgId, BranchId,
                      CreatedBy, CreatedAt, IsDeleted)
                 OUTPUT INSERTED.Id
                 VALUES
