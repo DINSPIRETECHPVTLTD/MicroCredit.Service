@@ -14,9 +14,9 @@ public class BranchStaffImporter
 
     private const string DefaultPassword = "N@VY@$y$t3m001";
     private const string EmailDomain     = "navyafinservices.com";
-    // UserRole.Staff = 3 | UserLevel.Branch = 2
-    private const int RoleStaff    = 3;
-    private const int LevelBranch  = 2;
+    // Stored as nvarchar by EF (enum.ToString())
+    private const string RoleStaff   = "Staff";
+    private const string LevelBranch = "Branch";
 
     public BranchStaffImporter(SqlConnection conn, int orgId, int importUserId)
     {

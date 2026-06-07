@@ -36,7 +36,7 @@ else
     cmd.CommandText = @"
         INSERT INTO Users (FirstName, LastName, Role, Email, PasswordHash, OrgId, [Level], BranchId, CreatedBy, CreatedAt, IsDeleted)
         OUTPUT INSERTED.Id
-        VALUES ('Import', 'User', 1, @email, @pwd, @orgId, 1, NULL, 1, GETUTCDATE(), 0)";
+        VALUES ('Import', 'User', 'Owner', @email, @pwd, @orgId, 'Org', NULL, 1, GETUTCDATE(), 0)";
     cmd.Parameters.AddWithValue("@email", importEmail);
     cmd.Parameters.AddWithValue("@pwd", importPwdHash);
     cmd.Parameters.AddWithValue("@orgId", orgId);
@@ -69,7 +69,7 @@ else
     cmd.CommandText = @"
         INSERT INTO Users (FirstName, LastName, Role, Email, PasswordHash, OrgId, [Level], BranchId, CreatedBy, CreatedAt, IsDeleted)
         OUTPUT INSERTED.Id
-        VALUES ('Import', 'Investor', 4, @email, @pwd, @orgId, 1, NULL, @createdBy, GETUTCDATE(), 0)";
+        VALUES ('Import', 'Investor', 'Investor', @email, @pwd, @orgId, 'Org', NULL, @createdBy, GETUTCDATE(), 0)";
     cmd.Parameters.AddWithValue("@email", investorEmail);
     cmd.Parameters.AddWithValue("@pwd", investorPwdHash);
     cmd.Parameters.AddWithValue("@orgId", orgId);

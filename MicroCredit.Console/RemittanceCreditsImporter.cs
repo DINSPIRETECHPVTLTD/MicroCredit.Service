@@ -107,7 +107,7 @@ public class RemittanceCreditsImporter
         var (firstName, lastName) = SplitName(fullName);
         var email    = GenerateEmail(fullName, role);
         var pwdHash  = BCrypt.Net.BCrypt.HashPassword(DefaultPassword);
-        var roleName = role == 1 ? "Owner" : "Investor";
+        var roleName = role == 1 ? "Owner" : "Investor";  // nvarchar stored by EF as enum name
 
         // Look up by email
         using var chk = _conn.CreateCommand();
@@ -125,10 +125,10 @@ public class RemittanceCreditsImporter
         ins.CommandText = @"
             INSERT INTO Users (FirstName, LastName, Role, Email, PasswordHash, OrgId, [Level], BranchId, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
-            VALUES (@fn, @ln, @role, @email, @pwd, @orgId, 1, NULL, @createdBy, GETUTCDATE(), 0)";
+            VALUES (@fn, @ln, @role, @email, @pwd, @orgId, 'Org', NULL, @createdBy, GETUTCDATE(), 0)";
         ins.Parameters.AddWithValue("@fn",        firstName);
         ins.Parameters.AddWithValue("@ln",        lastName);
-        ins.Parameters.AddWithValue("@role",      role);
+        ins.Parameters.AddWithValue("@role",      roleName);   // store as string, not int
         ins.Parameters.AddWithValue("@email",     email);
         ins.Parameters.AddWithValue("@pwd",       pwdHash);
         ins.Parameters.AddWithValue("@orgId",     _orgId);
