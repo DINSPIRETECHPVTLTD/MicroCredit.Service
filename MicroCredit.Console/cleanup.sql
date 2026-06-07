@@ -2,14 +2,23 @@
 -- cleanup.sql
 -- Deletes ALL records created by the MicroCredit.Console import.
 -- Anchor: the import user identified by email.
--- Run inside a transaction so you can ROLLBACK if needed.
+--
+-- FK-safe deletion order:
+--   1. NULL out Users.BranchId   (breaks Users → Branchs cycle)
+--   2. MemberMembershipFees → Members
+--   3. Loans → Members
+--   4. Members → Centers, POCs
+--   5. LedgerTransactions, Ledgers, Investments
+--   6. POCs (CollectionBy → Users, CenterId → Centers)
+--   7. Centers (BranchId → Branchs)
+--   8. Branchs (CreatedBy → Users, safe while import user still exists)
+--   9. Users (last — all FK refs gone)
 -- ============================================================
 
 BEGIN TRANSACTION;
 
 -- ── 0. Resolve import user id ────────────────────────────────
-DECLARE @importEmail   NVARCHAR(200) = 'importuser@navyafinservices.com';
-DECLARE @importUserId  INT = (SELECT Id FROM Users WHERE Email = @importEmail);
+DECLARE @importUserId INT = (SELECT TOP 1 Id FROM Users WHERE Email = 'importuser@navyafinservices.com');
 
 IF @importUserId IS NULL
 BEGIN
@@ -19,72 +28,66 @@ BEGIN
 END
 PRINT CONCAT('Import user id = ', @importUserId);
 
--- ── Collect all console-created user ids ─────────────────────
--- All users whose email ends with @navyafinservices.com were
--- created exclusively by the console (owner, investor, staff).
-DECLARE @consoleUserIds TABLE (Id INT PRIMARY KEY);
-INSERT INTO @consoleUserIds (Id)
-SELECT Id FROM Users
-WHERE Email LIKE '%@navyafinservices.com' AND IsDeleted IN (0, 1);
+-- ── Collect console-created user ids ─────────────────────────
+CREATE TABLE #ConsoleUsers (Id INT PRIMARY KEY);
+INSERT INTO #ConsoleUsers (Id)
+SELECT Id FROM Users WHERE Email LIKE '%@navyafinservices.com';
+PRINT CONCAT('Console user count = ', (SELECT COUNT(*) FROM #ConsoleUsers));
 
-PRINT CONCAT('Console user count = ', (SELECT COUNT(*) FROM @consoleUserIds));
+-- ── Break Users.BranchId → Branchs FK (BranchId is nullable) ─
+UPDATE Users SET BranchId = NULL WHERE Id IN (SELECT Id FROM #ConsoleUsers);
+PRINT 'Users.BranchId NULLed.';
 
--- ── 1. MemberMembershipFees (created by import user) ─────────
-DELETE FROM MemberMembershipFees
-WHERE CreatedBy = @importUserId;
-PRINT CONCAT('Deleted MemberMembershipFees: ', @@ROWCOUNT);
+-- ── 1. MemberMembershipFees ───────────────────────────────────
+DELETE FROM MemberMembershipFees WHERE CreatedBy = @importUserId;
+PRINT CONCAT('Deleted MemberMembershipFees : ', @@ROWCOUNT);
 
--- ── 2. Loans (created by import user) ────────────────────────
-DELETE FROM Loans
-WHERE CreatedBy = @importUserId;
-PRINT CONCAT('Deleted Loans: ', @@ROWCOUNT);
+-- ── 2. Loans ─────────────────────────────────────────────────
+DELETE FROM Loans WHERE CreatedBy = @importUserId;
+PRINT CONCAT('Deleted Loans                : ', @@ROWCOUNT);
 
--- ── 3. Members (created by import user) ──────────────────────
-DELETE FROM Members
-WHERE CreatedBy = @importUserId;
-PRINT CONCAT('Deleted Members: ', @@ROWCOUNT);
+-- ── 3. Members ───────────────────────────────────────────────
+DELETE FROM Members WHERE CreatedBy = @importUserId;
+PRINT CONCAT('Deleted Members              : ', @@ROWCOUNT);
 
--- ── 4. LedgerTransactions for console investors ───────────────
+-- ── 4. LedgerTransactions ────────────────────────────────────
 DELETE FROM LedgerTransactions
-WHERE PaidToUserId IN (SELECT Id FROM @consoleUserIds)
-   OR CreatedBy    = @importUserId;
-PRINT CONCAT('Deleted LedgerTransactions: ', @@ROWCOUNT);
+WHERE PaidToUserId IN (SELECT Id FROM #ConsoleUsers)
+   OR CreatedBy = @importUserId;
+PRINT CONCAT('Deleted LedgerTransactions   : ', @@ROWCOUNT);
 
--- ── 5. Ledger balances for console investors ──────────────────
-DELETE FROM Ledgers
-WHERE UserId IN (SELECT Id FROM @consoleUserIds);
-PRINT CONCAT('Deleted Ledgers: ', @@ROWCOUNT);
+-- ── 5. Ledgers ───────────────────────────────────────────────
+DELETE FROM Ledgers WHERE UserId IN (SELECT Id FROM #ConsoleUsers);
+PRINT CONCAT('Deleted Ledgers              : ', @@ROWCOUNT);
 
--- ── 6. Investments for console investors ─────────────────────
+-- ── 6. Investments ───────────────────────────────────────────
 DELETE FROM Investments
-WHERE UserId IN (SELECT Id FROM @consoleUserIds)
+WHERE UserId IN (SELECT Id FROM #ConsoleUsers)
    OR CreatedById = @importUserId;
-PRINT CONCAT('Deleted Investments: ', @@ROWCOUNT);
+PRINT CONCAT('Deleted Investments          : ', @@ROWCOUNT);
 
--- ── 7. POCs created by import user ───────────────────────────
-DELETE FROM POCs
-WHERE CreatedBy = @importUserId;
-PRINT CONCAT('Deleted POCs: ', @@ROWCOUNT);
+-- ── 7. POCs (before Centers and Users) ───────────────────────
+DELETE FROM POCs WHERE CreatedBy = @importUserId;
+PRINT CONCAT('Deleted POCs                 : ', @@ROWCOUNT);
 
--- ── 8. Centers created by import user ────────────────────────
-DELETE FROM Centers
-WHERE CreatedBy = @importUserId;
-PRINT CONCAT('Deleted Centers: ', @@ROWCOUNT);
+-- ── 8. Centers (before Branches) ─────────────────────────────
+DELETE FROM Centers WHERE CreatedBy = @importUserId;
+PRINT CONCAT('Deleted Centers              : ', @@ROWCOUNT);
 
--- ── 9. Branches created by import user ───────────────────────
-DELETE FROM Branchs
-WHERE CreatedBy = @importUserId;
-PRINT CONCAT('Deleted Branches: ', @@ROWCOUNT);
+-- ── 9. Branches (CreatedBy = import user who still exists) ───
+DELETE FROM Branchs WHERE CreatedBy = @importUserId;
+PRINT CONCAT('Deleted Branches             : ', @@ROWCOUNT);
 
--- ── 10. All console-created users ────────────────────────────
-DELETE FROM Users
-WHERE Id IN (SELECT Id FROM @consoleUserIds);
-PRINT CONCAT('Deleted Users: ', @@ROWCOUNT);
+-- ── 10. Users (last — all FK refs gone) ──────────────────────
+DELETE FROM Users WHERE Id IN (SELECT Id FROM #ConsoleUsers);
+PRINT CONCAT('Deleted Users                : ', @@ROWCOUNT);
 
--- ── Summary ──────────────────────────────────────────────────
+DROP TABLE #ConsoleUsers;
+
+-- ── Done ──────────────────────────────────────────────────────
 PRINT '--------------------------------------------';
 PRINT 'Cleanup complete. Review counts above.';
 PRINT 'Run COMMIT to apply or ROLLBACK to undo.';
 
--- COMMIT;   -- uncomment when ready to apply permanently
--- ROLLBACK; -- uncomment to undo (safe dry-run)
+-- COMMIT;   -- uncomment to apply permanently
+-- ROLLBACK; -- uncomment for dry-run
