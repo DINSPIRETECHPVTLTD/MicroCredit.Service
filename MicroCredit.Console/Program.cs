@@ -251,6 +251,25 @@ if (File.Exists(excelFile))
     var rcImporter = new RemittanceCreditsImporter(conn, orgId, importUserId);
     await rcImporter.RunAsync(excelFile, excelPassword);
 
+    // ── Step 9: Branch Staff from "Member wise collection Sheet" ────────────
+    Console.WriteLine($"\n[STAFF] Starting branch staff import...");
+    var branchName = ConfigurationManager.AppSettings["Import.BranchName"]!;
+    using var branchCmd = conn.CreateCommand();
+    branchCmd.CommandText = "SELECT Id FROM Branchs WHERE Name = @name AND OrgId = @orgId AND IsDeleted = 0";
+    branchCmd.Parameters.AddWithValue("@name", branchName);
+    branchCmd.Parameters.AddWithValue("@orgId", orgId);
+    var branchIdObj = await branchCmd.ExecuteScalarAsync();
+    if (branchIdObj != null && branchIdObj != DBNull.Value)
+    {
+        var branchId = Convert.ToInt32(branchIdObj);
+        var staffImporter = new BranchStaffImporter(conn, orgId, importUserId);
+        await staffImporter.RunAsync(excelFile, excelPassword, branchId);
+    }
+    else
+    {
+        Console.WriteLine($"[STAFF] Branch '{branchName}' not found — skipped.");
+    }
+
     // ── Step 8: Backfill MemberCode from Address2 (one-time migration) ───────
     Console.WriteLine($"\n[BACKFILL] Migrating MemberCode from Address2...");
     using var backfillCmd = conn.CreateCommand();
