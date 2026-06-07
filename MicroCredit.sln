@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MicroCredit.Domain", "Micro
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MicroCredit.Application", "MicroCredit.Application\MicroCredit.Application.csproj", "{E36EC283-410B-4311-9257-63054B3C811B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MicroCredit.Console", "MicroCredit.Console\MicroCredit.Console.csproj", "{0C05BECF-D35C-410B-B45B-9E3AD5134C9F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{E36EC283-410B-4311-9257-63054B3C811B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E36EC283-410B-4311-9257-63054B3C811B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E36EC283-410B-4311-9257-63054B3C811B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C05BECF-D35C-410B-B45B-9E3AD5134C9F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C05BECF-D35C-410B-B45B-9E3AD5134C9F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C05BECF-D35C-410B-B45B-9E3AD5134C9F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C05BECF-D35C-410B-B45B-9E3AD5134C9F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

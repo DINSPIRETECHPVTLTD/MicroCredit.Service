@@ -4,6 +4,7 @@ public class CreateMemberRequest
 {
     public int CenterId { get; set; }
     public int PocId { get; set; }
+    public string? MemberCode { get; set; }
 
     public string FirstName { get; set; } = string.Empty;
     public string? MiddleName { get; set; }

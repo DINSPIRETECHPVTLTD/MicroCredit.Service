@@ -4,6 +4,7 @@ using MicroCredit.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MicroCredit.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MicroCreditDbContext))]
-    partial class MicroCreditDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260606194445_AddMemberCode")]
+    partial class AddMemberCode
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -89,7 +92,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrgId");
 
-                    b.ToTable("Branchs", "dinspire_sa");
+                    b.ToTable("Branchs", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.Center", b =>
@@ -138,50 +141,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ModifiedBy");
 
-                    b.ToTable("Centers", "dinspire_sa");
-                });
-
-            modelBuilder.Entity("MicroCredit.Domain.Entities.InsuranceClaimFinancialSummary", b =>
-                {
-                    b.Property<int>("SummaryId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SummaryId"));
-
-                    b.Property<DateTime>("CreatedDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
-
-                    b.Property<decimal>("TotalClaimedAmount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("TotalExpenseAmount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("TotalInsuranceAmount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("TotalJoiningFee")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("TotalProcessingFee")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,2)")
-                        .HasDefaultValue(0m);
-
-                    b.HasKey("SummaryId");
-
-                    b.ToTable("Insurance_Claim_Financial_Summary", "dinspire_sa");
+                    b.ToTable("Centers", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.Investment", b =>
@@ -213,7 +173,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Investments", "dinspire_sa");
+                    b.ToTable("Investments", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.Ledger", b =>
@@ -227,6 +187,12 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal?>("ClaimedAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("InsuranceAmount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -234,7 +200,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Ledgers", "dinspire_sa");
+                    b.ToTable("Ledgers", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.LedgerTransaction", b =>
@@ -283,7 +249,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PaidToUserId");
 
-                    b.ToTable("LedgerTransactions", "dinspire_sa");
+                    b.ToTable("LedgerTransactions", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.Loan", b =>
@@ -366,7 +332,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ModifiedBy");
 
-                    b.ToTable("Loans", "dinspire_sa");
+                    b.ToTable("Loans", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.LoanScheduler", b =>
@@ -440,7 +406,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("LoanId");
 
-                    b.ToTable("LoanSchedulers", "dinspire_sa");
+                    b.ToTable("LoanSchedulers", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.MasterLookup", b =>
@@ -492,7 +458,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
                     b.HasIndex("LookupKey", "LookupCode")
                         .IsUnique();
 
-                    b.ToTable("MasterLookups", "dinspire_sa");
+                    b.ToTable("MasterLookups", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.Member", b =>
@@ -631,7 +597,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("POCId");
 
-                    b.ToTable("Members", "dinspire_sa");
+                    b.ToTable("Members", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.MemberMembershipFee", b =>
@@ -687,7 +653,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ModifiedBy");
 
-                    b.ToTable("MemberMembershipFees", "dinspire_sa");
+                    b.ToTable("MemberMembershipFees", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.Organization", b =>
@@ -748,7 +714,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ModifiedBy");
 
-                    b.ToTable("Organizations", "dinspire_sa");
+                    b.ToTable("Organizations", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.POC", b =>
@@ -842,7 +808,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ModifiedBy");
 
-                    b.ToTable("POCs", "dinspire_sa");
+                    b.ToTable("POCs", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.PaymentTerm", b =>
@@ -902,7 +868,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasKey("PaymentTermId");
 
-                    b.ToTable("PaymentTerms", "dinspire_sa");
+                    b.ToTable("PaymentTerms", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.User", b =>
@@ -1002,7 +968,7 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrgId");
 
-                    b.ToTable("Users", "dinspire_sa");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.Branch", b =>
