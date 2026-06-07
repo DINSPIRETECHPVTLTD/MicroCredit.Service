@@ -116,6 +116,11 @@ public class ExcelImporter
             // Split phone — cell sometimes has two numbers separated by newline
             var phones = Cell(sheet, r, 11)?.Split(new[] { '\n', '\r', ' ' }, StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
 
+            // C10 format: "CenterName-POCName"  (first part = Center, second part = POC)
+            var villageParts = (Cell(sheet, r, 10) ?? "").Split('-', 2);
+            var village  = villageParts[0].Trim();
+            var handledBy = villageParts.Length > 1 ? villageParts[1].Trim() : "--";
+
             list.Add(new ExcelRow
             {
                 RowNum     = r,
@@ -125,7 +130,8 @@ public class ExcelImporter
                 Age        = ParseInt(Cell(sheet, r, 7)),
                 GuardianName  = Cell(sheet, r, 8) ?? "",
                 GuardianAge   = ParseInt(Cell(sheet, r, 9)),
-                Village    = Cell(sheet, r, 10)?.Trim() ?? "",
+                Village    = village,
+                HandledBy  = handledBy,
                 Phone      = phones.Length > 0 ? phones[0].Trim() : "",
                 AltPhone   = phones.Length > 1 ? phones[1].Trim() : null,
                 DisbDate   = ParseDate(Cell(sheet, r, 12)) ?? DateTime.UtcNow,
@@ -135,7 +141,6 @@ public class ExcelImporter
                 InsuranceFee     = ParseDecimal(Cell(sheet, r, 21)),
                 WeeklyDue  = ParseDecimal(Cell(sheet, r, 22)),
                 Status     = Cell(sheet, r, 23) ?? "Active",
-                HandledBy  = Cell(sheet, r, 24)?.Trim() ?? "--",
             });
         }
         return list;
