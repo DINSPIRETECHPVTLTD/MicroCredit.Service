@@ -53,7 +53,7 @@ public class BranchStaffImporter
         for (int r = 2; r <= sheet.Dimension.Rows; r++)
         {
             var name = sheet.Cells[r, attendStaffCol].Text?.Trim();
-            if (!string.IsNullOrWhiteSpace(name))
+            if (!string.IsNullOrWhiteSpace(name) && name != "--")
                 staffNames.Add(name);
         }
 
