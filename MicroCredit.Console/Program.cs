@@ -240,7 +240,7 @@ Console.WriteLine($"  investment  id = {investmentId}, amount = {investmentAmoun
 Console.WriteLine($"\n[PAYMENT TERMS] Seeding payment terms...");
 var paymentTerms = new[]
 {
-    (PaymentTermName: "Weekly", PaymentType: "30Week-ROI-24", NoOfTerms: 30, ProcessingFee: 2.5m, RateOfInterest: 20m, InsuranceFee: 1.5m),
+    (PaymentTermName: "Weekly", PaymentType: "30Week-ROI-24", NoOfTerms: 30, ProcessingFee: 2.5m, RateOfInterest: 20m, InsuranceFee: 0.75m),
 };
 foreach (var pt in paymentTerms)
 {
@@ -249,7 +249,21 @@ foreach (var pt in paymentTerms)
     ptChk.Parameters.AddWithValue("@type", pt.PaymentType);
     if (Convert.ToInt32(await ptChk.ExecuteScalarAsync()) > 0)
     {
-        Console.WriteLine($"  [FOUND]   payment term '{pt.PaymentType}' already exists, skipped.");
+        // Update in case values have changed
+        using var ptUpd = conn.CreateCommand();
+        ptUpd.CommandText = @"
+            UPDATE PaymentTerms
+            SET    [PaymentTerm]=@name, NoOfTerms=@terms, ProcessingFee=@pf, RateOfInterest=@roi, InsuranceFee=@ins, ModifiedBy=@modBy, ModifiedAt=GETUTCDATE()
+            WHERE  [PaymentType]=@type AND IsDeleted=0";
+        ptUpd.Parameters.AddWithValue("@name",  pt.PaymentTermName);
+        ptUpd.Parameters.AddWithValue("@type",  pt.PaymentType);
+        ptUpd.Parameters.AddWithValue("@terms", pt.NoOfTerms);
+        ptUpd.Parameters.AddWithValue("@pf",    pt.ProcessingFee);
+        ptUpd.Parameters.AddWithValue("@roi",   pt.RateOfInterest);
+        ptUpd.Parameters.AddWithValue("@ins",   pt.InsuranceFee);
+        ptUpd.Parameters.AddWithValue("@modBy", importUserId);
+        await ptUpd.ExecuteNonQueryAsync();
+        Console.WriteLine($"  [UPDATED] payment term '{pt.PaymentType}'  ins={pt.InsuranceFee}%  roi={pt.RateOfInterest}%");
     }
     else
     {
