@@ -251,6 +251,11 @@ if (File.Exists(excelFile))
     var rcImporter = new RemittanceCreditsImporter(conn, orgId, importUserId);
     await rcImporter.RunAsync(excelFile, excelPassword);
 
+    // ── Step 8: Ledger postings — investor → owner, owner → loans ────────────
+    Console.WriteLine($"\n[LEDGER] Starting ledger postings...");
+    var ledgerImporter = new LedgerPostingImporter(conn, importUserId);
+    await ledgerImporter.RunAsync();
+
     // ── Step 9: Branch Staff from "Member wise collection Sheet" ────────────
     Console.WriteLine($"\n[STAFF] Starting branch staff import...");
     var branchName = ConfigurationManager.AppSettings["Import.BranchName"]!;
