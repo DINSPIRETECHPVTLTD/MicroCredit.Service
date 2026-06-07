@@ -236,6 +236,40 @@ Console.WriteLine($"  importuser  id = {importUserId}  ({importEmail})");
 Console.WriteLine($"  investor    id = {investorId}  ({investorEmail})");
 Console.WriteLine($"  investment  id = {investmentId}, amount = {investmentAmount:N0}");
 
+// ── Step 5b: Seed PaymentTerms ────────────────────────────────────────────────
+Console.WriteLine($"\n[PAYMENT TERMS] Seeding payment terms...");
+var paymentTerms = new[]
+{
+    (PaymentTermName: "Weekly", PaymentType: "30Week-ROI-24", NoOfTerms: 30, ProcessingFee: 2.5m, RateOfInterest: 20m, InsuranceFee: 1.5m),
+};
+foreach (var pt in paymentTerms)
+{
+    using var ptChk = conn.CreateCommand();
+    ptChk.CommandText = "SELECT COUNT(1) FROM PaymentTerms WHERE [PaymentType] = @type AND IsDeleted = 0";
+    ptChk.Parameters.AddWithValue("@type", pt.PaymentType);
+    if (Convert.ToInt32(await ptChk.ExecuteScalarAsync()) > 0)
+    {
+        Console.WriteLine($"  [FOUND]   payment term '{pt.PaymentType}' already exists, skipped.");
+    }
+    else
+    {
+        using var ptIns = conn.CreateCommand();
+        ptIns.CommandText = @"
+            INSERT INTO PaymentTerms (PaymentTerm, PaymentType, NoOfTerms, ProcessingFee, RateOfInterest, InsuranceFee, CreatedBy, CreatedAt, IsDeleted)
+            OUTPUT INSERTED.PaymentTermID
+            VALUES (@name, @type, @terms, @pf, @roi, @ins, @createdBy, GETUTCDATE(), 0)";
+        ptIns.Parameters.AddWithValue("@name",      pt.PaymentTermName);
+        ptIns.Parameters.AddWithValue("@type",      pt.PaymentType);
+        ptIns.Parameters.AddWithValue("@terms",     pt.NoOfTerms);
+        ptIns.Parameters.AddWithValue("@pf",        pt.ProcessingFee);
+        ptIns.Parameters.AddWithValue("@roi",       pt.RateOfInterest);
+        ptIns.Parameters.AddWithValue("@ins",       pt.InsuranceFee);
+        ptIns.Parameters.AddWithValue("@createdBy", importUserId);
+        var ptId = Convert.ToInt32(await ptIns.ExecuteScalarAsync());
+        Console.WriteLine($"  [CREATED] payment term '{pt.PaymentType}'  id={ptId}  terms={pt.NoOfTerms}  ROI={pt.RateOfInterest}%  pf={pt.ProcessingFee}%  ins={pt.InsuranceFee}%");
+    }
+}
+
 // ── Step 6: Import Excel ─────────────────────────────────────────────────────
 var excelFile = ConfigurationManager.AppSettings["Import.ExcelFile"]!;
 var excelPassword = ConfigurationManager.AppSettings["Import.ExcelPassword"]!;
