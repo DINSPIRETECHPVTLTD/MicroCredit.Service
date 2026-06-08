@@ -7,14 +7,12 @@ public class ExcelImporter
     private readonly SqlConnection _conn;
     private readonly int _orgId;
     private readonly int _importUserId;
-    private readonly int _investorUserId;
 
-    public ExcelImporter(SqlConnection conn, int orgId, int importUserId, int investorUserId)
+    public ExcelImporter(SqlConnection conn, int orgId, int importUserId)
     {
         _conn = conn;
         _orgId = orgId;
         _importUserId = importUserId;
-        _investorUserId = investorUserId;
     }
 
     public async Task RunAsync(string filePath, string password)

@@ -23,7 +23,7 @@ public class RemittanceCreditsImporter
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var pkg = new ExcelPackage(new FileInfo(filePath), password);
 
-        // ── Remittance → Owner + Investor ────────────────────────────────────
+        // ── Remittance → Owner only ──────────────────────────────────────────
         Console.WriteLine("\n[REMITTANCE] Processing Remittance tab...");
         var remittanceSheet = pkg.Workbook.Worksheets["Remittance"];
         await ProcessRemittanceAsync(remittanceSheet);
@@ -56,17 +56,8 @@ public class RemittanceCreditsImporter
 
             Console.WriteLine($"\n  [{slNo}] {name}  amount={amount:N0}  share={shareText}");
 
-            // Create as Owner (role=1)  — Owner is also treated as Investor in queries
-            var ownerId = await GetOrCreateUserAsync(name, role: 1, label: "Owner");
-
-            // Also create as Investor (role=4) — separate record so they appear in both lists
-            var investorId = await GetOrCreateUserAsync(name, role: 4, label: "Investor");
-
-            // Investment record + ledger for the Investor user
-            if (amount > 0)
-            {
-                await GetOrCreateInvestmentWithLedgerAsync(investorId, amount, date, ownerId);
-            }
+            // Create as Owner only
+            await GetOrCreateUserAsync(name, role: 1, label: "Owner");
         }
     }
 
@@ -217,15 +208,15 @@ public class RemittanceCreditsImporter
     // ── Utilities ─────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Email: "G.Atchaiah" Owner  → "g.atchaiah.owner@navyafinservices.com"
-    ///        "G.Atchaiah" Investor → "g.atchaiah.investor@navyafinservices.com"
+    /// Email: "G Atchaiah" Owner    → "g.atchaiah.owner@navyafinservices.com"
+    ///        "G Atchaiah" Investor → "g.atchaiah.investor@navyafinservices.com"
     /// </summary>
     private static string GenerateEmail(string fullName, int role)
     {
         var clean = fullName
             .ToLowerInvariant()
             .Replace(" ", ".")
-            .Replace("..", ".")   // collapse double dots from "G. Atchaiah"
+            .Replace("..", ".")
             .Trim('.');
         var suffix = role == 1 ? "owner" : "investor";
         return $"{clean}.{suffix}@{EmailDomain}";
