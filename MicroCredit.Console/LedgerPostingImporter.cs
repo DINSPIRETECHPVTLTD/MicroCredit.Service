@@ -22,89 +22,14 @@ public class LedgerPostingImporter
     {
         Console.WriteLine("\n[LEDGER] Starting ledger postings...");
 
-        await TransferInvestmentsToOwnerAsync();
+        // Investments already credit ImportUser's ledger directly at creation time.
+        // Only need to post loan disbursements (deducting from ImportUser).
         await PostLoanDisbursementsAsync();
 
         Console.WriteLine("[LEDGER] Done.");
     }
 
-    // ── Step 1: investor → owner transfers ───────────────────────────────────
-
-    private async Task TransferInvestmentsToOwnerAsync()
-    {
-        Console.WriteLine("\n[LEDGER] Step 1 — Transfer investments to owner...");
-
-        // Get all investors with their investment totals
-        var investors = new List<(int UserId, int InvestmentId, decimal Amount)>();
-        using (var cmd = _conn.CreateCommand())
-        {
-            cmd.CommandText = @"
-                SELECT i.UserId, i.Id, i.Amount
-                FROM   Investments i
-                JOIN   Users u ON u.Id = i.UserId
-                WHERE  u.Email LIKE '%@navyafinservices.com'
-                  AND  u.Id <> @ownerId";
-            cmd.Parameters.AddWithValue("@ownerId", _importUserId);
-            using var r = await cmd.ExecuteReaderAsync();
-            while (await r.ReadAsync())
-                investors.Add((r.GetInt32(0), r.GetInt32(1), r.GetDecimal(2)));
-        }
-
-        Console.WriteLine($"[LEDGER] Found {investors.Count} investor investment(s) to transfer.");
-
-        int created = 0, skipped = 0;
-        foreach (var (investorId, investmentId, amount) in investors)
-        {
-            // Idempotency check
-            using var chk = _conn.CreateCommand();
-            chk.CommandText = @"
-                SELECT COUNT(1) FROM LedgerTransactions
-                WHERE PaidFromUserId = @from AND PaidToUserId = @to
-                  AND TransactionType = 'Remittance' AND ReferenceId = @refId";
-            chk.Parameters.AddWithValue("@from",  investorId);
-            chk.Parameters.AddWithValue("@to",    _importUserId);
-            chk.Parameters.AddWithValue("@refId", investmentId);
-            if (Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0)
-            {
-                Console.WriteLine($"  [FOUND]   remittance tx already exists for investment id={investmentId}, skipped.");
-                skipped++;
-                continue;
-            }
-
-            var now = DateTime.UtcNow;
-
-            // Create Remittance transaction: investor → owner
-            using var tx = _conn.CreateCommand();
-            tx.CommandText = @"
-                INSERT INTO LedgerTransactions
-                    (PaidFromUserId, PaidToUserId, Amount, PaymentDate,
-                     CreatedBy, CreatedDate, TransactionType, ReferenceId, Comments)
-                OUTPUT INSERTED.Id
-                VALUES (@from, @to, @amount, @date,
-                        @createdBy, @date, 'Remittance', @refId, @comments)";
-            tx.Parameters.AddWithValue("@from",      investorId);
-            tx.Parameters.AddWithValue("@to",        _importUserId);
-            tx.Parameters.AddWithValue("@amount",    amount);
-            tx.Parameters.AddWithValue("@date",      now);
-            tx.Parameters.AddWithValue("@createdBy", _importUserId);
-            tx.Parameters.AddWithValue("@refId",     investmentId);
-            tx.Parameters.AddWithValue("@comments",  $"Investment transfer to owner from investor id={investorId}");
-            var txId = Convert.ToInt32(await tx.ExecuteScalarAsync());
-
-            // Deduct from investor's ledger
-            await UpsertLedgerAsync(investorId, -amount);
-
-            // Credit to owner's ledger
-            await UpsertLedgerAsync(_importUserId, amount);
-
-            Console.WriteLine($"  [CREATED] remittance tx id={txId}  investorId={investorId}  amount={amount:N0} → ownerId={_importUserId}");
-            created++;
-        }
-
-        Console.WriteLine($"[LEDGER] Step 1 done.  created={created}  skipped={skipped}");
-    }
-
-    // ── Step 2: owner → loan disbursements ───────────────────────────────────
+    // ── Loan disbursements: ImportUser → each loan ────────────────────────────
 
     private async Task PostLoanDisbursementsAsync()
     {

@@ -156,15 +156,15 @@ public class RemittanceCreditsImporter
         Console.WriteLine($"    [CREATED] investment => id={investmentId}  amount={amount:N0}");
 
         var now     = DateTime.UtcNow;
-        var comment = $"Investment of {amount:N0}";
+        var comment = $"Investment of {amount:N0} by investor id={investorUserId}";
 
-        // Insert LedgerTransaction
+        // LedgerTransaction: money goes directly to ImportUser (the pool owner)
         using var txIns = _conn.CreateCommand();
         txIns.CommandText = @"
             INSERT INTO LedgerTransactions (PaidFromUserId, PaidToUserId, Amount, PaymentDate, CreatedBy, CreatedDate, TransactionType, ReferenceId, Comments)
             OUTPUT INSERTED.Id
             VALUES (NULL, @paidTo, @amount, @payDate, @createdBy, @createdDate, 'Investment', @refId, @comments)";
-        txIns.Parameters.AddWithValue("@paidTo",      investorUserId);
+        txIns.Parameters.AddWithValue("@paidTo",      _importUserId);   // → ImportUser directly
         txIns.Parameters.AddWithValue("@amount",      amount);
         txIns.Parameters.AddWithValue("@payDate",     date);
         txIns.Parameters.AddWithValue("@createdBy",   createdBy);
@@ -172,12 +172,12 @@ public class RemittanceCreditsImporter
         txIns.Parameters.AddWithValue("@refId",       investmentId);
         txIns.Parameters.AddWithValue("@comments",    comment);
         var txId = Convert.ToInt32(await txIns.ExecuteScalarAsync());
-        Console.WriteLine($"    [CREATED] ledger tx  => id={txId}  type=Investment");
+        Console.WriteLine($"    [CREATED] ledger tx  => id={txId}  type=Investment  paidTo=importUser({_importUserId})");
 
-        // Upsert Ledger balance
+        // Upsert ImportUser's ledger balance (the central pool)
         using var balChk = _conn.CreateCommand();
         balChk.CommandText = "SELECT Id, Amount FROM Ledgers WHERE UserId = @uid";
-        balChk.Parameters.AddWithValue("@uid", investorUserId);
+        balChk.Parameters.AddWithValue("@uid", _importUserId);
         using var rdr = await balChk.ExecuteReaderAsync();
         if (await rdr.ReadAsync())
         {
@@ -189,19 +189,17 @@ public class RemittanceCreditsImporter
             upd.Parameters.AddWithValue("@amount", currentBalance + amount);
             upd.Parameters.AddWithValue("@id",     ledgerId);
             await upd.ExecuteNonQueryAsync();
-            Console.WriteLine($"    [UPDATED] ledger bal => userId={investorUserId}  balance={(currentBalance + amount):N0}");
+            Console.WriteLine($"    [UPDATED] importUser ledger => balance={(currentBalance + amount):N0}");
         }
         else
         {
             rdr.Close();
             using var balIns = _conn.CreateCommand();
-            balIns.CommandText = @"
-                INSERT INTO Ledgers (UserId, Amount)
-                OUTPUT INSERTED.Id VALUES (@uid, @amount)";
-            balIns.Parameters.AddWithValue("@uid",    investorUserId);
+            balIns.CommandText = "INSERT INTO Ledgers (UserId, Amount) OUTPUT INSERTED.Id VALUES (@uid, @amount)";
+            balIns.Parameters.AddWithValue("@uid",    _importUserId);
             balIns.Parameters.AddWithValue("@amount", amount);
             var ledgerId = Convert.ToInt32(await balIns.ExecuteScalarAsync());
-            Console.WriteLine($"    [CREATED] ledger bal => id={ledgerId}  userId={investorUserId}  balance={amount:N0}");
+            Console.WriteLine($"    [CREATED] importUser ledger => id={ledgerId}  balance={amount:N0}");
         }
     }
 
