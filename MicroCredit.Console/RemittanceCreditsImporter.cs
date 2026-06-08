@@ -56,8 +56,11 @@ public class RemittanceCreditsImporter
 
             Console.WriteLine($"\n  [{slNo}] {name}  amount={amount:N0}  share={shareText}");
 
-            // Create as Owner only
-            await GetOrCreateUserAsync(name, role: 1, label: "Owner");
+            // Create as Owner only, and record their investment
+            var ownerId = await GetOrCreateUserAsync(name, role: 1, label: "Owner");
+
+            if (amount > 0)
+                await GetOrCreateInvestmentWithLedgerAsync(ownerId, amount, date, _importUserId);
         }
     }
 
