@@ -7,14 +7,13 @@ public class RemittanceCreditsImporter
     private readonly int _orgId;
     private readonly int _importUserId;
 
-    // Default password for all created users
     private const string DefaultPassword = "N@VY@$y$t3m001";
     private const string EmailDomain     = "navyafinservices.com";
 
     public RemittanceCreditsImporter(SqlConnection conn, int orgId, int importUserId)
     {
-        _conn        = conn;
-        _orgId       = orgId;
+        _conn         = conn;
+        _orgId        = orgId;
         _importUserId = importUserId;
     }
 
@@ -38,7 +37,6 @@ public class RemittanceCreditsImporter
 
     private async Task ProcessRemittanceAsync(ExcelWorksheet sheet)
     {
-        // Header row 4, data starts row 5; stop at "Total" row or blank name
         for (int r = 5; r <= sheet.Dimension.Rows; r++)
         {
             var slNo = sheet.Cells[r, 3].Text?.Trim();
@@ -46,21 +44,18 @@ public class RemittanceCreditsImporter
 
             if (string.IsNullOrWhiteSpace(name) || name.Equals("Total", StringComparison.OrdinalIgnoreCase))
                 continue;
+            if (!int.TryParse(slNo, out _)) continue;
 
-            if (!int.TryParse(slNo, out _)) continue;   // skip non-data rows
+            var balanceText = sheet.Cells[r, 8].Text?.Trim();
+            var amount      = ParseAmount(balanceText);
+            var date        = ParseDate(sheet.Cells[r, 5].Text?.Trim()) ?? DateTime.UtcNow;
 
-            var balanceText  = sheet.Cells[r, 8].Text?.Trim(); // As On 31.03.2026
-            var shareText    = sheet.Cells[r, 10].Text?.Trim();
-            var amount       = ParseAmount(balanceText);
-            var date         = ParseDate(sheet.Cells[r, 5].Text?.Trim()) ?? DateTime.UtcNow;
+            Console.WriteLine($"\n  [{slNo}] {name}  amount={amount:N0}");
 
-            Console.WriteLine($"\n  [{slNo}] {name}  amount={amount:N0}  share={shareText}");
-
-            // Create as Owner only, and record their investment
+            // Create as Owner, credit investment to owner's own ledger
             var ownerId = await GetOrCreateUserAsync(name, role: 1, label: "Owner");
-
             if (amount > 0)
-                await GetOrCreateInvestmentWithLedgerAsync(ownerId, amount, date, _importUserId);
+                await GetOrCreateInvestmentWithLedgerAsync(ownerId, amount, date);
         }
     }
 
@@ -68,7 +63,6 @@ public class RemittanceCreditsImporter
 
     private async Task ProcessCreditsAsync(ExcelWorksheet sheet)
     {
-        // Header row 3, data starts row 4
         for (int r = 4; r <= sheet.Dimension.Rows; r++)
         {
             var slNo = sheet.Cells[r, 2].Text?.Trim();
@@ -77,20 +71,17 @@ public class RemittanceCreditsImporter
             if (string.IsNullOrWhiteSpace(name)) continue;
             if (!int.TryParse(slNo, out _)) continue;
 
-            var bfText   = sheet.Cells[r, 7].Text?.Trim();   // BF amount
-            var amount   = ParseAmount(bfText);
-            var date     = ParseDate(sheet.Cells[r, 5].Text?.Trim()) ?? DateTime.UtcNow;
-            var village  = sheet.Cells[r, 3].Text?.Trim();
+            var bfText  = sheet.Cells[r, 7].Text?.Trim();
+            var amount  = ParseAmount(bfText);
+            var date    = ParseDate(sheet.Cells[r, 5].Text?.Trim()) ?? DateTime.UtcNow;
+            var village = sheet.Cells[r, 3].Text?.Trim();
 
             Console.WriteLine($"\n  [{slNo}] {name}  village={village}  amount={amount:N0}");
 
-            // Create as Investor only (role=4)
+            // Create as Investor only, credit investment to investor's own ledger
             var investorId = await GetOrCreateUserAsync(name, role: 4, label: "Investor");
-
             if (amount > 0)
-            {
-                await GetOrCreateInvestmentWithLedgerAsync(investorId, amount, date, _importUserId);
-            }
+                await GetOrCreateInvestmentWithLedgerAsync(investorId, amount, date);
         }
     }
 
@@ -101,9 +92,8 @@ public class RemittanceCreditsImporter
         var (firstName, lastName) = SplitName(fullName);
         var email    = GenerateEmail(fullName, role);
         var pwdHash  = BCrypt.Net.BCrypt.HashPassword(DefaultPassword);
-        var roleName = role == 1 ? "Owner" : "Investor";  // nvarchar stored by EF as enum name
+        var roleName = role == 1 ? "Owner" : "Investor";
 
-        // Look up by email
         using var chk = _conn.CreateCommand();
         chk.CommandText = "SELECT Id FROM Users WHERE Email = @email AND IsDeleted = 0";
         chk.Parameters.AddWithValue("@email", email);
@@ -122,7 +112,7 @@ public class RemittanceCreditsImporter
             VALUES (@fn, @ln, @role, @email, @pwd, @orgId, 'Org', NULL, @createdBy, GETUTCDATE(), 0)";
         ins.Parameters.AddWithValue("@fn",        firstName);
         ins.Parameters.AddWithValue("@ln",        lastName);
-        ins.Parameters.AddWithValue("@role",      roleName);   // store as string, not int
+        ins.Parameters.AddWithValue("@role",      roleName);
         ins.Parameters.AddWithValue("@email",     email);
         ins.Parameters.AddWithValue("@pwd",       pwdHash);
         ins.Parameters.AddWithValue("@orgId",     _orgId);
@@ -133,85 +123,87 @@ public class RemittanceCreditsImporter
         return newId;
     }
 
-    private async Task GetOrCreateInvestmentWithLedgerAsync(int investorUserId, decimal amount, DateTime date, int createdBy)
+    /// <summary>
+    /// Creates the investment and credits the amount to the investor/owner's own ledger.
+    /// The transfer to ImportUser is handled later by LedgerPostingImporter.
+    /// </summary>
+    private async Task GetOrCreateInvestmentWithLedgerAsync(int userId, decimal amount, DateTime date)
     {
-        // Check existing investment
+        // Idempotent: skip if investment already exists for this user
         using var chk = _conn.CreateCommand();
         chk.CommandText = "SELECT COUNT(1) FROM Investments WHERE UserId = @uid";
-        chk.Parameters.AddWithValue("@uid", investorUserId);
+        chk.Parameters.AddWithValue("@uid", userId);
         if (Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0)
         {
-            Console.WriteLine($"    [FOUND]   investment already exists for userId={investorUserId}, skipped.");
+            Console.WriteLine($"    [FOUND]   investment already exists for userId={userId}, skipped.");
             return;
         }
 
-        // Insert Investment
+        // Insert Investment record
         using var invIns = _conn.CreateCommand();
         invIns.CommandText = @"
             INSERT INTO Investments (UserId, Amount, InvestmentDate, CreatedById, CreatedDate)
             OUTPUT INSERTED.Id
             VALUES (@uid, @amount, @date, @createdBy, GETUTCDATE())";
-        invIns.Parameters.AddWithValue("@uid",       investorUserId);
+        invIns.Parameters.AddWithValue("@uid",       userId);
         invIns.Parameters.AddWithValue("@amount",    amount);
         invIns.Parameters.AddWithValue("@date",      date);
-        invIns.Parameters.AddWithValue("@createdBy", createdBy);
+        invIns.Parameters.AddWithValue("@createdBy", _importUserId);
         var investmentId = Convert.ToInt32(await invIns.ExecuteScalarAsync());
         Console.WriteLine($"    [CREATED] investment => id={investmentId}  amount={amount:N0}");
 
-        var now     = DateTime.UtcNow;
-        var comment = $"Investment of {amount:N0} by investor id={investorUserId}";
-
-        // LedgerTransaction: money goes directly to ImportUser (the pool owner)
+        // LedgerTransaction: credit goes to the owner/investor themselves
         using var txIns = _conn.CreateCommand();
         txIns.CommandText = @"
-            INSERT INTO LedgerTransactions (PaidFromUserId, PaidToUserId, Amount, PaymentDate, CreatedBy, CreatedDate, TransactionType, ReferenceId, Comments)
+            INSERT INTO LedgerTransactions
+                (PaidFromUserId, PaidToUserId, Amount, PaymentDate, CreatedBy, CreatedDate, TransactionType, ReferenceId, Comments)
             OUTPUT INSERTED.Id
-            VALUES (NULL, @paidTo, @amount, @payDate, @createdBy, @createdDate, 'Investment', @refId, @comments)";
-        txIns.Parameters.AddWithValue("@paidTo",      _importUserId);   // → ImportUser directly
-        txIns.Parameters.AddWithValue("@amount",      amount);
-        txIns.Parameters.AddWithValue("@payDate",     date);
-        txIns.Parameters.AddWithValue("@createdBy",   createdBy);
-        txIns.Parameters.AddWithValue("@createdDate", now);
-        txIns.Parameters.AddWithValue("@refId",       investmentId);
-        txIns.Parameters.AddWithValue("@comments",    comment);
+            VALUES (NULL, @paidTo, @amount, @payDate, @createdBy, GETUTCDATE(), 'Investment', @refId, @comments)";
+        txIns.Parameters.AddWithValue("@paidTo",    userId);
+        txIns.Parameters.AddWithValue("@amount",    amount);
+        txIns.Parameters.AddWithValue("@payDate",   date);
+        txIns.Parameters.AddWithValue("@createdBy", _importUserId);
+        txIns.Parameters.AddWithValue("@refId",     investmentId);
+        txIns.Parameters.AddWithValue("@comments",  $"Investment of {amount:N0} credited to userId={userId}");
         var txId = Convert.ToInt32(await txIns.ExecuteScalarAsync());
-        Console.WriteLine($"    [CREATED] ledger tx  => id={txId}  type=Investment  paidTo=importUser({_importUserId})");
+        Console.WriteLine($"    [CREATED] ledger tx  => id={txId}  type=Investment  paidTo=userId({userId})");
 
-        // Upsert ImportUser's ledger balance (the central pool)
-        using var balChk = _conn.CreateCommand();
-        balChk.CommandText = "SELECT Id, Amount FROM Ledgers WHERE UserId = @uid";
-        balChk.Parameters.AddWithValue("@uid", _importUserId);
-        using var rdr = await balChk.ExecuteReaderAsync();
+        // Update owner/investor's own ledger balance
+        await UpsertLedgerAsync(userId, amount);
+    }
+
+    private async Task UpsertLedgerAsync(int userId, decimal delta)
+    {
+        using var chk = _conn.CreateCommand();
+        chk.CommandText = "SELECT Id, Amount FROM Ledgers WHERE UserId = @uid";
+        chk.Parameters.AddWithValue("@uid", userId);
+        using var rdr = await chk.ExecuteReaderAsync();
         if (await rdr.ReadAsync())
         {
-            var ledgerId       = rdr.GetInt32(0);
-            var currentBalance = rdr.GetDecimal(1);
+            var ledgerId = rdr.GetInt32(0);
+            var current  = rdr.GetDecimal(1);
             rdr.Close();
             using var upd = _conn.CreateCommand();
             upd.CommandText = "UPDATE Ledgers SET Amount = @amount WHERE Id = @id";
-            upd.Parameters.AddWithValue("@amount", currentBalance + amount);
+            upd.Parameters.AddWithValue("@amount", current + delta);
             upd.Parameters.AddWithValue("@id",     ledgerId);
             await upd.ExecuteNonQueryAsync();
-            Console.WriteLine($"    [UPDATED] importUser ledger => balance={(currentBalance + amount):N0}");
+            Console.WriteLine($"    [UPDATED] userId={userId} ledger => balance={(current + delta):N0}");
         }
         else
         {
             rdr.Close();
-            using var balIns = _conn.CreateCommand();
-            balIns.CommandText = "INSERT INTO Ledgers (UserId, Amount) OUTPUT INSERTED.Id VALUES (@uid, @amount)";
-            balIns.Parameters.AddWithValue("@uid",    _importUserId);
-            balIns.Parameters.AddWithValue("@amount", amount);
-            var ledgerId = Convert.ToInt32(await balIns.ExecuteScalarAsync());
-            Console.WriteLine($"    [CREATED] importUser ledger => id={ledgerId}  balance={amount:N0}");
+            using var ins = _conn.CreateCommand();
+            ins.CommandText = "INSERT INTO Ledgers (UserId, Amount) OUTPUT INSERTED.Id VALUES (@uid, @amount)";
+            ins.Parameters.AddWithValue("@uid",    userId);
+            ins.Parameters.AddWithValue("@amount", delta);
+            var ledgerId = Convert.ToInt32(await ins.ExecuteScalarAsync());
+            Console.WriteLine($"    [CREATED] userId={userId} ledger => id={ledgerId}  balance={delta:N0}");
         }
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Email: "G Atchaiah" Owner    → "g.atchaiah.owner@navyafinservices.com"
-    ///        "G Atchaiah" Investor → "g.atchaiah.investor@navyafinservices.com"
-    /// </summary>
     private static string GenerateEmail(string fullName, int role)
     {
         var clean = fullName
