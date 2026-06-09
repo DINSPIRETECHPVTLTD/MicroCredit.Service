@@ -141,6 +141,11 @@ if (File.Exists(excelFile))
     {
         Console.WriteLine($"[STAFF] Branch '{branchName}' not found — skipped.");
     }
+
+    // ── Step 10: Repayment scheduler + collection ledger txs ─────────────────
+    Console.WriteLine($"\n[REPAYMENT] Starting repayment import...");
+    var repaymentImporter = new RepaymentImporter(conn, importUserId);
+    await repaymentImporter.RunAsync(excelFile, excelPassword);
 }
 else
 {
