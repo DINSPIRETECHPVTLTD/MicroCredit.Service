@@ -3,16 +3,16 @@ using OfficeOpenXml;
 
 public class RemittanceCreditsImporter
 {
-    private readonly SqlConnection _conn;
+    private readonly DbHelper _db;
     private readonly int _orgId;
     private readonly int _importUserId;
 
     private const string DefaultPassword = "N@VY@$y$t3m001";
     private const string EmailDomain     = "navyafinservices.com";
 
-    public RemittanceCreditsImporter(SqlConnection conn, int orgId, int importUserId)
+    public RemittanceCreditsImporter(DbHelper db, int orgId, int importUserId)
     {
-        _conn         = conn;
+        _db = db;
         _orgId        = orgId;
         _importUserId = importUserId;
     }
@@ -94,7 +94,7 @@ public class RemittanceCreditsImporter
         var pwdHash  = BCrypt.Net.BCrypt.HashPassword(DefaultPassword);
         var roleName = role == 1 ? "Owner" : "Investor";
 
-        using var chk = _conn.CreateCommand();
+        using var chk = (await _db.GetConn()).CreateCommand();
         chk.CommandText = "SELECT Id FROM Users WHERE Email = @email AND IsDeleted = 0";
         chk.Parameters.AddWithValue("@email", email);
         var existing = await chk.ExecuteScalarAsync();
@@ -105,7 +105,7 @@ public class RemittanceCreditsImporter
             return id;
         }
 
-        using var ins = _conn.CreateCommand();
+        using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
             INSERT INTO Users (FirstName, LastName, Role, Email, PasswordHash, OrgId, [Level], BranchId, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
@@ -130,7 +130,7 @@ public class RemittanceCreditsImporter
     private async Task GetOrCreateInvestmentWithLedgerAsync(int userId, decimal amount, DateTime date)
     {
         // Idempotent: skip if investment already exists for this user
-        using var chk = _conn.CreateCommand();
+        using var chk = (await _db.GetConn()).CreateCommand();
         chk.CommandText = "SELECT COUNT(1) FROM Investments WHERE UserId = @uid";
         chk.Parameters.AddWithValue("@uid", userId);
         if (Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0)
@@ -140,7 +140,7 @@ public class RemittanceCreditsImporter
         }
 
         // Insert Investment record
-        using var invIns = _conn.CreateCommand();
+        using var invIns = (await _db.GetConn()).CreateCommand();
         invIns.CommandText = @"
             INSERT INTO Investments (UserId, Amount, InvestmentDate, CreatedById, CreatedDate)
             OUTPUT INSERTED.Id
@@ -153,7 +153,7 @@ public class RemittanceCreditsImporter
         Console.WriteLine($"    [CREATED] investment => id={investmentId}  amount={amount:N0}");
 
         // LedgerTransaction: credit goes to the owner/investor themselves
-        using var txIns = _conn.CreateCommand();
+        using var txIns = (await _db.GetConn()).CreateCommand();
         txIns.CommandText = @"
             INSERT INTO LedgerTransactions
                 (PaidFromUserId, PaidToUserId, Amount, PaymentDate, CreatedBy, CreatedDate, TransactionType, ReferenceId, Comments)
@@ -174,7 +174,7 @@ public class RemittanceCreditsImporter
 
     private async Task UpsertLedgerAsync(int userId, decimal delta)
     {
-        using var chk = _conn.CreateCommand();
+        using var chk = (await _db.GetConn()).CreateCommand();
         chk.CommandText = "SELECT Id, Amount FROM Ledgers WHERE UserId = @uid";
         chk.Parameters.AddWithValue("@uid", userId);
         using var rdr = await chk.ExecuteReaderAsync();
@@ -183,7 +183,7 @@ public class RemittanceCreditsImporter
             var ledgerId = rdr.GetInt32(0);
             var current  = rdr.GetDecimal(1);
             rdr.Close();
-            using var upd = _conn.CreateCommand();
+            using var upd = (await _db.GetConn()).CreateCommand();
             upd.CommandText = "UPDATE Ledgers SET Amount = @amount WHERE Id = @id";
             upd.Parameters.AddWithValue("@amount", current + delta);
             upd.Parameters.AddWithValue("@id",     ledgerId);
@@ -193,7 +193,7 @@ public class RemittanceCreditsImporter
         else
         {
             rdr.Close();
-            using var ins = _conn.CreateCommand();
+            using var ins = (await _db.GetConn()).CreateCommand();
             ins.CommandText = "INSERT INTO Ledgers (UserId, Amount) OUTPUT INSERTED.Id VALUES (@uid, @amount)";
             ins.Parameters.AddWithValue("@uid",    userId);
             ins.Parameters.AddWithValue("@amount", delta);

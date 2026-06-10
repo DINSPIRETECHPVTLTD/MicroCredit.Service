@@ -9,12 +9,12 @@ using Microsoft.Data.SqlClient;
 /// </summary>
 public class LedgerPostingImporter
 {
-    private readonly SqlConnection _conn;
+    private readonly DbHelper _db;
     private readonly int _importUserId;
 
-    public LedgerPostingImporter(SqlConnection conn, int importUserId)
+    public LedgerPostingImporter(DbHelper db, int importUserId)
     {
-        _conn         = conn;
+        _db = db;
         _importUserId = importUserId;
     }
 
@@ -35,7 +35,7 @@ public class LedgerPostingImporter
         // Get all investments where the investor/owner is NOT the importUser
         // and there is no existing Remittance tx from that user to importUser for this investment
         var investments = new List<(int InvestmentId, int UserId, decimal Amount, DateTime Date)>();
-        using (var cmd = _conn.CreateCommand())
+        using (var cmd = (await _db.GetConn()).CreateCommand())
         {
             cmd.CommandText = @"
                 SELECT i.Id, i.UserId, i.Amount, i.InvestmentDate
@@ -59,7 +59,7 @@ public class LedgerPostingImporter
         foreach (var (invId, userId, amount, date) in investments)
         {
             // Record the transfer: owner/investor → ImportUser
-            using var tx = _conn.CreateCommand();
+            using var tx = (await _db.GetConn()).CreateCommand();
             tx.CommandText = @"
                 INSERT INTO LedgerTransactions
                     (PaidFromUserId, PaidToUserId, Amount, PaymentDate,
@@ -96,7 +96,7 @@ public class LedgerPostingImporter
         Console.WriteLine("\n[LEDGER] Step 2 — Post loan disbursements from ImportUser...");
 
         var loans = new List<(int LoanId, decimal Amount, DateTime DisbDate)>();
-        using (var cmd = _conn.CreateCommand())
+        using (var cmd = (await _db.GetConn()).CreateCommand())
         {
             cmd.CommandText = @"
                 SELECT l.Id, l.LoanAmount, l.DisbursementDate
@@ -119,7 +119,7 @@ public class LedgerPostingImporter
         int created = 0;
         foreach (var (loanId, amount, disbDate) in loans)
         {
-            using var tx = _conn.CreateCommand();
+            using var tx = (await _db.GetConn()).CreateCommand();
             tx.CommandText = @"
                 INSERT INTO LedgerTransactions
                     (PaidFromUserId, PaidToUserId, Amount, PaymentDate,
@@ -150,7 +150,7 @@ public class LedgerPostingImporter
 
     private async Task UpsertLedgerAsync(int userId, decimal delta)
     {
-        using var chk = _conn.CreateCommand();
+        using var chk = (await _db.GetConn()).CreateCommand();
         chk.CommandText = "SELECT Id, Amount FROM Ledgers WHERE UserId = @userId";
         chk.Parameters.AddWithValue("@userId", userId);
         using var r = await chk.ExecuteReaderAsync();
@@ -159,7 +159,7 @@ public class LedgerPostingImporter
             var ledgerId = r.GetInt32(0);
             var current  = r.GetDecimal(1);
             r.Close();
-            using var upd = _conn.CreateCommand();
+            using var upd = (await _db.GetConn()).CreateCommand();
             upd.CommandText = "UPDATE Ledgers SET Amount = @amount WHERE Id = @id";
             upd.Parameters.AddWithValue("@amount", current + delta);
             upd.Parameters.AddWithValue("@id",     ledgerId);
@@ -168,7 +168,7 @@ public class LedgerPostingImporter
         else
         {
             r.Close();
-            using var ins = _conn.CreateCommand();
+            using var ins = (await _db.GetConn()).CreateCommand();
             ins.CommandText = "INSERT INTO Ledgers (UserId, Amount) VALUES (@userId, @amount)";
             ins.Parameters.AddWithValue("@userId", userId);
             ins.Parameters.AddWithValue("@amount", delta);

@@ -8,7 +8,7 @@ using OfficeOpenXml;
 /// </summary>
 public class BranchStaffImporter
 {
-    private readonly SqlConnection _conn;
+    private readonly DbHelper _db;
     private readonly int _orgId;
     private readonly int _importUserId;
 
@@ -18,9 +18,9 @@ public class BranchStaffImporter
     private const string RoleStaff   = "Staff";
     private const string LevelBranch = "Branch";
 
-    public BranchStaffImporter(SqlConnection conn, int orgId, int importUserId)
+    public BranchStaffImporter(DbHelper db, int orgId, int importUserId)
     {
-        _conn         = conn;
+        _db = db;
         _orgId        = orgId;
         _importUserId = importUserId;
     }
@@ -80,7 +80,7 @@ public class BranchStaffImporter
             var lastName  = parts.Length > 1 ? parts[1] : "-";
             var pwdHash   = BCrypt.Net.BCrypt.HashPassword(DefaultPassword);
 
-            using var ins = _conn.CreateCommand();
+            using var ins = (await _db.GetConn()).CreateCommand();
             ins.CommandText = @"
                 INSERT INTO Users
                     (FirstName, LastName, Email, PasswordHash,
@@ -130,7 +130,7 @@ public class BranchStaffImporter
 
     private async Task<int?> GetUserByEmailAsync(string email)
     {
-        using var cmd = _conn.CreateCommand();
+        using var cmd = (await _db.GetConn()).CreateCommand();
         cmd.CommandText = "SELECT Id FROM Users WHERE Email = @email AND IsDeleted = 0";
         cmd.Parameters.AddWithValue("@email", email);
         var result = await cmd.ExecuteScalarAsync();

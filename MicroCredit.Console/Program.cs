@@ -1,25 +1,28 @@
-﻿using System.Configuration;
+using System.Configuration;
 using Microsoft.Data.SqlClient;
 
-var connStr = ConfigurationManager.ConnectionStrings["MicroCreditDb"].ConnectionString;
+var connStr  = ConfigurationManager.ConnectionStrings["MicroCreditDb"].ConnectionString;
+await using var db = new DbHelper(connStr);
 
-using var conn = new SqlConnection(connStr);
-await conn.OpenAsync();
-Console.WriteLine("Connected to database.");
+// Program.cs also uses a direct connection for its own lightweight operations
+var conn = await db.GetConn();
 
 async Task<int?> GetUserByEmail(string email)
 {
-    using var cmd = conn.CreateCommand();
+    var c = await db.GetConn();
+    using var cmd = c.CreateCommand();
     cmd.CommandText = "SELECT Id FROM Users WHERE Email = @email AND IsDeleted = 0";
     cmd.Parameters.AddWithValue("@email", email);
     var result = await cmd.ExecuteScalarAsync();
     return result == null || result == DBNull.Value ? null : (int?)Convert.ToInt32(result);
 }
 
+Console.WriteLine("Connected to database.");
+
 var orgId = int.Parse(ConfigurationManager.AppSettings["OrgId"]!);
 
-// Step 1: Import/Owner user
-var importEmail = ConfigurationManager.AppSettings["ImportUser.Email"]!;
+// ── Step 1: Import/Owner user ─────────────────────────────────────────────────
+var importEmail   = ConfigurationManager.AppSettings["ImportUser.Email"]!;
 var importPwdHash = BCrypt.Net.BCrypt.HashPassword(ConfigurationManager.AppSettings["ImportUser.Password"]!);
 
 var existingImport = await GetUserByEmail(importEmail);
@@ -32,19 +35,21 @@ if (existingImport.HasValue)
 }
 else
 {
-    using var cmd = conn.CreateCommand();
+    var c = await db.GetConn();
+    using var cmd = c.CreateCommand();
     cmd.CommandText = @"
         INSERT INTO Users (FirstName, LastName, Role, Email, PasswordHash, OrgId, [Level], BranchId, CreatedBy, CreatedAt, IsDeleted)
         OUTPUT INSERTED.Id
         VALUES ('Import', 'User', 'Owner', @email, @pwd, @orgId, 'Org', NULL, 1, GETUTCDATE(), 0)";
     cmd.Parameters.AddWithValue("@email", importEmail);
-    cmd.Parameters.AddWithValue("@pwd", importPwdHash);
+    cmd.Parameters.AddWithValue("@pwd",   importPwdHash);
     cmd.Parameters.AddWithValue("@orgId", orgId);
 
     importUserId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
     Console.WriteLine($"[CREATED] import user  => id={importUserId}");
 
-    using var fix = conn.CreateCommand();
+    var c2 = await db.GetConn();
+    using var fix = c2.CreateCommand();
     fix.CommandText = "UPDATE Users SET CreatedBy = @id WHERE Id = @id";
     fix.Parameters.AddWithValue("@id", importUserId);
     await fix.ExecuteNonQueryAsync();
@@ -52,100 +57,93 @@ else
 }
 
 Console.WriteLine();
-Console.WriteLine("Summary:");
-Console.WriteLine($"  importuser  id = {importUserId}  ({importEmail})");
+Console.WriteLine($"Summary:  importuser id={importUserId}  ({importEmail})");
 
 // ── Step 5b: Seed PaymentTerms ────────────────────────────────────────────────
 Console.WriteLine($"\n[PAYMENT TERMS] Seeding payment terms...");
 var paymentTerms = new[]
 {
-    (PaymentTermName: "Weekly", PaymentType: "30Week-ROI-24", NoOfTerms: 30, ProcessingFee: 2.25m, RateOfInterest: 20m, InsuranceFee: 0.75m),
+    (Name: "Weekly", Type: "30Week-ROI-24", Terms: 30, Pf: 2.25m, Roi: 20m, Ins: 0.75m),
 };
 foreach (var pt in paymentTerms)
 {
-    using var ptChk = conn.CreateCommand();
+    var c = await db.GetConn();
+    using var ptChk = c.CreateCommand();
     ptChk.CommandText = "SELECT COUNT(1) FROM PaymentTerms WHERE [PaymentType] = @type AND IsDeleted = 0";
-    ptChk.Parameters.AddWithValue("@type", pt.PaymentType);
+    ptChk.Parameters.AddWithValue("@type", pt.Type);
     if (Convert.ToInt32(await ptChk.ExecuteScalarAsync()) > 0)
     {
-        // Update in case values have changed
-        using var ptUpd = conn.CreateCommand();
-        ptUpd.CommandText = @"
-            UPDATE PaymentTerms
-            SET    [PaymentTerm]=@name, NoOfTerms=@terms, ProcessingFee=@pf, RateOfInterest=@roi, InsuranceFee=@ins, ModifiedBy=@modBy, ModifiedAt=GETUTCDATE()
-            WHERE  [PaymentType]=@type AND IsDeleted=0";
-        ptUpd.Parameters.AddWithValue("@name",  pt.PaymentTermName);
-        ptUpd.Parameters.AddWithValue("@type",  pt.PaymentType);
-        ptUpd.Parameters.AddWithValue("@terms", pt.NoOfTerms);
-        ptUpd.Parameters.AddWithValue("@pf",    pt.ProcessingFee);
-        ptUpd.Parameters.AddWithValue("@roi",   pt.RateOfInterest);
-        ptUpd.Parameters.AddWithValue("@ins",   pt.InsuranceFee);
+        var c2 = await db.GetConn();
+        using var ptUpd = c2.CreateCommand();
+        ptUpd.CommandText = @"UPDATE PaymentTerms
+            SET [PaymentTerm]=@name, NoOfTerms=@terms, ProcessingFee=@pf, RateOfInterest=@roi,
+                InsuranceFee=@ins, ModifiedBy=@modBy, ModifiedAt=GETUTCDATE()
+            WHERE [PaymentType]=@type AND IsDeleted=0";
+        ptUpd.Parameters.AddWithValue("@name",  pt.Name);
+        ptUpd.Parameters.AddWithValue("@type",  pt.Type);
+        ptUpd.Parameters.AddWithValue("@terms", pt.Terms);
+        ptUpd.Parameters.AddWithValue("@pf",    pt.Pf);
+        ptUpd.Parameters.AddWithValue("@roi",   pt.Roi);
+        ptUpd.Parameters.AddWithValue("@ins",   pt.Ins);
         ptUpd.Parameters.AddWithValue("@modBy", importUserId);
         await ptUpd.ExecuteNonQueryAsync();
-        Console.WriteLine($"  [UPDATED] payment term '{pt.PaymentType}'  ins={pt.InsuranceFee}%  roi={pt.RateOfInterest}%");
+        Console.WriteLine($"  [UPDATED] payment term '{pt.Type}'");
     }
     else
     {
-        using var ptIns = conn.CreateCommand();
-        ptIns.CommandText = @"
-            INSERT INTO PaymentTerms (PaymentTerm, PaymentType, NoOfTerms, ProcessingFee, RateOfInterest, InsuranceFee, CreatedBy, CreatedAt, IsDeleted)
+        var c2 = await db.GetConn();
+        using var ptIns = c2.CreateCommand();
+        ptIns.CommandText = @"INSERT INTO PaymentTerms
+            (PaymentTerm, PaymentType, NoOfTerms, ProcessingFee, RateOfInterest, InsuranceFee, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.PaymentTermID
             VALUES (@name, @type, @terms, @pf, @roi, @ins, @createdBy, GETUTCDATE(), 0)";
-        ptIns.Parameters.AddWithValue("@name",      pt.PaymentTermName);
-        ptIns.Parameters.AddWithValue("@type",      pt.PaymentType);
-        ptIns.Parameters.AddWithValue("@terms",     pt.NoOfTerms);
-        ptIns.Parameters.AddWithValue("@pf",        pt.ProcessingFee);
-        ptIns.Parameters.AddWithValue("@roi",       pt.RateOfInterest);
-        ptIns.Parameters.AddWithValue("@ins",       pt.InsuranceFee);
+        ptIns.Parameters.AddWithValue("@name",      pt.Name);
+        ptIns.Parameters.AddWithValue("@type",      pt.Type);
+        ptIns.Parameters.AddWithValue("@terms",     pt.Terms);
+        ptIns.Parameters.AddWithValue("@pf",        pt.Pf);
+        ptIns.Parameters.AddWithValue("@roi",       pt.Roi);
+        ptIns.Parameters.AddWithValue("@ins",       pt.Ins);
         ptIns.Parameters.AddWithValue("@createdBy", importUserId);
         var ptId = Convert.ToInt32(await ptIns.ExecuteScalarAsync());
-        Console.WriteLine($"  [CREATED] payment term '{pt.PaymentType}'  id={ptId}  terms={pt.NoOfTerms}  ROI={pt.RateOfInterest}%  pf={pt.ProcessingFee}%  ins={pt.InsuranceFee}%");
+        Console.WriteLine($"  [CREATED] payment term '{pt.Type}'  id={ptId}  terms={pt.Terms}  ROI={pt.Roi}%");
     }
 }
 
-// ── Step 6: Import Excel ─────────────────────────────────────────────────────
-var excelFile = ConfigurationManager.AppSettings["Import.ExcelFile"]!;
+// ── Steps 6-10: Excel import ──────────────────────────────────────────────────
+var excelFile     = ConfigurationManager.AppSettings["Import.ExcelFile"]!;
 var excelPassword = ConfigurationManager.AppSettings["Import.ExcelPassword"]!;
 
 if (File.Exists(excelFile))
 {
+    // Step 6: Members, centers, POCs, loans from "Master Gruop"
     Console.WriteLine($"\n[IMPORT] Starting Excel import: {excelFile}");
-    var importer = new ExcelImporter(conn, orgId, importUserId);
-    await importer.RunAsync(excelFile, excelPassword);
+    await new ExcelImporter(db, orgId, importUserId).RunAsync(excelFile, excelPassword);
 
-    // ── Step 7: Remittance & Credits users ───────────────────────────────────
+    // Step 7: Owners (Remittance) + Investors (Credits) with investments
     Console.WriteLine($"\n[REMITTANCE/CREDITS] Starting import...");
-    var rcImporter = new RemittanceCreditsImporter(conn, orgId, importUserId);
-    await rcImporter.RunAsync(excelFile, excelPassword);
+    await new RemittanceCreditsImporter(db, orgId, importUserId).RunAsync(excelFile, excelPassword);
 
-    // ── Step 8: Ledger postings — investor → owner, owner → loans ────────────
+    // Step 8: Transfer investments → ImportUser; disburse loans
     Console.WriteLine($"\n[LEDGER] Starting ledger postings...");
-    var ledgerImporter = new LedgerPostingImporter(conn, importUserId);
-    await ledgerImporter.RunAsync();
+    await new LedgerPostingImporter(db, importUserId).RunAsync();
 
-    // ── Step 9: Branch Staff from "Member wise collection Sheet" ────────────
+    // Step 9: Branch staff from "Member wise collection Sheet"
     Console.WriteLine($"\n[STAFF] Starting branch staff import...");
     var branchName = ConfigurationManager.AppSettings["Import.BranchName"]!;
-    using var branchCmd = conn.CreateCommand();
+    var bc = await db.GetConn();
+    using var branchCmd = bc.CreateCommand();
     branchCmd.CommandText = "SELECT Id FROM Branchs WHERE Name = @name AND OrgId = @orgId AND IsDeleted = 0";
-    branchCmd.Parameters.AddWithValue("@name", branchName);
+    branchCmd.Parameters.AddWithValue("@name",  branchName);
     branchCmd.Parameters.AddWithValue("@orgId", orgId);
     var branchIdObj = await branchCmd.ExecuteScalarAsync();
     if (branchIdObj != null && branchIdObj != DBNull.Value)
-    {
-        var branchId = Convert.ToInt32(branchIdObj);
-        var staffImporter = new BranchStaffImporter(conn, orgId, importUserId);
-        await staffImporter.RunAsync(excelFile, excelPassword, branchId);
-    }
+        await new BranchStaffImporter(db, orgId, importUserId).RunAsync(excelFile, excelPassword, Convert.ToInt32(branchIdObj));
     else
-    {
         Console.WriteLine($"[STAFF] Branch '{branchName}' not found — skipped.");
-    }
 
-    // ── Step 10: Repayment scheduler + collection ledger txs ─────────────────
+    // Step 10: Repayment schedulers + Member→Staff→ImportUser ledger txs
     Console.WriteLine($"\n[REPAYMENT] Starting repayment import...");
-    var repaymentImporter = new RepaymentImporter(conn, importUserId);
-    await repaymentImporter.RunAsync(excelFile, excelPassword);
+    await new RepaymentImporter(db, importUserId, orgId).RunAsync(excelFile, excelPassword);
 }
 else
 {

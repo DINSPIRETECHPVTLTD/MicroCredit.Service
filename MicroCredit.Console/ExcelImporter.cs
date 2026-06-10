@@ -4,13 +4,13 @@ using OfficeOpenXml;
 
 public class ExcelImporter
 {
-    private readonly SqlConnection _conn;
+    private readonly DbHelper _db;
     private readonly int _orgId;
     private readonly int _importUserId;
 
-    public ExcelImporter(SqlConnection conn, int orgId, int importUserId)
+    public ExcelImporter(DbHelper db, int orgId, int importUserId)
     {
-        _conn = conn;
+        _db = db;
         _orgId = orgId;
         _importUserId = importUserId;
     }
@@ -167,7 +167,7 @@ public class ExcelImporter
 
     private async Task<int> GetOrCreateBranchAsync(string name)
     {
-        using var cmd = _conn.CreateCommand();
+        using var cmd = (await _db.GetConn()).CreateCommand();
         cmd.CommandText = "SELECT Id FROM Branchs WHERE Name = @name AND OrgId = @orgId AND IsDeleted = 0";
         cmd.Parameters.AddWithValue("@name", name);
         cmd.Parameters.AddWithValue("@orgId", _orgId);
@@ -179,7 +179,7 @@ public class ExcelImporter
             return id;
         }
 
-        using var ins = _conn.CreateCommand();
+        using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
             INSERT INTO Branchs (Name, OrgId, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
@@ -194,7 +194,7 @@ public class ExcelImporter
 
     private async Task<int> GetOrCreateCenterAsync(string village, int branchId)
     {
-        using var cmd = _conn.CreateCommand();
+        using var cmd = (await _db.GetConn()).CreateCommand();
         cmd.CommandText = "SELECT Id FROM Centers WHERE Name = @name AND BranchId = @branchId AND IsDeleted = 0";
         cmd.Parameters.AddWithValue("@name", village);
         cmd.Parameters.AddWithValue("@branchId", branchId);
@@ -202,7 +202,7 @@ public class ExcelImporter
         if (existing != null && existing != DBNull.Value)
             return Convert.ToInt32(existing);
 
-        using var ins = _conn.CreateCommand();
+        using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
             INSERT INTO Centers (Name, BranchId, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
@@ -222,7 +222,7 @@ public class ExcelImporter
         var firstName = parts[0];
         var lastName  = parts.Length > 1 ? parts[1] : "-";
 
-        using var cmd = _conn.CreateCommand();
+        using var cmd = (await _db.GetConn()).CreateCommand();
         cmd.CommandText = "SELECT Id FROM POCs WHERE FirstName = @fn AND LastName = @ln AND CenterId = @cid AND IsDeleted = 0";
         cmd.Parameters.AddWithValue("@fn", firstName);
         cmd.Parameters.AddWithValue("@ln", lastName);
@@ -231,7 +231,7 @@ public class ExcelImporter
         if (existing != null && existing != DBNull.Value)
             return Convert.ToInt32(existing);
 
-        using var ins = _conn.CreateCommand();
+        using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
             INSERT INTO POCs (FirstName, LastName, PhoneNumber, CenterId, CollectionFrequency, CollectionBy, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
@@ -247,7 +247,7 @@ public class ExcelImporter
 
     private async Task<int> GetAnyPocInCenterAsync(int centerId)
     {
-        using var cmd = _conn.CreateCommand();
+        using var cmd = (await _db.GetConn()).CreateCommand();
         cmd.CommandText = "SELECT TOP 1 Id FROM POCs WHERE CenterId = @cid AND IsDeleted = 0";
         cmd.Parameters.AddWithValue("@cid", centerId);
         var r = await cmd.ExecuteScalarAsync();
@@ -259,7 +259,7 @@ public class ExcelImporter
         // Dedup by phone number
         if (!string.IsNullOrWhiteSpace(row.Phone))
         {
-            using var chk = _conn.CreateCommand();
+            using var chk = (await _db.GetConn()).CreateCommand();
             chk.CommandText = "SELECT Id FROM Members WHERE PhoneNumber = @phone AND IsDeleted = 0";
             chk.Parameters.AddWithValue("@phone", row.Phone);
             var ex = await chk.ExecuteScalarAsync();
@@ -280,7 +280,7 @@ public class ExcelImporter
         var phone    = string.IsNullOrWhiteSpace(row.Phone) ? "0000000000" : row.Phone;
         var altPhone = string.IsNullOrWhiteSpace(row.AltPhone) ? null : row.AltPhone;
 
-        using var ins = _conn.CreateCommand();
+        using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
             INSERT INTO Members
                 (FirstName, LastName, PhoneNumber, AltPhone, Address1, MemberCode,
@@ -313,7 +313,7 @@ public class ExcelImporter
 
     private async Task GetOrCreateLoanAsync(ExcelRow row, int memberId)
     {
-        using var chk = _conn.CreateCommand();
+        using var chk = (await _db.GetConn()).CreateCommand();
         chk.CommandText = "SELECT COUNT(1) FROM Loans WHERE MemberId = @mid AND IsDeleted = 0";
         chk.Parameters.AddWithValue("@mid", memberId);
         if (Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0) return;
@@ -323,7 +323,7 @@ public class ExcelImporter
         var status        = row.Status.Equals("Closed", StringComparison.OrdinalIgnoreCase) ? "Closed" : "Active";
         var disbDate      = row.DisbDate;
 
-        using var ins = _conn.CreateCommand();
+        using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
             INSERT INTO Loans
                 (MemberId, LoanAmount, InterestAmount, ProcessingFee, InsuranceFee,
@@ -352,12 +352,12 @@ public class ExcelImporter
 
     private async Task GetOrCreateMembershipFeeAsync(int memberId, decimal amount, DateTime paidDate)
     {
-        using var chk = _conn.CreateCommand();
+        using var chk = (await _db.GetConn()).CreateCommand();
         chk.CommandText = "SELECT COUNT(1) FROM MemberMembershipFees WHERE MemberId = @mid AND IsDeleted = 0";
         chk.Parameters.AddWithValue("@mid", memberId);
         if (Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0) return;
 
-        using var ins = _conn.CreateCommand();
+        using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
             INSERT INTO MemberMembershipFees (MemberId, Amount, PaidDate, CollectedBy, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
