@@ -2,8 +2,10 @@ using Microsoft.Data.SqlClient;
 using System.Data;
 
 /// <summary>
-/// Wraps a SqlConnection string and provides an auto-reconnecting connection.
-/// Use <see cref="GetConn"/> to get an open connection before every command.
+/// Wraps a connection string.
+/// - <see cref="GetConn"/>: returns a long-lived shared connection, reconnecting if needed.
+/// - <see cref="OpenAsync"/>: creates a SHORT-LIVED connection the caller owns and disposes.
+///   Use this for high-frequency operations to avoid mid-read connection drops.
 /// </summary>
 public class DbHelper : IAsyncDisposable
 {
@@ -15,7 +17,10 @@ public class DbHelper : IAsyncDisposable
         _connStr = connStr;
     }
 
-    /// <summary>Returns an open SqlConnection, reconnecting if it was dropped.</summary>
+    /// <summary>
+    /// Returns the shared open connection, reconnecting if it was dropped.
+    /// Safe for low-frequency setup operations.
+    /// </summary>
     public async Task<SqlConnection> GetConn()
     {
         if (_conn is { State: ConnectionState.Open })
@@ -31,6 +36,18 @@ public class DbHelper : IAsyncDisposable
         await _conn.OpenAsync();
         Console.WriteLine("[DB] (Re)connected.");
         return _conn;
+    }
+
+    /// <summary>
+    /// Opens and returns a FRESH short-lived connection from the pool.
+    /// The caller must dispose it (use with <c>await using</c>).
+    /// Use this for high-frequency loops to avoid mid-read connection drops.
+    /// </summary>
+    public async Task<SqlConnection> OpenAsync()
+    {
+        var conn = new SqlConnection(_connStr);
+        await conn.OpenAsync();
+        return conn;
     }
 
     public async ValueTask DisposeAsync()
