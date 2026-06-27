@@ -39,7 +39,11 @@ public class ExcelImporter
     private readonly int _importUserId;
 
     private const decimal MembershipFeeAmount = 300m;
-    private const decimal ProcessingFeeRate   = 0.03m;
+    // Matches the seeded PaymentTerm "30Week-ROI-24" and the web UI's AddLoanDialog formula:
+    // InterestAmount = LoanAmount × RateOfInterest/100, ProcessingFee = LoanAmount × ProcessingFee%/100.
+    private const decimal RateOfInterestPct   = 20.00m;
+    private const decimal ProcessingFeePct    = 2.25m;
+    private const int     FixedNoOfTerms      = 30;
     private const string EmailDomain          = "navyafinservices.com";
     private const string DefaultPassword      = "N@VY@$y$t3m001";
 
@@ -60,9 +64,7 @@ public class ExcelImporter
     {
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var pkg = new ExcelPackage(new FileInfo(filePath), password);
-        var sheet = pkg.Workbook.Worksheets["Master Gruop"];
-        if (sheet?.Dimension == null)
-            throw new InvalidOperationException("Sheet 'Master Gruop' not found or is empty.");
+        var sheet = GetMasterGroupSheet(pkg);
 
         var branchName = ConfigurationManager.AppSettings["Import.BranchName"]!;
         var branchId = await GetOrCreateBranchAsync(branchName);
@@ -81,10 +83,7 @@ public class ExcelImporter
     {
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var pkg = new ExcelPackage(new FileInfo(filePath), password);
-        var sheet = pkg.Workbook.Worksheets["Master Gruop"];
-
-        if (sheet?.Dimension == null)
-            throw new InvalidOperationException("Sheet 'Master Gruop' not found or is empty.");
+        var sheet = GetMasterGroupSheet(pkg);
 
         Console.WriteLine($"\n[IMPORT] Reading sheet '{sheet.Name}'  rows={sheet.Dimension.Rows}");
 
@@ -121,7 +120,7 @@ public class ExcelImporter
                 var centerId = centerMap[row.Village];
                 var staffUserId = (!string.IsNullOrWhiteSpace(row.HandledBy) && row.HandledBy != "--" && staffMap.TryGetValue(row.HandledBy, out var sid))
                     ? sid : _importUserId;
-                pocMap[key] = await GetOrCreatePocAsync(row.PocName, centerId, staffUserId);
+                pocMap[key] = await GetOrCreatePocAsync(row.PocName, centerId, staffUserId, row.CollectionDay);
             }
         }
 
@@ -161,40 +160,50 @@ public class ExcelImporter
 
                 var memberId = await GetOrCreateMemberAsync(row, centerId, pocId);
 
-                int? loanId = null;
-                bool loanIsNew = false;
-                int noOfTerms = 0;
-                if (row.LoanAmount > 0)
+                // One or two loans per member (see ExcelRow.Loans doc comment).
+                foreach (var loanInfo in row.Loans)
                 {
-                    var (lid, isNew, terms, processingFee) = await GetOrCreateLoanAsync(row, memberId, staffUserId);
-                    loanId = lid;
-                    loanIsNew = isNew;
-                    noOfTerms = terms;
+                    var (loanId, isNew, noOfTerms, interestAmount) =
+                        await GetOrCreateLoanAsync(loanInfo, row, memberId, staffUserId);
 
                     if (isNew)
                     {
                         // Branch staff funds the loan — money flows through staff, not ImportUser.
-                        ledgerDeltas[staffUserId] = ledgerDeltas.GetValueOrDefault(staffUserId) - row.LoanAmount;
+                        ledgerDeltas[staffUserId] = ledgerDeltas.GetValueOrDefault(staffUserId) - loanInfo.Amount;
                         // Fees are NOT written to LedgerTransactions — only accumulated in
                         // Insurance_Claim_Financial_Summary (matches LoansService convention).
+                        var processingFee = Math.Round(loanInfo.Amount * ProcessingFeePct / 100m, 2);
                         totalInsuranceFee  += row.InsuranceFee;
                         totalProcessingFee += processingFee;
+
+                        // isClosed (forced for the historical B/F loan) always fully pays it off,
+                        // regardless of the row's OutstandingAmount/WeeksOutstanding (those apply
+                        // only to the currently-active loan).
+                        var scheduleDates = QueueSchedulersAndPayments(schedulerTable, ledgerTxTable, ledgerDeltas,
+                            loanId, memberId, loanInfo.DisbDate, loanInfo.Amount, interestAmount,
+                            noOfTerms, row.OutstandingAmount, row.WeeksOutstandingDirect, loanInfo.Status,
+                            staffUserId, row.CollectionDay);
+
+                        if (scheduleDates.HasValue)
+                        {
+                            // DisbursementDate and CollectionStartDate must both equal the
+                            // first LoanScheduler's ScheduleDate.
+                            var closureDate = loanInfo.Status.Equals("Closed", StringComparison.OrdinalIgnoreCase)
+                                ? scheduleDates.Value.LastPaidScheduleDate
+                                : null;
+                            await UpdateLoanDatesAsync(loanId, scheduleDates.Value.FirstScheduleDate, closureDate);
+                        }
                     }
                 }
 
                 // Fixed membership fee + ledger tx (NULL → Handled-By staff)
-                var joinDate = row.JoiningDate ?? row.DisbDate;
+                var joinDate = row.JoiningDate ?? row.Loans.FirstOrDefault()?.DisbDate ?? DateTime.UtcNow.Date;
                 var feeCreated = await GetOrCreateMembershipFeeAndLedgerAsync(memberId, joinDate, staffUserId);
                 if (feeCreated)
                 {
                     ledgerDeltas[staffUserId] = ledgerDeltas.GetValueOrDefault(staffUserId) + MembershipFeeAmount;
                     totalJoiningFee += MembershipFeeAmount;
                 }
-
-                if (loanId.HasValue && loanIsNew)
-                    QueueSchedulersAndPayments(schedulerTable, ledgerTxTable, ledgerDeltas,
-                        loanId.Value, memberId, row.DisbDate, row.LoanAmount, row.WeeklyDue,
-                        noOfTerms, row.OutstandingAmount, row.Status, staffUserId);
 
                 created++;
             }
@@ -249,11 +258,17 @@ public class ExcelImporter
 
     private List<ExcelRow> ParseRows(ExcelWorksheet sheet)
     {
+        // "Member Aadhar" isn't at a fixed column — look it up by header text (row 5) so
+        // it keeps working regardless of where it ends up in the sheet.
+        var aadharCol = FindColumnByHeader(sheet, 5, "Member Aadhar", "Member Aadhaar", "Aadhar", "Aadhaar");
+
         var list = new List<ExcelRow>();
         for (int r = 6; r <= sheet.Dimension.Rows; r++)
         {
             var memberCode = Cell(sheet, r, 5);
             if (string.IsNullOrWhiteSpace(memberCode)) continue;
+
+            var aadhaar = aadharCol.HasValue ? Cell(sheet, r, aadharCol.Value) : null;
 
             // Split phone — cell sometimes has two numbers separated by newline
             var phones = Cell(sheet, r, 11)?.Split(new[] { '\n', '\r', ' ' }, StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
@@ -266,16 +281,64 @@ public class ExcelImporter
             // C24 = "Handled By" — the Staff name
             var handledBy = Cell(sheet, r, 24) ?? "--";
 
-            // Loan amount: "B/F Loan Amount" (C13) when set, else fall back to
-            // 1st Loan (C14) → 2nd Loan (C15) → 3rd Loan (C16), whichever is non-zero first.
+            // Loan amounts: "B/F Loan Amount" (C13), "1st Loan" (C14), "2nd Loan" (C15), "3rd Loan" (C16).
             var bfLoanAmount  = ParseDecimal(Cell(sheet, r, 13));
             var firstLoan     = ParseDecimal(Cell(sheet, r, 14));
             var secondLoan    = ParseDecimal(Cell(sheet, r, 15));
             var thirdLoan     = ParseDecimal(Cell(sheet, r, 16));
-            var loanAmount    = bfLoanAmount > 0 ? bfLoanAmount
-                : firstLoan > 0 ? firstLoan
-                : secondLoan > 0 ? secondLoan
-                : thirdLoan;
+
+            // "Disb date" (C12) may have two stacked lines (like the phone column) when a
+            // member has two loans: line 1 = B/F loan's disb date, line 2 = 1st Loan's.
+            var disbDateLines = (Cell(sheet, r, 12) ?? "")
+                .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(d => ParseDate(d.Trim()))
+                .Where(d => d.HasValue)
+                .Select(d => d!.Value)
+                .ToList();
+            // .Date (no time-of-day) — matches the precision of properly-parsed Excel dates
+            // (always midnight) and avoids a SQL rounding mismatch: AddWithValue infers
+            // SqlDbType.DateTime (legacy ~3.33ms precision) for sub-millisecond DateTime
+            // values even when the destination column is datetime2, while SqlBulkCopy
+            // preserves full precision — causing Loans.DisbursementDate (set via UPDATE)
+            // to silently differ from LoanSchedulers.ScheduleDate (set via bulk copy).
+            var firstDisbDate  = disbDateLines.Count > 0 ? disbDateLines[0] : DateTime.UtcNow.Date;
+            var secondDisbDate = disbDateLines.Count > 1 ? disbDateLines[1] : firstDisbDate;
+
+            var statusText = Cell(sheet, r, 23) ?? "Active";
+
+            // Loan rule:
+            //  B/F>0 & 1st Loan>0 → TWO loans: B/F (historical, forced Closed) + 1st Loan
+            //    (the currently active loan — uses this row's Status/Outstanding columns).
+            //  B/F>0 only        → ONE loan (B/F amount), uses this row's Status.
+            //  B/F==0, 1st>0     → ONE loan (1st Loan amount), uses this row's Status.
+            //  Neither           → fall back to 2nd Loan → 3rd Loan (ONE loan).
+            var loans = new List<LoanInfo>();
+            if (bfLoanAmount > 0 && firstLoan > 0)
+            {
+                loans.Add(new LoanInfo { Amount = bfLoanAmount, DisbDate = firstDisbDate, Status = "Closed" });
+                loans.Add(new LoanInfo { Amount = firstLoan, DisbDate = secondDisbDate, Status = statusText });
+            }
+            else if (bfLoanAmount > 0)
+            {
+                loans.Add(new LoanInfo { Amount = bfLoanAmount, DisbDate = firstDisbDate, Status = statusText });
+            }
+            else if (firstLoan > 0)
+            {
+                loans.Add(new LoanInfo { Amount = firstLoan, DisbDate = firstDisbDate, Status = statusText });
+            }
+            else if (secondLoan > 0)
+            {
+                loans.Add(new LoanInfo { Amount = secondLoan, DisbDate = firstDisbDate, Status = statusText });
+            }
+            else if (thirdLoan > 0)
+            {
+                loans.Add(new LoanInfo { Amount = thirdLoan, DisbDate = firstDisbDate, Status = statusText });
+            }
+
+            // C27 = "No.of weeks Outstanding" — may be "#DIV/0!" for Closed rows
+            // (WeeklyDue=0). Parse if numeric, else fall back to Out(C25)/WeeklyDue later.
+            var weeksOutstandingText = Cell(sheet, r, 27);
+            int? weeksOutstandingDirect = int.TryParse(weeksOutstandingText, out var wo) ? wo : (int?)null;
 
             list.Add(new ExcelRow
             {
@@ -291,19 +354,60 @@ public class ExcelImporter
                 HandledBy  = handledBy,
                 Phone      = phones.Length > 0 ? phones[0].Trim() : "",
                 AltPhone   = phones.Length > 1 ? phones[1].Trim() : null,
-                DisbDate   = ParseDate(Cell(sheet, r, 12)) ?? DateTime.UtcNow,
-                LoanAmount = loanAmount,
+                Aadhaar    = aadhaar,
+                Loans      = loans,
                 OutstandingAmount = ParseDecimal(Cell(sheet, r, 25)),
                 InsuranceFee     = ParseDecimal(Cell(sheet, r, 21)),
                 WeeklyDue  = ParseDecimal(Cell(sheet, r, 22)),
-                Status     = Cell(sheet, r, 23) ?? "Active",
+                Status     = statusText,
+                CollectionDay      = Cell(sheet, r, 26),
+                WeeksOutstandingDirect = weeksOutstandingDirect,
             });
         }
         return list;
     }
 
+    /// <summary>Tries the corrected "Master Group" spelling first, falls back to the old "Master Gruop" typo.</summary>
+    private static ExcelWorksheet GetMasterGroupSheet(ExcelPackage pkg)
+    {
+        var sheet = pkg.Workbook.Worksheets["Master Group"] ?? pkg.Workbook.Worksheets["Master Gruop"];
+        if (sheet?.Dimension == null)
+            throw new InvalidOperationException("Sheet 'Master Group' (or 'Master Gruop') not found or is empty.");
+        return sheet;
+    }
+
     private static string? Cell(ExcelWorksheet s, int r, int c) =>
         s.Cells[r, c].Text?.Trim().NullIfEmpty();
+
+    /// <summary>Finds a column by matching any of the candidate header texts (case-insensitive) in headerRow.</summary>
+    private static int? FindColumnByHeader(ExcelWorksheet sheet, int headerRow, params string[] candidates)
+    {
+        for (int c = 1; c <= sheet.Dimension.Columns; c++)
+        {
+            var header = sheet.Cells[headerRow, c].Text?.Trim();
+            if (string.IsNullOrWhiteSpace(header)) continue;
+            foreach (var candidate in candidates)
+                if (string.Equals(header, candidate, StringComparison.OrdinalIgnoreCase))
+                    return c;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Shifts <paramref name="date"/> by the smallest +/- offset (at most 3 days either
+    /// way) so it lands exactly on the weekday named by <paramref name="collectionDay"/>
+    /// (e.g. "Monday", "Tuesday"). If collectionDay is missing/unparseable, returns the
+    /// date unchanged.
+    /// </summary>
+    private static DateTime AlignToCollectionDay(DateTime date, string? collectionDay)
+    {
+        if (string.IsNullOrWhiteSpace(collectionDay)) return date;
+        if (!Enum.TryParse<DayOfWeek>(collectionDay.Trim(), true, out var targetDay)) return date;
+
+        var diff = ((int)targetDay - (int)date.DayOfWeek + 7) % 7;
+        if (diff > 3) diff -= 7; // shift the other way if that's the nearer direction
+        return date.AddDays(diff);
+    }
 
     private static DateTime? ParseDate(string? v)
     {
@@ -409,7 +513,7 @@ public class ExcelImporter
         return newId;
     }
 
-    private async Task<int> GetOrCreatePocAsync(string staffName, int centerId, int collectionByUserId)
+    private async Task<int> GetOrCreatePocAsync(string staffName, int centerId, int collectionByUserId, string? collectionDay)
     {
         // Name: first word = FirstName, rest = LastName
         var parts = staffName.Trim().Split(' ', 2);
@@ -423,20 +527,34 @@ public class ExcelImporter
         cmd.Parameters.AddWithValue("@cid", centerId);
         var existing = await cmd.ExecuteScalarAsync();
         if (existing != null && existing != DBNull.Value)
-            return Convert.ToInt32(existing);
+        {
+            var existingId = Convert.ToInt32(existing);
+            if (!string.IsNullOrWhiteSpace(collectionDay))
+            {
+                using var upd = (await _db.GetConn()).CreateCommand();
+                upd.CommandText = "UPDATE POCs SET CollectionDay = @day WHERE Id = @id AND (CollectionDay IS NULL OR CollectionDay <> @day)";
+                upd.Parameters.AddWithValue("@day", collectionDay);
+                upd.Parameters.AddWithValue("@id", existingId);
+                var rows = await upd.ExecuteNonQueryAsync();
+                if (rows > 0)
+                    Console.WriteLine($"[UPDATED] poc          => id={existingId} CollectionDay='{collectionDay}'");
+            }
+            return existingId;
+        }
 
         using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
-            INSERT INTO POCs (FirstName, LastName, PhoneNumber, CenterId, CollectionFrequency, CollectionBy, CreatedBy, CreatedAt, IsDeleted)
+            INSERT INTO POCs (FirstName, LastName, PhoneNumber, CenterId, CollectionFrequency, CollectionDay, CollectionBy, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
-            VALUES (@fn, @ln, '0000000000', @cid, 'Weekly', @collectionBy, @createdBy, GETUTCDATE(), 0)";
+            VALUES (@fn, @ln, '0000000000', @cid, 'Weekly', @collectionDay, @collectionBy, @createdBy, GETUTCDATE(), 0)";
         ins.Parameters.AddWithValue("@fn", firstName);
         ins.Parameters.AddWithValue("@ln", lastName);
         ins.Parameters.AddWithValue("@cid", centerId);
+        ins.Parameters.AddWithValue("@collectionDay", (object?)collectionDay ?? DBNull.Value);
         ins.Parameters.AddWithValue("@collectionBy", collectionByUserId);
         ins.Parameters.AddWithValue("@createdBy", _importUserId);
         var newId = Convert.ToInt32(await ins.ExecuteScalarAsync());
-        Console.WriteLine($"[CREATED] poc          => id={newId} '{staffName}' centerId={centerId} collectionBy={collectionByUserId}");
+        Console.WriteLine($"[CREATED] poc          => id={newId} '{staffName}' centerId={centerId} collectionBy={collectionByUserId} collectionDay={collectionDay}");
         return newId;
     }
 
@@ -451,7 +569,11 @@ public class ExcelImporter
 
     private async Task<int> GetOrCreateMemberAsync(ExcelRow row, int centerId, int pocId)
     {
-        // Dedup by MemberCode first — it's the actual unique key in the sheet/DB
+        // Dedup by MemberCode only — it's the actual unique key in the sheet/DB.
+        // Phone numbers are NOT a reliable dedup key here: group-lending members often
+        // share one household/group contact number across genuinely different people
+        // (confirmed: 25 phone numbers in this sheet are each shared by two distinct,
+        // differently-named members with their own separate loans).
         if (!string.IsNullOrWhiteSpace(row.MemberCode))
         {
             using var chkCode = (await _db.GetConn()).CreateCommand();
@@ -460,17 +582,6 @@ public class ExcelImporter
             var exCode = await chkCode.ExecuteScalarAsync();
             if (exCode != null && exCode != DBNull.Value)
                 return Convert.ToInt32(exCode);
-        }
-
-        // Fallback dedup by phone number (skip the shared placeholder "0000000000")
-        if (!string.IsNullOrWhiteSpace(row.Phone) && row.Phone != "0000000000")
-        {
-            using var chk = (await _db.GetConn()).CreateCommand();
-            chk.CommandText = "SELECT Id FROM Members WHERE PhoneNumber = @phone AND IsDeleted = 0";
-            chk.Parameters.AddWithValue("@phone", row.Phone);
-            var ex = await chk.ExecuteScalarAsync();
-            if (ex != null && ex != DBNull.Value)
-                return Convert.ToInt32(ex);
         }
 
         // Split member name
@@ -489,12 +600,12 @@ public class ExcelImporter
         using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
             INSERT INTO Members
-                (FirstName, LastName, PhoneNumber, AltPhone, Address1, MemberCode,
+                (FirstName, LastName, PhoneNumber, AltPhone, Address1, MemberCode, Aadhaar,
                  Age, GuardianFirstName, GuardianLastName, GuardianPhone, GuardianAge,
                  CenterId, POCId, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
             VALUES
-                (@fn, @ln, @phone, @altPhone, @village, @memberCode,
+                (@fn, @ln, @phone, @altPhone, @village, @memberCode, @aadhaar,
                  @age, @gfn, @gln, @gphone, @gage,
                  @centerId, @pocId, @createdBy, GETUTCDATE(), 0)";
         ins.Parameters.AddWithValue("@fn", firstName);
@@ -503,6 +614,8 @@ public class ExcelImporter
         ins.Parameters.AddWithValue("@altPhone", (object?)altPhone ?? DBNull.Value);
         ins.Parameters.AddWithValue("@village", row.Village);
         ins.Parameters.AddWithValue("@memberCode", (object?)row.MemberCode.NullIfEmpty() ?? DBNull.Value);
+        // Aadhaar has a unique index — blank stays NULL (SQL Server allows multiple NULLs).
+        ins.Parameters.AddWithValue("@aadhaar", (object?)row.Aadhaar.NullIfEmpty() ?? DBNull.Value);
         ins.Parameters.AddWithValue("@age", row.Age > 0 ? row.Age : 0);
         ins.Parameters.AddWithValue("@gfn", gFirst);
         ins.Parameters.AddWithValue("@gln", gLast);
@@ -518,27 +631,35 @@ public class ExcelImporter
     }
 
     /// <summary>
-    /// Returns (LoanId, IsNew, NoOfTerms, ProcessingFee). If a loan already exists for the
-    /// member, no schedule/ledger tx is regenerated by the caller.
+    /// Returns (LoanId, IsNew, NoOfTerms, InterestAmount). A member can have up to two
+    /// loans (one historical/Closed, one currently active) — dedup is by
+    /// (MemberId, DisbursementDate), not MemberId alone, so the second loan still gets
+    /// created. The DB only enforces uniqueness on simultaneously-OPEN loans per member,
+    /// which this satisfies (at most one Active loan per member at a time).
+    /// InterestAmount/ProcessingFee/NoOfTerms match the seeded PaymentTerm "30Week-ROI-24"
+    /// and the web UI's AddLoanDialog formula (LoanAmount × rate/100).
     /// Creates a 'Loan disbursement' LedgerTransaction: PaidFrom=branch staff, PaidTo=NULL
     /// (the branch staff funds the loan — money no longer routes through ImportUser).
     /// </summary>
-    private async Task<(int LoanId, bool IsNew, int NoOfTerms, decimal ProcessingFee)> GetOrCreateLoanAsync(ExcelRow row, int memberId, int staffUserId)
+    private async Task<(int LoanId, bool IsNew, int NoOfTerms, decimal InterestAmount)> GetOrCreateLoanAsync(
+        LoanInfo loanInfo, ExcelRow row, int memberId, int staffUserId)
     {
         using var chk = (await _db.GetConn()).CreateCommand();
-        chk.CommandText = "SELECT Id, NoOfTerms, ProcessingFee FROM Loans WHERE MemberId = @mid AND IsDeleted = 0";
+        chk.CommandText = "SELECT Id, NoOfTerms, InterestAmount FROM Loans WHERE MemberId = @mid AND DisbursementDate = @disbDate AND IsDeleted = 0";
         chk.Parameters.AddWithValue("@mid", memberId);
+        chk.Parameters.AddWithValue("@disbDate", loanInfo.DisbDate);
         using (var r = await chk.ExecuteReaderAsync())
         {
             if (await r.ReadAsync())
                 return (r.GetInt32(0), false, r.GetInt32(1), r.GetDecimal(2));
         }
 
-        var processingFee = Math.Round(row.LoanAmount * ProcessingFeeRate, 2);
-        var totalAmount   = row.LoanAmount + processingFee + row.InsuranceFee;
-        var noOfTerms     = row.WeeklyDue > 0 ? (int)Math.Ceiling(row.LoanAmount / row.WeeklyDue) : 25;
-        var status        = row.Status.Equals("Closed", StringComparison.OrdinalIgnoreCase) ? "Closed" : "Active";
-        var disbDate      = row.DisbDate;
+        var interestAmount = Math.Round(loanInfo.Amount * RateOfInterestPct / 100m, 2);
+        var processingFee  = Math.Round(loanInfo.Amount * ProcessingFeePct / 100m, 2);
+        var totalAmount    = Math.Round(loanInfo.Amount + interestAmount, 2);
+        var noOfTerms      = FixedNoOfTerms;
+        var status         = loanInfo.Status.Equals("Closed", StringComparison.OrdinalIgnoreCase) ? "Closed" : "Active";
+        var disbDate       = loanInfo.DisbDate;
 
         using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
@@ -549,12 +670,13 @@ public class ExcelImporter
                  CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
             VALUES
-                (@mid, @loanAmount, 0, @processingFee, @insuranceFee,
+                (@mid, @loanAmount, @interestAmount, @processingFee, @insuranceFee,
                  0, 0, @totalAmount, @status,
                  @disbDate, @disbDate, 'Weekly', @noOfTerms,
                  @createdBy, GETUTCDATE(), 0)";
         ins.Parameters.AddWithValue("@mid", memberId);
-        ins.Parameters.AddWithValue("@loanAmount", row.LoanAmount);
+        ins.Parameters.AddWithValue("@loanAmount", loanInfo.Amount);
+        ins.Parameters.AddWithValue("@interestAmount", interestAmount);
         ins.Parameters.AddWithValue("@processingFee", processingFee);
         ins.Parameters.AddWithValue("@insuranceFee", row.InsuranceFee);
         ins.Parameters.AddWithValue("@totalAmount", totalAmount);
@@ -564,7 +686,7 @@ public class ExcelImporter
         ins.Parameters.AddWithValue("@createdBy", _importUserId);
 
         var loanId = Convert.ToInt32(await ins.ExecuteScalarAsync());
-        Console.WriteLine($"    [LOAN]  id={loanId} amount={row.LoanAmount:N0} processingFee={processingFee:N0} status={status} terms={noOfTerms}");
+        Console.WriteLine($"    [LOAN]  id={loanId} amount={loanInfo.Amount:N0} interest={interestAmount:N0} processingFee={processingFee:N0} status={status} terms={noOfTerms} disb={disbDate:yyyy-MM-dd}");
 
         // Loan disbursement ledger tx: branch staff → NULL (member, no User row)
         using var tx = (await _db.GetConn()).CreateCommand();
@@ -573,14 +695,31 @@ public class ExcelImporter
                 (PaidFromUserId, PaidToUserId, Amount, PaymentDate, CreatedBy, CreatedDate, TransactionType, ReferenceId, Comments)
             VALUES (@from, NULL, @amount, @date, @createdBy, GETUTCDATE(), 'Loan disbursement', @refId, @comments)";
         tx.Parameters.AddWithValue("@from",      staffUserId);
-        tx.Parameters.AddWithValue("@amount",    row.LoanAmount);
+        tx.Parameters.AddWithValue("@amount",    loanInfo.Amount);
         tx.Parameters.AddWithValue("@date",      disbDate);
         tx.Parameters.AddWithValue("@createdBy", _importUserId);
         tx.Parameters.AddWithValue("@refId",     loanId);
         tx.Parameters.AddWithValue("@comments",  $"Loan disbursement for Loan ID: {loanId}, Member ID: {memberId}");
         await tx.ExecuteNonQueryAsync();
 
-        return (loanId, true, noOfTerms, processingFee);
+        return (loanId, true, noOfTerms, interestAmount);
+    }
+
+    /// <summary>
+    /// Sets DisbursementDate AND CollectionStartDate to the first LoanScheduler's
+    /// ScheduleDate (both must be the same value), and ClosureDate to the date of the
+    /// loan's last (final) payment when provided (Closed loans only).
+    /// </summary>
+    private async Task UpdateLoanDatesAsync(int loanId, DateTime firstScheduleDate, DateTime? closureDate)
+    {
+        using var upd = (await _db.GetConn()).CreateCommand();
+        upd.CommandText = @"UPDATE Loans
+            SET DisbursementDate = @firstDate, CollectionStartDate = @firstDate, ClosureDate = @closureDate
+            WHERE Id = @id";
+        upd.Parameters.AddWithValue("@firstDate", firstScheduleDate);
+        upd.Parameters.AddWithValue("@closureDate", (object?)closureDate ?? DBNull.Value);
+        upd.Parameters.AddWithValue("@id", loanId);
+        await upd.ExecuteNonQueryAsync();
     }
 
     /// <summary>Returns true if a new membership fee + ledger tx was created.</summary>
@@ -593,13 +732,14 @@ public class ExcelImporter
 
         using var ins = (await _db.GetConn()).CreateCommand();
         ins.CommandText = @"
-            INSERT INTO MemberMembershipFees (MemberId, Amount, PaidDate, CollectedBy, CreatedBy, CreatedAt, IsDeleted)
+            INSERT INTO MemberMembershipFees (MemberId, Amount, PaidDate, CollectedBy, PaymentMode, CreatedBy, CreatedAt, IsDeleted)
             OUTPUT INSERTED.Id
-            VALUES (@mid, @amount, @paidDate, @collectedBy, @createdBy, GETUTCDATE(), 0)";
+            VALUES (@mid, @amount, @paidDate, @collectedBy, @paymentMode, @createdBy, GETUTCDATE(), 0)";
         ins.Parameters.AddWithValue("@mid", memberId);
         ins.Parameters.AddWithValue("@amount", MembershipFeeAmount);
         ins.Parameters.AddWithValue("@paidDate", paidDate);
         ins.Parameters.AddWithValue("@collectedBy", staffUserId);
+        ins.Parameters.AddWithValue("@paymentMode", "Cash");
         ins.Parameters.AddWithValue("@createdBy", _importUserId);
         var feeId = Convert.ToInt32(await ins.ExecuteScalarAsync());
 
@@ -732,51 +872,107 @@ public class ExcelImporter
     /// Generates weekly installment rows starting 7 days after DisbDate (collection day =
     /// same weekday as disbursement), for NoOfTerms installments.
     ///
-    /// weeksOutstanding = ceil(OutstandingAmount("Out" column) / WeeklyDue);
-    /// paidWeeks = NoOfTerms - weeksOutstanding.
+    /// Principal/interest split per installment matches the live app's
+    /// LoanSchedulerService.GenerateEMIScheduleAsync exactly:
+    ///   principalPerInstallment = LoanAmount / NoOfTerms
+    ///   interestPerInstallment  = InterestAmount / NoOfTerms
+    /// with the last installment absorbing the rounding remainder.
+    ///
+    /// weeksOutstanding = the "No.of weeks Outstanding" column (C27) when it's a parseable
+    /// number; falls back to ceil(OutstandingAmount("Out" column) / WeeklyDue) when that
+    /// column is "#DIV/0!" or missing. paidWeeks = NoOfTerms - weeksOutstanding.
     /// If Status="Closed", the whole loan is treated as fully paid (paidWeeks = NoOfTerms).
     ///
-    /// For i &lt;= paidWeeks: scheduler Status='Paid' + one ledger tx
-    ///   (NULL→Staff type='EMI Recovery'). Money stays with staff — no further hop.
+    /// For i &lt;= paidWeeks: scheduler Status='Paid'. PrincipalAmount/InterestAmount for the
+    /// payment are derived via CalculatePrepaymentSplit — the same ratio-based split as the
+    /// web UI's calculatePrepaymentSplit() — plus one ledger tx (NULL→Staff type='EMI Recovery').
+    /// Money stays with staff — no further hop.
     /// For i &gt; paidWeeks: scheduler Status='NotPaid', no ledger tx.
     /// </summary>
-    private void QueueSchedulersAndPayments(
+    /// <summary>
+    /// Returns the first installment's schedule date (used to set Loans.DisbursementDate
+    /// AND Loans.CollectionStartDate — both must equal it) and the schedule date of the
+    /// last Paid installment (used to set Loans.ClosureDate for Closed loans).
+    /// </summary>
+    private (DateTime FirstScheduleDate, DateTime? LastPaidScheduleDate)? QueueSchedulersAndPayments(
         DataTable schedulerTable, DataTable ledgerTxTable, Dictionary<int, decimal> ledgerDeltas,
-        int loanId, int memberId, DateTime disbDate, decimal loanAmount, decimal weeklyDue,
-        int noOfTerms, decimal outstandingAmount, string status, int staffUserId)
+        int loanId, int memberId, DateTime disbDate, decimal loanAmount, decimal interestAmount,
+        int noOfTerms, decimal outstandingAmount, int? weeksOutstandingDirect, string status,
+        int staffUserId, string? collectionDay)
     {
-        if (noOfTerms <= 0) return;
+        if (noOfTerms <= 0) return null;
 
         var isClosed = status.Equals("Closed", StringComparison.OrdinalIgnoreCase);
+        var weeklyDueForFallback = noOfTerms > 0 ? loanAmount / noOfTerms : 0m;
         var weeksOutstanding = isClosed ? 0
-            : (weeklyDue > 0 ? (int)Math.Ceiling(outstandingAmount / weeklyDue) : noOfTerms);
+            : weeksOutstandingDirect
+              ?? (weeklyDueForFallback > 0 ? (int)Math.Ceiling(outstandingAmount / weeklyDueForFallback) : noOfTerms);
         var paidWeeks = isClosed ? noOfTerms : Math.Clamp(noOfTerms - weeksOutstanding, 0, noOfTerms);
 
-        var installmentAmt = weeklyDue > 0 ? weeklyDue : Math.Round(loanAmount / noOfTerms, 2);
-        decimal remaining = loanAmount;
-        var scheduleDate = disbDate;
+        // Per-installment scheduled principal/interest split (GenerateEMIScheduleAsync formula),
+        // with the last installment absorbing the rounding remainder.
+        var principalPerInstallment = loanAmount / noOfTerms;
+        var interestPerInstallment  = interestAmount / noOfTerms;
+        var scheduledPrincipal = new decimal[noOfTerms + 1];
+        var scheduledInterest  = new decimal[noOfTerms + 1];
+        decimal sumPrincipal = 0m, sumInterest = 0m;
+        for (int i = 1; i <= noOfTerms; i++)
+        {
+            scheduledPrincipal[i] = Math.Round(principalPerInstallment, 2);
+            scheduledInterest[i]  = Math.Round(interestPerInstallment, 2);
+            sumPrincipal += scheduledPrincipal[i];
+            sumInterest  += scheduledInterest[i];
+        }
+        scheduledPrincipal[noOfTerms] += loanAmount - sumPrincipal;
+        scheduledInterest[noOfTerms]  += interestAmount - sumInterest;
+
+        // First installment = DisbDate + 7 days, shifted by the smallest +/- offset so it
+        // lands exactly on the "Collection Day" weekday. Subsequent installments are then
+        // every 7 days after that, preserving the same weekday automatically.
+        //
+        // Each installment's date is computed directly from firstScheduleDate (AddDays(7*(i-1)))
+        // rather than via a running +7-per-iteration accumulator. DateTime.AddDays uses
+        // double-precision arithmetic internally, and for dates with large tick counts a
+        // round-trip like AddDays(-7).AddDays(7) can lose sub-millisecond precision —
+        // which would make installment #1's date differ from firstScheduleDate by a few
+        // hundred microseconds, breaking the "DisbursementDate == first ScheduleDate" rule.
+        var firstScheduleDate = AlignToCollectionDay(disbDate.AddDays(7), collectionDay);
+        DateTime? lastPaidScheduleDate = null;
 
         for (int i = 1; i <= noOfTerms; i++)
         {
-            scheduleDate = scheduleDate.AddDays(7);
-            var amount = i == noOfTerms ? remaining : Math.Min(installmentAmt, remaining);
-            remaining -= amount;
+            var scheduleDate = firstScheduleDate.AddDays(7 * (i - 1));
+
+            var actualPrincipal = scheduledPrincipal[i];
+            var actualInterest  = scheduledInterest[i];
+            var actualEmi       = actualPrincipal + actualInterest;
 
             var isPaid = i <= paidWeeks;
+
+            // Matches the live app's LoanSchedulerService/RecoveryPostingRepository semantics:
+            // Actual* fields ALWAYS hold the scheduled principal/interest split (set at
+            // creation, unaffected by paid status). PaymentAmount/PrincipalAmount/InterestAmount
+            // stay 0 until paid, then mirror the Actual* values via CalculatePrepaymentSplit —
+            // the same ratio-based split as the web UI's calculatePrepaymentSplit().
+            decimal paymentAmount = 0m, principalPaid = 0m, interestPaid = 0m;
+            if (isPaid)
+            {
+                var split = CalculatePrepaymentSplit(actualEmi, actualPrincipal, actualInterest, actualEmi);
+                paymentAmount = actualEmi;
+                principalPaid = split.PrincipalAmount;
+                interestPaid  = split.InterestAmount;
+            }
 
             var row = schedulerTable.NewRow();
             row["LoanId"]                = loanId;
             row["ScheduleDate"]          = scheduleDate;
             row["PaymentDate"]           = isPaid ? scheduleDate : (object)DBNull.Value;
-            // ActualEmiAmount always equals the scheduled amount (Paid or Not Paid).
-            // PaymentAmount ("Paid Amount") is 0 when Not Paid, the amount when Paid.
-            // ActualPrincipalAmount/ActualInterestAmount stay 0 until actually paid.
-            row["ActualEmiAmount"]       = amount;
-            row["ActualPrincipalAmount"] = isPaid ? amount : 0m;
-            row["ActualInterestAmount"]  = 0m;
-            row["PaymentAmount"]         = isPaid ? amount : 0m;
-            row["PrincipalAmount"]       = amount;
-            row["InterestAmount"]        = 0m;
+            row["ActualEmiAmount"]       = actualEmi;
+            row["ActualPrincipalAmount"] = actualPrincipal;
+            row["ActualInterestAmount"]  = actualInterest;
+            row["PaymentAmount"]         = paymentAmount;
+            row["PrincipalAmount"]       = principalPaid;
+            row["InterestAmount"]        = interestPaid;
             row["InstallmentNo"]         = i;
             row["Status"]                = isPaid ? "Paid" : "Not Paid";
             row["PaymentMode"]           = isPaid ? "Cash" : (object)DBNull.Value;
@@ -787,11 +983,13 @@ public class ExcelImporter
 
             if (!isPaid) continue;
 
+            lastPaidScheduleDate = scheduleDate;
+
             // Member (NULL) → Staff : 'EMI Recovery'
             var tx1 = ledgerTxTable.NewRow();
             tx1["PaidFromUserId"]  = DBNull.Value;
             tx1["PaidToUserId"]    = staffUserId;
-            tx1["Amount"]          = amount;
+            tx1["Amount"]          = paymentAmount;
             tx1["PaymentDate"]     = scheduleDate;
             tx1["CreatedBy"]       = _importUserId;
             tx1["CreatedDate"]     = DateTime.UtcNow;
@@ -801,8 +999,38 @@ public class ExcelImporter
             ledgerTxTable.Rows.Add(tx1);
 
             // Money stays with staff — no further hop to ImportUser.
-            ledgerDeltas[staffUserId] = ledgerDeltas.GetValueOrDefault(staffUserId) + amount;
+            ledgerDeltas[staffUserId] = ledgerDeltas.GetValueOrDefault(staffUserId) + paymentAmount;
         }
+
+        return (firstScheduleDate, lastPaidScheduleDate);
+    }
+
+    /// <summary>
+    /// Mirrors the web UI's calculatePrepaymentSplit() (MicroCredit.Web/src/pages/loan/prepaymentCalculations.ts):
+    /// splits a payment into principal/interest proportionally to the scheduled
+    /// ActualPrincipalAmount/ActualInterestAmount ratio.
+    /// </summary>
+    private static (decimal PrincipalAmount, decimal InterestAmount) CalculatePrepaymentSplit(
+        decimal actualEmiAmount, decimal actualPrincipalAmount, decimal actualInterestAmount, decimal payment)
+    {
+        if (payment <= 0) return (0m, 0m);
+
+        var totalFromPI = actualPrincipalAmount + actualInterestAmount;
+        if (totalFromPI > 0)
+        {
+            var principalRatio = actualPrincipalAmount / totalFromPI;
+            var principalAmount = Math.Round(payment * principalRatio, 2);
+            return (principalAmount, Math.Round(payment - principalAmount, 2));
+        }
+
+        if (actualEmiAmount > 0)
+        {
+            var principalRatio = actualPrincipalAmount / actualEmiAmount;
+            var principalAmount = Math.Round(payment * principalRatio, 2);
+            return (principalAmount, Math.Round(payment - principalAmount, 2));
+        }
+
+        return (0m, payment);
     }
 }
 
@@ -821,14 +1049,33 @@ public class ExcelRow
     public string? PocName    { get; set; }
     public string Phone       { get; set; } = "";
     public string? AltPhone   { get; set; }
-    public DateTime DisbDate  { get; set; }
-    public decimal LoanAmount { get; set; }
+    /// <summary>"Member Aadhar" column (looked up by header text, not a fixed index).</summary>
+    public string? Aadhaar    { get; set; }
+    /// <summary>
+    /// One or two loans for this member, derived from "B/F Loan Amount" / "1st Loan" per
+    /// the rule: B/F&gt;0 only → one loan (B/F). 1st Loan&gt;0 only → one loan (1st Loan).
+    /// Both &gt;0 → two loans: the B/F one is historical and forced Closed; the 1st Loan one
+    /// is the currently active loan (uses this row's Status/OutstandingAmount/WeeksOutstanding).
+    /// Each loan's own line in the (possibly two-line) "Disb date" cell is its DisbDate.
+    /// </summary>
+    public List<LoanInfo> Loans { get; set; } = new();
     /// <summary>"Out" column (C25) — outstanding amount; weeksOutstanding = OutstandingAmount ÷ WeeklyDue.</summary>
     public decimal OutstandingAmount { get; set; }
     public decimal InsuranceFee   { get; set; }
     public decimal WeeklyDue  { get; set; }
     public string Status      { get; set; } = "Active";
     public string HandledBy   { get; set; } = "--";
+    /// <summary>"Collection Day" column (C26) — e.g. "Monday", "Tuesday".</summary>
+    public string? CollectionDay { get; set; }
+    /// <summary>"No.of weeks Outstanding" column (C27), when numeric (it's "#DIV/0!" for Closed rows).</summary>
+    public int? WeeksOutstandingDirect { get; set; }
+}
+
+public class LoanInfo
+{
+    public decimal Amount  { get; set; }
+    public DateTime DisbDate { get; set; }
+    public string Status   { get; set; } = "Active";
 }
 
 public class VillageStaffComparer : IEqualityComparer<(string village, string staff)>
