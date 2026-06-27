@@ -109,41 +109,28 @@ foreach (var pt in paymentTerms)
     }
 }
 
-// ── Steps 6-10: Excel import ──────────────────────────────────────────────────
+// ── Excel import ────────────────────────────────────────────────────────────────
 var excelFile     = ConfigurationManager.AppSettings["Import.ExcelFile"]!;
 var excelPassword = ConfigurationManager.AppSettings["Import.ExcelPassword"]!;
 
 if (File.Exists(excelFile))
 {
-    // Step 6: Members, centers, POCs, loans from "Master Gruop"
-    Console.WriteLine($"\n[IMPORT] Starting Excel import: {excelFile}");
-    await new ExcelImporter(db, orgId, importUserId).RunAsync(excelFile, excelPassword);
+    // Resolve the branch + the branch staff (from "Handled By" in "Master Gruop") first —
+    // all money (investments, loan funding, EMI collection) now flows through this staff
+    // user, not ImportUser.
+    Console.WriteLine($"\n[SETUP] Resolving branch staff (money recipient)...");
+    var excelImporter = new ExcelImporter(db, orgId, importUserId);
+    var staffUserId = await excelImporter.GetPrimaryStaffUserIdAsync(excelFile, excelPassword);
+    Console.WriteLine($"[SETUP] Branch staff (money recipient) => userId={staffUserId}");
 
-    // Step 7: Owners (Remittance) + Investors (Credits) with investments
+    // Steps 2-3: Owners (Remittance tab) + Investors (Credits tab) with investments
+    // and a single direct ledger tx (owner/investor → branch staff).
     Console.WriteLine($"\n[REMITTANCE/CREDITS] Starting import...");
-    await new RemittanceCreditsImporter(db, orgId, importUserId).RunAsync(excelFile, excelPassword);
+    await new RemittanceCreditsImporter(db, orgId, importUserId, staffUserId).RunAsync(excelFile, excelPassword);
 
-    // Step 8: Transfer investments → ImportUser; disburse loans
-    Console.WriteLine($"\n[LEDGER] Starting ledger postings...");
-    await new LedgerPostingImporter(db, importUserId).RunAsync();
-
-    // Step 9: Branch staff from "Member wise collection Sheet"
-    Console.WriteLine($"\n[STAFF] Starting branch staff import...");
-    var branchName = ConfigurationManager.AppSettings["Import.BranchName"]!;
-    var bc = await db.GetConn();
-    using var branchCmd = bc.CreateCommand();
-    branchCmd.CommandText = "SELECT Id FROM Branchs WHERE Name = @name AND OrgId = @orgId AND IsDeleted = 0";
-    branchCmd.Parameters.AddWithValue("@name",  branchName);
-    branchCmd.Parameters.AddWithValue("@orgId", orgId);
-    var branchIdObj = await branchCmd.ExecuteScalarAsync();
-    if (branchIdObj != null && branchIdObj != DBNull.Value)
-        await new BranchStaffImporter(db, orgId, importUserId).RunAsync(excelFile, excelPassword, Convert.ToInt32(branchIdObj));
-    else
-        Console.WriteLine($"[STAFF] Branch '{branchName}' not found — skipped.");
-
-    // Step 10: Repayment schedulers + Member→Staff→ImportUser ledger txs
-    Console.WriteLine($"\n[REPAYMENT] Starting repayment import...");
-    await new RepaymentImporter(db, importUserId, orgId).RunAsync(excelFile, excelPassword);
+    // Steps 4-9: Branch, Centers/POCs, Staff, Members, Loans, LoanSchedulers — all from "Master Gruop".
+    Console.WriteLine($"\n[IMPORT] Starting Excel import: {excelFile}");
+    await excelImporter.RunAsync(excelFile, excelPassword);
 }
 else
 {

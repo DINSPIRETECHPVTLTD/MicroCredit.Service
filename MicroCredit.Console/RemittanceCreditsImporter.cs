@@ -1,20 +1,33 @@
 using Microsoft.Data.SqlClient;
 using OfficeOpenXml;
 
+/// <summary>
+/// Remittance tab → create Owners.  Credits tab → create Investors.
+/// For each: create an Investment row, then ONE direct LedgerTransaction
+/// (PaidFrom=owner/investor, PaidTo=branch staff, type='Investment'). Investor/owner
+/// money flows to the branch staff (not ImportUser) — staff is the one who funds loans
+/// and collects repayments. This is a raw import script (not going through the app's
+/// "no negative balance" business rule), so the owner/investor ledger balance can end
+/// up negative — that's expected.
+/// </summary>
 public class RemittanceCreditsImporter
 {
     private readonly DbHelper _db;
     private readonly int _orgId;
     private readonly int _importUserId;
+    private readonly int _moneyRecipientUserId;
 
     private const string DefaultPassword = "N@VY@$y$t3m001";
     private const string EmailDomain     = "navyafinservices.com";
 
-    public RemittanceCreditsImporter(DbHelper db, int orgId, int importUserId)
+    /// <param name="importUserId">Used only as CreatedBy/audit user — no money routes through it.</param>
+    /// <param name="moneyRecipientUserId">The branch staff user who actually receives the investment money.</param>
+    public RemittanceCreditsImporter(DbHelper db, int orgId, int importUserId, int moneyRecipientUserId)
     {
         _db = db;
         _orgId        = orgId;
         _importUserId = importUserId;
+        _moneyRecipientUserId = moneyRecipientUserId;
     }
 
     public async Task RunAsync(string filePath, string password)
@@ -22,12 +35,10 @@ public class RemittanceCreditsImporter
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var pkg = new ExcelPackage(new FileInfo(filePath), password);
 
-        // ── Remittance → Owner only ──────────────────────────────────────────
         Console.WriteLine("\n[REMITTANCE] Processing Remittance tab...");
         var remittanceSheet = pkg.Workbook.Worksheets["Remittance"];
         await ProcessRemittanceAsync(remittanceSheet);
 
-        // ── Credits → Investor only ──────────────────────────────────────────
         Console.WriteLine("\n[CREDITS] Processing Credits tab...");
         var creditsSheet = pkg.Workbook.Worksheets["Credits"];
         await ProcessCreditsAsync(creditsSheet);
@@ -52,10 +63,9 @@ public class RemittanceCreditsImporter
 
             Console.WriteLine($"\n  [{slNo}] {name}  amount={amount:N0}");
 
-            // Create as Owner, credit investment to owner's own ledger
             var ownerId = await GetOrCreateUserAsync(name, role: 1, label: "Owner");
             if (amount > 0)
-                await GetOrCreateInvestmentWithLedgerAsync(ownerId, amount, date);
+                await CreateInvestmentAndLedgerAsync(ownerId, amount, date);
         }
     }
 
@@ -78,10 +88,9 @@ public class RemittanceCreditsImporter
 
             Console.WriteLine($"\n  [{slNo}] {name}  village={village}  amount={amount:N0}");
 
-            // Create as Investor only, credit investment to investor's own ledger
             var investorId = await GetOrCreateUserAsync(name, role: 4, label: "Investor");
             if (amount > 0)
-                await GetOrCreateInvestmentWithLedgerAsync(investorId, amount, date);
+                await CreateInvestmentAndLedgerAsync(investorId, amount, date);
         }
     }
 
@@ -124,12 +133,11 @@ public class RemittanceCreditsImporter
     }
 
     /// <summary>
-    /// Creates the investment and credits the amount to the investor/owner's own ledger.
-    /// The transfer to ImportUser is handled later by LedgerPostingImporter.
+    /// Creates the Investment row, then a single direct LedgerTransaction:
+    /// PaidFrom=owner/investor, PaidTo=branch staff, type='Investment'.
     /// </summary>
-    private async Task GetOrCreateInvestmentWithLedgerAsync(int userId, decimal amount, DateTime date)
+    private async Task CreateInvestmentAndLedgerAsync(int userId, decimal amount, DateTime date)
     {
-        // Idempotent: skip if investment already exists for this user
         using var chk = (await _db.GetConn()).CreateCommand();
         chk.CommandText = "SELECT COUNT(1) FROM Investments WHERE UserId = @uid";
         chk.Parameters.AddWithValue("@uid", userId);
@@ -139,7 +147,6 @@ public class RemittanceCreditsImporter
             return;
         }
 
-        // Insert Investment record
         using var invIns = (await _db.GetConn()).CreateCommand();
         invIns.CommandText = @"
             INSERT INTO Investments (UserId, Amount, InvestmentDate, CreatedById, CreatedDate)
@@ -152,24 +159,25 @@ public class RemittanceCreditsImporter
         var investmentId = Convert.ToInt32(await invIns.ExecuteScalarAsync());
         Console.WriteLine($"    [CREATED] investment => id={investmentId}  amount={amount:N0}");
 
-        // LedgerTransaction: credit goes to the owner/investor themselves
         using var txIns = (await _db.GetConn()).CreateCommand();
         txIns.CommandText = @"
             INSERT INTO LedgerTransactions
                 (PaidFromUserId, PaidToUserId, Amount, PaymentDate, CreatedBy, CreatedDate, TransactionType, ReferenceId, Comments)
             OUTPUT INSERTED.Id
-            VALUES (NULL, @paidTo, @amount, @payDate, @createdBy, GETUTCDATE(), 'Investment', @refId, @comments)";
-        txIns.Parameters.AddWithValue("@paidTo",    userId);
+            VALUES (@paidFrom, @paidTo, @amount, @payDate, @createdBy, GETUTCDATE(), 'Investment', @refId, @comments)";
+        txIns.Parameters.AddWithValue("@paidFrom",  userId);
+        txIns.Parameters.AddWithValue("@paidTo",    _moneyRecipientUserId);
         txIns.Parameters.AddWithValue("@amount",    amount);
         txIns.Parameters.AddWithValue("@payDate",   date);
         txIns.Parameters.AddWithValue("@createdBy", _importUserId);
         txIns.Parameters.AddWithValue("@refId",     investmentId);
-        txIns.Parameters.AddWithValue("@comments",  $"Investment of {amount:N0} credited to userId={userId}");
+        txIns.Parameters.AddWithValue("@comments",  $"Investment of {amount:N0} from userId={userId} to branch staff (userId={_moneyRecipientUserId})");
         var txId = Convert.ToInt32(await txIns.ExecuteScalarAsync());
-        Console.WriteLine($"    [CREATED] ledger tx  => id={txId}  type=Investment  paidTo=userId({userId})");
+        Console.WriteLine($"    [CREATED] ledger tx  => id={txId}  type=Investment  from=userId({userId}) to=staff({_moneyRecipientUserId})");
 
-        // Update owner/investor's own ledger balance
-        await UpsertLedgerAsync(userId, amount);
+        // Owner/investor ledger -= amount (can go negative); staff ledger += amount
+        await UpsertLedgerAsync(userId, -amount);
+        await UpsertLedgerAsync(_moneyRecipientUserId, amount);
     }
 
     private async Task UpsertLedgerAsync(int userId, decimal delta)
