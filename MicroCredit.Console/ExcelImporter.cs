@@ -706,6 +706,7 @@ public class ExcelImporter
         dt.Columns.Add("InterestAmount",         typeof(decimal));
         dt.Columns.Add("InstallmentNo",          typeof(int));
         dt.Columns.Add("Status",                 typeof(string));
+        dt.Columns.Add("PaymentMode",            typeof(string));
         dt.Columns.Add("CollectedBy",            typeof(int));
         dt.Columns.Add("CreatedBy",              typeof(int));
         dt.Columns.Add("CreatedDate",            typeof(DateTime));
@@ -778,6 +779,7 @@ public class ExcelImporter
             row["InterestAmount"]        = 0m;
             row["InstallmentNo"]         = i;
             row["Status"]                = isPaid ? "Paid" : "Not Paid";
+            row["PaymentMode"]           = isPaid ? "Cash" : (object)DBNull.Value;
             row["CollectedBy"]           = staffUserId;
             row["CreatedBy"]             = _importUserId;
             row["CreatedDate"]           = DateTime.UtcNow;

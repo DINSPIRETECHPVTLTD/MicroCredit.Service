@@ -3,12 +3,16 @@ using OfficeOpenXml;
 
 /// <summary>
 /// Remittance tab → create Owners.  Credits tab → create Investors.
-/// For each: create an Investment row, then ONE direct LedgerTransaction
-/// (PaidFrom=owner/investor, PaidTo=branch staff, type='Investment'). Investor/owner
-/// money flows to the branch staff (not ImportUser) — staff is the one who funds loans
-/// and collects repayments. This is a raw import script (not going through the app's
-/// "no negative balance" business rule), so the owner/investor ledger balance can end
-/// up negative — that's expected.
+/// For each: create an Investment row, then TWO LedgerTransactions:
+///   1. PaidFrom=NULL, PaidTo=owner/investor, type='Investment' — credits the
+///      owner/investor's own ledger (matches the live app's RecordInvestmentAsync
+///      convention).
+///   2. PaidFrom=owner/investor, PaidTo=branch staff, type='Investment' — transfers
+///      the money on to the branch staff, since investor/owner money flows to staff
+///      (not ImportUser) — staff is the one who funds loans and collects repayments.
+/// Net effect: owner/investor ledger ends at 0, staff ledger increases by the amount.
+/// This is a raw import script (not going through the app's "no negative balance"
+/// business rule).
 /// </summary>
 public class RemittanceCreditsImporter
 {
@@ -133,8 +137,10 @@ public class RemittanceCreditsImporter
     }
 
     /// <summary>
-    /// Creates the Investment row, then a single direct LedgerTransaction:
-    /// PaidFrom=owner/investor, PaidTo=branch staff, type='Investment'.
+    /// Creates the Investment row, then TWO LedgerTransactions:
+    ///   1. PaidFrom=NULL, PaidTo=owner/investor, type='Investment' (credits their own ledger).
+    ///   2. PaidFrom=owner/investor, PaidTo=branch staff, type='Investment' (transfers to staff).
+    /// Net: owner/investor ledger ends at 0, staff ledger increases by the amount.
     /// </summary>
     private async Task CreateInvestmentAndLedgerAsync(int userId, decimal amount, DateTime date)
     {
@@ -159,23 +165,41 @@ public class RemittanceCreditsImporter
         var investmentId = Convert.ToInt32(await invIns.ExecuteScalarAsync());
         Console.WriteLine($"    [CREATED] investment => id={investmentId}  amount={amount:N0}");
 
-        using var txIns = (await _db.GetConn()).CreateCommand();
-        txIns.CommandText = @"
+        // Hop 1: NULL → owner/investor (credit their own ledger)
+        using var txIns1 = (await _db.GetConn()).CreateCommand();
+        txIns1.CommandText = @"
+            INSERT INTO LedgerTransactions
+                (PaidFromUserId, PaidToUserId, Amount, PaymentDate, CreatedBy, CreatedDate, TransactionType, ReferenceId, Comments)
+            OUTPUT INSERTED.Id
+            VALUES (NULL, @paidTo, @amount, @payDate, @createdBy, GETUTCDATE(), 'Investment', @refId, @comments)";
+        txIns1.Parameters.AddWithValue("@paidTo",    userId);
+        txIns1.Parameters.AddWithValue("@amount",    amount);
+        txIns1.Parameters.AddWithValue("@payDate",   date);
+        txIns1.Parameters.AddWithValue("@createdBy", _importUserId);
+        txIns1.Parameters.AddWithValue("@refId",     investmentId);
+        txIns1.Parameters.AddWithValue("@comments",  $"Investment of {amount:N0} credited to userId={userId}");
+        var txId1 = Convert.ToInt32(await txIns1.ExecuteScalarAsync());
+        Console.WriteLine($"    [CREATED] ledger tx  => id={txId1}  type=Investment  from=NULL to=userId({userId})");
+        await UpsertLedgerAsync(userId, amount);
+
+        // Hop 2: owner/investor → branch staff (transfer on to staff)
+        using var txIns2 = (await _db.GetConn()).CreateCommand();
+        txIns2.CommandText = @"
             INSERT INTO LedgerTransactions
                 (PaidFromUserId, PaidToUserId, Amount, PaymentDate, CreatedBy, CreatedDate, TransactionType, ReferenceId, Comments)
             OUTPUT INSERTED.Id
             VALUES (@paidFrom, @paidTo, @amount, @payDate, @createdBy, GETUTCDATE(), 'Investment', @refId, @comments)";
-        txIns.Parameters.AddWithValue("@paidFrom",  userId);
-        txIns.Parameters.AddWithValue("@paidTo",    _moneyRecipientUserId);
-        txIns.Parameters.AddWithValue("@amount",    amount);
-        txIns.Parameters.AddWithValue("@payDate",   date);
-        txIns.Parameters.AddWithValue("@createdBy", _importUserId);
-        txIns.Parameters.AddWithValue("@refId",     investmentId);
-        txIns.Parameters.AddWithValue("@comments",  $"Investment of {amount:N0} from userId={userId} to branch staff (userId={_moneyRecipientUserId})");
-        var txId = Convert.ToInt32(await txIns.ExecuteScalarAsync());
-        Console.WriteLine($"    [CREATED] ledger tx  => id={txId}  type=Investment  from=userId({userId}) to=staff({_moneyRecipientUserId})");
+        txIns2.Parameters.AddWithValue("@paidFrom",  userId);
+        txIns2.Parameters.AddWithValue("@paidTo",    _moneyRecipientUserId);
+        txIns2.Parameters.AddWithValue("@amount",    amount);
+        txIns2.Parameters.AddWithValue("@payDate",   date);
+        txIns2.Parameters.AddWithValue("@createdBy", _importUserId);
+        txIns2.Parameters.AddWithValue("@refId",     investmentId);
+        txIns2.Parameters.AddWithValue("@comments",  $"Investment of {amount:N0} from userId={userId} to branch staff (userId={_moneyRecipientUserId})");
+        var txId2 = Convert.ToInt32(await txIns2.ExecuteScalarAsync());
+        Console.WriteLine($"    [CREATED] ledger tx  => id={txId2}  type=Investment  from=userId({userId}) to=staff({_moneyRecipientUserId})");
 
-        // Owner/investor ledger -= amount (can go negative); staff ledger += amount
+        // Owner/investor ledger -= amount (nets to 0 after hop 1); staff ledger += amount
         await UpsertLedgerAsync(userId, -amount);
         await UpsertLedgerAsync(_moneyRecipientUserId, amount);
     }
