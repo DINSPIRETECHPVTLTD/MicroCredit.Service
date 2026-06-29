@@ -1,7 +1,7 @@
 namespace MicroCredit.Domain.Model.Report;
 
 /// <summary>
-/// Distinct staff user assigned as POC collector (CollectionBy) for a branch.
+/// Distinct staff users who collect for at least one non-deleted POC in the branch.
 /// </summary>
 public class PocCollectionStaffReportDto
 {

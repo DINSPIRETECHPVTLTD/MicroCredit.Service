@@ -32,14 +32,58 @@ public class ReportService : IReportService
         return await _unitOfWork.Reports.GetMembersByPocIdsAsync(branchId, pocIds);
     }
 
-    public async Task<List<StaffScheduleReportRowDto>> GetStaffSchedulesByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    public async Task<StaffSchedulesReportResponseDto> GetStaffSchedulesReportByBranchAsync(
+        int branchId,
+        CancellationToken cancellationToken = default)
     {
-        return await _unitOfWork.Reports.GetStaffSchedulesByBranchAsync(branchId, cancellationToken);
-    }
+        // DbContext is scoped per request — queries must not run concurrently on the same instance.
+        var staffList = await _unitOfWork.Reports.GetPocCollectionStaffByBranchAsync(branchId, cancellationToken);
+        var pocList = await _unitOfWork.Reports.GetStaffReportPocsByBranchAsync(branchId, cancellationToken);
+        var memberList = await _unitOfWork.Reports.GetStaffReportMembersByBranchAsync(branchId, cancellationToken);
 
-    public async Task<List<PocCollectionStaffReportDto>> GetPocCollectionStaffByBranchAsync(int branchId, CancellationToken cancellationToken = default)
-    {
-        return await _unitOfWork.Reports.GetPocCollectionStaffByBranchAsync(branchId, cancellationToken);
+        var membersByPoc = memberList
+            .GroupBy(m => m.PocId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var pocsByStaff = pocList
+            .GroupBy(p => p.UserId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var staffById = staffList.ToDictionary(s => s.UserId);
+        foreach (var poc in pocList)
+        {
+            if (staffById.ContainsKey(poc.UserId))
+                continue;
+
+            staffById[poc.UserId] = new PocCollectionStaffReportDto
+            {
+                UserId = poc.UserId,
+                UserFullName = poc.UserFullName,
+                UserRole = poc.UserRole,
+            };
+        }
+
+        var staffNodes = staffById.Values
+            .OrderBy(s => s.UserFullName, StringComparer.OrdinalIgnoreCase)
+            .Select(staff =>
+        {
+            var staffPocs = pocsByStaff.GetValueOrDefault(staff.UserId) ?? new List<StaffReportPocRowDto>();
+            return new StaffSchedulesStaffNodeDto
+            {
+                UserId = staff.UserId,
+                UserFullName = staff.UserFullName,
+                UserRole = staff.UserRole,
+                Pocs = staffPocs.Select(poc => new StaffSchedulesPocNodeDto
+                {
+                    PocId = poc.PocId,
+                    PocFullName = poc.PocFullName,
+                    CenterId = poc.CenterId,
+                    Members = membersByPoc.GetValueOrDefault(poc.PocId) ?? new List<StaffReportMemberRowDto>(),
+                }).ToList(),
+            };
+        }).ToList();
+
+        return new StaffSchedulesReportResponseDto { Staff = staffNodes };
     }
 
     public async Task<ReportSummaryResponseDto> GetSummaryAsync(CancellationToken cancellationToken = default)

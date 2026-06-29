@@ -20,19 +20,29 @@ public class ReportRepository : IReportRepository
 
     public async Task<List<ReportPocCenterResponseDto>> GetPocsByBranchIdAsync(int branchId)
     {
-        return await _context.Members
-            .Where(m => !m.IsDeleted
-                        && !m.POC.IsDeleted
-                        && m.POC.Center.BranchId == branchId)
-            .GroupBy(m => new
+        // Branch scope via member center (same as staff-schedules report).
+        return await (
+            from m in _context.Members
+            join p in _context.POCs on m.POCId equals p.Id
+            join c in _context.Centers on m.CenterId equals c.Id
+            join l in _context.Loans on m.Id equals l.MemberId
+            join ls in _context.LoanSchedulers on l.Id equals ls.LoanId
+            where !m.IsDeleted
+                  && !p.IsDeleted
+                  && !l.IsDeleted
+                  && l.Status == "Active"
+                  && ls.Status != LoanSchedulerStatus.Paid
+                  && c.BranchId == branchId
+            group m by new
             {
-                PocId = m.POC.Id,
-                m.POC.FirstName,
-                m.POC.MiddleName,
-                m.POC.LastName,
-                CenterName = m.POC.Center.Name
-            })
-            .Select(g => new ReportPocCenterResponseDto
+                PocId = p.Id,
+                p.FirstName,
+                p.MiddleName,
+                p.LastName,
+                CenterName = p.Center.Name,
+            }
+            into g
+            select new ReportPocCenterResponseDto
             {
                 PocId = g.Key.PocId,
                 PocFullName = (
@@ -40,34 +50,33 @@ public class ReportRepository : IReportRepository
                     (g.Key.MiddleName ?? string.Empty) + " " +
                     (g.Key.LastName ?? string.Empty)
                 ).Trim(),
-                CenterName = g.Key.CenterName
-            })
-            .ToListAsync();
+                CenterName = g.Key.CenterName,
+            }
+        )
+        .AsNoTracking()
+        .ToListAsync();
     }
 
     /// <summary>
-    /// Members under a POC with loan schedules due today or tomorrow (calendar dates, server local),
-    /// matching: Members → POCs → Centers → Branch, LEFT Loans → LEFT LoanSchedulers, DISTINCT.
+    /// Members under a POC with unpaid schedulers in the 7-day window; branch via member center, active loans only.
     /// </summary>
     public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdAsync(int branchId, int pocId)
     {
-        // Aligns with SQL: CAST(ls.ScheduleDate AS DATE) IN (CAST(GETDATE() AS DATE), DATEADD(DAY, 1, CAST(GETDATE() AS DATE)))
         var windowStart = DateTime.Today;
-        var windowEndExclusive = DateTime.Today.AddDays(2);
+        var windowEndExclusive = DateTime.Today.AddDays(7);
 
         var query =
             from m in _context.Members
             join p in _context.POCs on m.POCId equals p.Id
-            join c in _context.Centers on p.CenterId equals c.Id
-            join l in _context.Loans on m.Id equals l.MemberId into loans
-            from l in loans.DefaultIfEmpty()
-            join ls in _context.LoanSchedulers on l.Id equals ls.LoanId into loanSchedulers
-            from ls in loanSchedulers.DefaultIfEmpty()
+            join c in _context.Centers on m.CenterId equals c.Id
+            join l in _context.Loans on m.Id equals l.MemberId
+            join ls in _context.LoanSchedulers on l.Id equals ls.LoanId
             where !m.IsDeleted
                   && !p.IsDeleted
+                  && !l.IsDeleted
+                  && l.Status == "Active"
                   && c.BranchId == branchId
                   && p.Id == pocId
-                  && ls != null
                   && ls.Status != LoanSchedulerStatus.Paid
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
@@ -75,16 +84,21 @@ public class ReportRepository : IReportRepository
             {
                 PocId = p.Id,
                 MemberId = m.Id,
+                MemberCode = m.MemberCode,
                 MembersFullName = ((m.FirstName ?? string.Empty) + " " +
                                    (m.MiddleName ?? string.Empty) + " " +
                                    (m.LastName ?? string.Empty)).Trim(),
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
-                LoanSchedulerStatus = ls.Status.ToString(),
+                LoanSchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
+                    : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
+                    : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
+                    : ls.Status == LoanSchedulerStatus.Claimed ? "Claimed"
+                    : ls.Status == LoanSchedulerStatus.Overdue ? "Overdue"
+                    : "Not Paid",
             };
 
         return await query
-            .Distinct()
             .OrderBy(x => x.PocId)
             .ThenBy(x => x.MemberId)
             .ThenBy(x => x.ScheduleDate)
@@ -97,25 +111,23 @@ public class ReportRepository : IReportRepository
         if (pocIds == null || pocIds.Count == 0)
             return new List<ReportMembersByPocResponseDto>();
 
-        // Aligns with SQL: CAST(ls.ScheduleDate AS DATE) IN (CAST(GETDATE() AS DATE), DATEADD(DAY, 1, CAST(GETDATE() AS DATE)))
         var windowStart = DateTime.Today;
-        var windowEndExclusive = DateTime.Today.AddDays(2);
+        var windowEndExclusive = DateTime.Today.AddDays(7);
 
         var distinctPocIds = pocIds.Distinct().ToList();
 
         var query =
             from m in _context.Members
             join p in _context.POCs on m.POCId equals p.Id
-            join c in _context.Centers on p.CenterId equals c.Id
-            join l in _context.Loans on m.Id equals l.MemberId into loans
-            from l in loans.DefaultIfEmpty()
-            join ls in _context.LoanSchedulers on l.Id equals ls.LoanId into loanSchedulers
-            from ls in loanSchedulers.DefaultIfEmpty()
+            join c in _context.Centers on m.CenterId equals c.Id
+            join l in _context.Loans on m.Id equals l.MemberId
+            join ls in _context.LoanSchedulers on l.Id equals ls.LoanId
             where !m.IsDeleted
                   && !p.IsDeleted
+                  && !l.IsDeleted
+                  && l.Status == "Active"
                   && c.BranchId == branchId
                   && distinctPocIds.Contains(p.Id)
-                  && ls != null
                   && ls.Status != LoanSchedulerStatus.Paid
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
@@ -123,16 +135,21 @@ public class ReportRepository : IReportRepository
             {
                 PocId = p.Id,
                 MemberId = m.Id,
+                MemberCode = m.MemberCode,
                 MembersFullName = ((m.FirstName ?? string.Empty) + " " +
                                    (m.MiddleName ?? string.Empty) + " " +
                                    (m.LastName ?? string.Empty)).Trim(),
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
-                LoanSchedulerStatus = ls.Status.ToString(),
+                LoanSchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
+                    : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
+                    : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
+                    : ls.Status == LoanSchedulerStatus.Claimed ? "Claimed"
+                    : ls.Status == LoanSchedulerStatus.Overdue ? "Overdue"
+                    : "Not Paid",
             };
 
         return await query
-            .Distinct()
             .OrderBy(x => x.PocId)
             .ThenBy(x => x.MemberId)
             .ThenBy(x => x.ScheduleDate)
@@ -140,24 +157,44 @@ public class ReportRepository : IReportRepository
             .ToListAsync();
     }
 
-    public async Task<List<StaffScheduleReportRowDto>> GetStaffSchedulesByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    public async Task<List<PocCollectionStaffReportDto>> GetPocCollectionStaffByBranchAsync(int branchId, CancellationToken cancellationToken = default)
     {
-        var windowStart = DateTime.Today;
-        var windowEndExclusive = DateTime.Today.AddDays(2);
-
+        // Branch scope via POC center (aligned with POC and member queries).
         return await (
             from p in _context.POCs
             join u in _context.Users on p.CollectionBy equals u.Id
-            join m in _context.Members on p.Id equals m.POCId
-            join l in _context.Loans on m.Id equals l.MemberId
-            join ls in _context.LoanSchedulers on l.Id equals ls.LoanId
-            join b in _context.Branches on u.BranchId equals b.Id
+            join c in _context.Centers on p.CenterId equals c.Id
+            join b in _context.Branches on c.BranchId equals b.Id
             where !p.IsDeleted
+                  && !b.IsDeleted
                   && b.Id == branchId
-                  && ls.ScheduleDate >= windowStart
-                  && ls.ScheduleDate < windowEndExclusive
-            orderby u.Id, p.Id, m.Id, ls.ScheduleDate
-            select new StaffScheduleReportRowDto
+            group u by new { u.Id, u.FirstName, u.MiddleName, u.LastName, u.Role } into g
+            orderby g.Key.Id
+            select new PocCollectionStaffReportDto
+            {
+                UserId = g.Key.Id,
+                UserFullName = ((g.Key.FirstName ?? string.Empty) + " " +
+                                (g.Key.MiddleName ?? string.Empty) + " " +
+                                (g.Key.LastName ?? string.Empty)).Trim(),
+                UserRole = g.Key.Role.ToString(),
+            }
+        )
+        .AsNoTracking()
+        .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<StaffReportPocRowDto>> GetStaffReportPocsByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    {
+        return await (
+            from p in _context.POCs
+            join u in _context.Users on p.CollectionBy equals u.Id
+            join c in _context.Centers on p.CenterId equals c.Id
+            join b in _context.Branches on c.BranchId equals b.Id
+            where !p.IsDeleted
+                  && !b.IsDeleted
+                  && b.Id == branchId
+            orderby u.Id, p.Id
+            select new StaffReportPocRowDto
             {
                 PocId = p.Id,
                 PocStaffId = p.CollectionBy,
@@ -168,15 +205,7 @@ public class ReportRepository : IReportRepository
                 UserFullName = ((u.FirstName ?? string.Empty) + " " +
                                 (u.MiddleName ?? string.Empty) + " " +
                                 (u.LastName ?? string.Empty)).Trim(),
-                MemberFullName = ((m.FirstName ?? string.Empty) + " " +
-                                  (m.MiddleName ?? string.Empty) + " " +
-                                  (m.LastName ?? string.Empty)).Trim(),
-                MemberId = m.Id,
                 CenterId = p.CenterId,
-                PocIsDeleted = p.IsDeleted,
-                LoanSchedulerId = ls.LoanSchedulerId,
-                ActualEmiAmount = ls.ActualEmiAmount,
-                ScheduleDate = ls.ScheduleDate,
                 BranchId = b.Id,
                 UserRole = u.Role.ToString(),
             }
@@ -185,22 +214,45 @@ public class ReportRepository : IReportRepository
         .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<PocCollectionStaffReportDto>> GetPocCollectionStaffByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    public async Task<List<StaffReportMemberRowDto>> GetStaffReportMembersByBranchAsync(int branchId, CancellationToken cancellationToken = default)
     {
+        var windowStart = DateTime.Today;
+        var windowEndExclusive = DateTime.Today.AddDays(7);
+
         return await (
-            from u in _context.Users
-            join p in _context.POCs on u.Id equals p.CollectionBy
-            join b in _context.Branches on u.BranchId equals b.Id
-            where !p.IsDeleted && b.Id == branchId
-            group u by new { u.Id, u.FirstName, u.MiddleName, u.LastName, u.Role } into g
-            orderby g.Key.Id
-            select new PocCollectionStaffReportDto
+            from m in _context.Members
+            join l in _context.Loans on m.Id equals l.MemberId
+            join ls in _context.LoanSchedulers on l.Id equals ls.LoanId
+            join c in _context.Centers on m.CenterId equals c.Id
+            join b in _context.Branches on c.BranchId equals b.Id
+            where !m.IsDeleted
+                  && !l.IsDeleted
+                  && !b.IsDeleted
+                  && b.Id == branchId
+                  && l.Status == "Active"
+                  && ls.Status != LoanSchedulerStatus.Paid
+                  && ls.ScheduleDate >= windowStart
+                  && ls.ScheduleDate < windowEndExclusive
+            orderby m.POCId, m.Id, ls.ScheduleDate
+            select new StaffReportMemberRowDto
             {
-                UserId = g.Key.Id,
-                UserFullName = ((g.Key.FirstName ?? string.Empty) + " " +
-                                (g.Key.MiddleName ?? string.Empty) + " " +
-                                (g.Key.LastName ?? string.Empty)).Trim(),
-                UserRole = g.Key.Role.ToString(),
+                MemberId = m.Id,
+                MemberCode = m.MemberCode,
+                PocId = m.POCId,
+                MemberFullName = ((m.FirstName ?? string.Empty) + " " +
+                                  (m.MiddleName ?? string.Empty) + " " +
+                                  (m.LastName ?? string.Empty)).Trim(),
+                LoanId = l.Id,
+                LoanStatus = l.Status,
+                LoanSchedulerId = ls.LoanSchedulerId,
+                ScheduleDate = ls.ScheduleDate,
+                ActualEmiAmount = ls.ActualEmiAmount,
+                LoanSchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
+                    : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
+                    : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
+                    : ls.Status == LoanSchedulerStatus.Claimed ? "Claimed"
+                    : ls.Status == LoanSchedulerStatus.Overdue ? "Overdue"
+                    : "Not Paid",
             }
         )
         .AsNoTracking()
