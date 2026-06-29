@@ -63,6 +63,7 @@ public class LoanRepository : ILoanRepository
         {
             LoanId = loan.Id,
             MemberId = loan.MemberId,
+            MemberCode = loan.Member?.MemberCode,
             FullName = (
                 loan.Member?.FirstName + " " +
                 (string.IsNullOrEmpty(loan.Member?.MiddleName)
@@ -112,6 +113,7 @@ public class LoanRepository : ILoanRepository
             {
                 LoanId = loan.Id,
                 MemberId = loan.MemberId,
+                MemberCode = loan.Member.MemberCode,
                 FullName = (
                     loan.Member.FirstName + " " +
                     (loan.Member.MiddleName == null || loan.Member.MiddleName == ""

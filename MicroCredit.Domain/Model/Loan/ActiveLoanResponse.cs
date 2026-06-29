@@ -4,6 +4,7 @@ public class ActiveLoanResponse
 {
     public int LoanId { get; set; }
     public int MemberId { get; set; }
+    public string? MemberCode { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string PocName { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
