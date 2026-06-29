@@ -52,6 +52,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
             {
                 LoanId = l.Id,
                 MemberId = l.MemberId,
+                MemberCode = m.MemberCode,
                 MemberName = ((m.FirstName ?? "") + " " + (m.MiddleName ?? "") + " " + (m.LastName ?? "")).Trim(),
                 PocName = ((p.FirstName ?? "") + " " + (p.MiddleName ?? "") + " " + (p.LastName ?? "")).Trim(),
                 LoanStatus = l.Status,
