@@ -182,7 +182,7 @@ public class ExcelImporter
                         var scheduleDates = QueueSchedulersAndPayments(schedulerTable, ledgerTxTable, ledgerDeltas,
                             loanId, memberId, loanInfo.DisbDate, loanInfo.Amount, interestAmount,
                             noOfTerms, row.OutstandingAmount, row.WeeksOutstandingDirect, loanInfo.Status,
-                            staffUserId, row.CollectionDay);
+                            staffUserId, row.CollectionDay, row.EmiStartDate);
 
                         if (scheduleDates.HasValue)
                         {
@@ -258,9 +258,9 @@ public class ExcelImporter
 
     private List<ExcelRow> ParseRows(ExcelWorksheet sheet)
     {
-        // "Member Aadhar" isn't at a fixed column — look it up by header text (row 5) so
-        // it keeps working regardless of where it ends up in the sheet.
-        var aadharCol = FindColumnByHeader(sheet, 5, "Member Aadhar", "Member Aadhaar", "Aadhar", "Aadhaar");
+        // Dynamic column lookups — done once outside the row loop.
+        var aadharCol    = FindColumnByHeader(sheet, 5, "Member Aadhar", "Member Aadhaar", "Aadhar", "Aadhaar");
+        var emiStartCol  = FindColumnByHeader(sheet, 5, "EMI Start Date", "EMI Start date", "Emi Start Date");
 
         var list = new List<ExcelRow>();
         for (int r = 6; r <= sheet.Dimension.Rows; r++)
@@ -340,6 +340,8 @@ public class ExcelImporter
             var weeksOutstandingText = Cell(sheet, r, 27);
             int? weeksOutstandingDirect = int.TryParse(weeksOutstandingText, out var wo) ? wo : (int?)null;
 
+            DateTime? emiStartDate = emiStartCol.HasValue ? ParseDate(Cell(sheet, r, emiStartCol.Value)) : null;
+
             list.Add(new ExcelRow
             {
                 RowNum     = r,
@@ -362,6 +364,7 @@ public class ExcelImporter
                 Status     = statusText,
                 CollectionDay      = Cell(sheet, r, 26),
                 WeeksOutstandingDirect = weeksOutstandingDirect,
+                EmiStartDate = emiStartDate,
             });
         }
         return list;
@@ -905,7 +908,7 @@ public class ExcelImporter
         DataTable schedulerTable, DataTable ledgerTxTable, Dictionary<int, decimal> ledgerDeltas,
         int loanId, int memberId, DateTime disbDate, decimal loanAmount, decimal interestAmount,
         int noOfTerms, decimal outstandingAmount, int? weeksOutstandingDirect, string status,
-        int staffUserId, string? collectionDay)
+        int staffUserId, string? collectionDay, DateTime? emiStartDate = null)
     {
         if (noOfTerms <= 0) return null;
 
@@ -933,17 +936,11 @@ public class ExcelImporter
         scheduledPrincipal[noOfTerms] += loanAmount - sumPrincipal;
         scheduledInterest[noOfTerms]  += interestAmount - sumInterest;
 
-        // First installment = DisbDate + 7 days, shifted by the smallest +/- offset so it
-        // lands exactly on the "Collection Day" weekday. Subsequent installments are then
-        // every 7 days after that, preserving the same weekday automatically.
-        //
-        // Each installment's date is computed directly from firstScheduleDate (AddDays(7*(i-1)))
-        // rather than via a running +7-per-iteration accumulator. DateTime.AddDays uses
-        // double-precision arithmetic internally, and for dates with large tick counts a
-        // round-trip like AddDays(-7).AddDays(7) can lose sub-millisecond precision —
-        // which would make installment #1's date differ from firstScheduleDate by a few
-        // hundred microseconds, breaking the "DisbursementDate == first ScheduleDate" rule.
-        var firstScheduleDate = AlignToCollectionDay(disbDate.AddDays(7), collectionDay);
+        // First installment date: use the explicit "EMI Start Date" from Excel when provided;
+        // otherwise fall back to DisbDate + 7 days aligned to the Collection Day weekday.
+        var firstScheduleDate = emiStartDate.HasValue
+            ? emiStartDate.Value.Date
+            : AlignToCollectionDay(disbDate.AddDays(7), collectionDay);
         DateTime? lastPaidScheduleDate = null;
 
         for (int i = 1; i <= noOfTerms; i++)
@@ -1076,6 +1073,8 @@ public class ExcelRow
     public string? CollectionDay { get; set; }
     /// <summary>"No.of weeks Outstanding" column (C27), when numeric (it's "#DIV/0!" for Closed rows).</summary>
     public int? WeeksOutstandingDirect { get; set; }
+    /// <summary>"EMI Start Date" column — when present, used directly as first LoanScheduler date.</summary>
+    public DateTime? EmiStartDate { get; set; }
 }
 
 public class LoanInfo
