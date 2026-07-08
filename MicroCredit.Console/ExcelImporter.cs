@@ -482,18 +482,25 @@ public class ExcelImporter
         var emailPart = fullName.Trim().ToLowerInvariant().Replace(' ', '.');
         var email     = $"{emailPart}.staff@{EmailDomain}";
 
+        var parts = fullName.Trim().Split(' ', 2);
+
         using var chk = (await _db.GetConn()).CreateCommand();
         chk.CommandText = "SELECT Id FROM Users WHERE Email = @email AND IsDeleted = 0";
         chk.Parameters.AddWithValue("@email", email);
         var existing = await chk.ExecuteScalarAsync();
-        if (existing != null && existing != DBNull.Value) return Convert.ToInt32(existing);
-
-        var parts = fullName.Trim().Split(' ', 2);
-        using var chk2 = (await _db.GetConn()).CreateCommand();
-        chk2.CommandText = "SELECT TOP 1 Id FROM Users WHERE FirstName = @fn AND IsDeleted = 0 AND [Level] = 'Branch'";
-        chk2.Parameters.AddWithValue("@fn", parts[0]);
-        var existing2 = await chk2.ExecuteScalarAsync();
-        if (existing2 != null && existing2 != DBNull.Value) return Convert.ToInt32(existing2);
+        if (existing != null && existing != DBNull.Value)
+        {
+            var existingId = Convert.ToInt32(existing);
+            // BranchId may have been nulled by a previous cleanup — restore it.
+            using var fix = (await _db.GetConn()).CreateCommand();
+            fix.CommandText = "UPDATE Users SET BranchId = @branchId WHERE Id = @id AND (BranchId IS NULL OR BranchId <> @branchId)";
+            fix.Parameters.AddWithValue("@branchId", branchId);
+            fix.Parameters.AddWithValue("@id", existingId);
+            var updated = await fix.ExecuteNonQueryAsync();
+            if (updated > 0)
+                Console.WriteLine($"  [UPDATED] staff '{fullName}' id={existingId} BranchId restored to {branchId}");
+            return existingId;
+        }
 
         var pwdHash = BCrypt.Net.BCrypt.HashPassword(DefaultPassword);
         using var ins = (await _db.GetConn()).CreateCommand();
