@@ -382,10 +382,13 @@ public class ExcelImporter
     private static string? Cell(ExcelWorksheet s, int r, int c) =>
         s.Cells[r, c].Text?.Trim().NullIfEmpty();
 
-    /// <summary>Finds a column by matching any of the candidate header texts (case-insensitive) in headerRow.</summary>
+    /// <summary>Finds a column by matching any of the candidate header texts (case-insensitive) in headerRow.
+    /// Scans to col 50 to handle headers placed beyond EPPlus's Dimension.Columns boundary
+    /// (which stops at the last non-empty column in the data rows, not the header row).</summary>
     private static int? FindColumnByHeader(ExcelWorksheet sheet, int headerRow, params string[] candidates)
     {
-        for (int c = 1; c <= sheet.Dimension.Columns; c++)
+        var maxCol = Math.Max(sheet.Dimension.Columns, 50);
+        for (int c = 1; c <= maxCol; c++)
         {
             var header = sheet.Cells[headerRow, c].Text?.Trim();
             if (string.IsNullOrWhiteSpace(header)) continue;
