@@ -46,7 +46,7 @@ public class POC
     public int CenterId { get; private set; }
 
     [ForeignKey("CenterId")]
-    public virtual Center Center { get; private set; }
+    public virtual Center Center { get; private set; } = null!;
 
     [Required]
     public int CreatedBy { get; private set; }

@@ -17,6 +17,6 @@ namespace MicroCredit.Domain.Model.Fund
 
         public DateTime PaymentDate { get; set; }
         public DateTime CreatedDate { get; set; }
-        public string Comments { get; set; }
+        public string? Comments { get; set; }
     }
 }

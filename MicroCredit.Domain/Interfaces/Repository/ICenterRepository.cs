@@ -10,7 +10,7 @@ namespace MicroCredit.Domain.Interfaces.Repository
     public interface ICenterRepository
     {
         Task<IEnumerable<Center>> GetCenters(int branchId, CancellationToken cancellationToken = default);
-        Task<Center> GetByCenterId(int centerId, CancellationToken cancellationToken = default);
+        Task<Center?> GetByCenterId(int centerId, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<string>> GetActiveDependencyNamesAsync(
             int centerId,
             CancellationToken cancellationToken = default);

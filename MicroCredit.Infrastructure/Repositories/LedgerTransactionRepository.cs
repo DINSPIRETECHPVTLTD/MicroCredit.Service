@@ -25,7 +25,8 @@ namespace MicroCredit.Infrastructure.Repositories
         {
 
             return await _context.LedgerTransactions
-                .Where(lt => (lt.FromUser.OrgId == orgId || lt.ToUser.OrgId == orgId) && lt.TransactionType == "Expense")
+                .Where(lt => ((lt.FromUser != null && lt.FromUser.OrgId == orgId) || (lt.ToUser != null && lt.ToUser.OrgId == orgId))
+                    && lt.TransactionType == "Expense")
                 .ToListAsync(cancellationToken);
         }
 

@@ -25,7 +25,7 @@ namespace MicroCredit.Infrastructure.Repositories
                 .Where(b => b.BranchId == branchId && !b.IsDeleted)
                 .ToListAsync(cancellationToken);
         }
-        public Task<Center> GetByCenterId(int centerId, CancellationToken cancellationToken = default)
+        public Task<Center?> GetByCenterId(int centerId, CancellationToken cancellationToken = default)
         {
             return _context.Centers
                 .Where(b => b.Id == centerId && !b.IsDeleted)

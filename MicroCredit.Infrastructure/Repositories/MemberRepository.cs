@@ -92,7 +92,7 @@ public class MemberRepository : IMemberRepository
         {
             query = query.Where(m =>
                 (!string.IsNullOrWhiteSpace(request.FirstName) && m.FirstName.Contains(request.FirstName)) ||
-                (!string.IsNullOrWhiteSpace(request.MiddleName) && m.MiddleName.Contains(request.MiddleName)) ||
+                (!string.IsNullOrWhiteSpace(request.MiddleName) && m.MiddleName != null && m.MiddleName.Contains(request.MiddleName)) ||
                 (!string.IsNullOrWhiteSpace(request.LastName) && m.LastName.Contains(request.LastName))
             );
         }

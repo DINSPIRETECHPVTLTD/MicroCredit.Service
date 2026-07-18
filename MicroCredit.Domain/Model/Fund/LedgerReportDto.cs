@@ -9,7 +9,7 @@ namespace MicroCredit.Domain.Model.Fund
     public class LedgerReportDto
     {
         public int id { get; set; }
-        public string UserName { get; set; }
+        public string UserName { get; set; } = string.Empty;
         public decimal? Amount { get; set; }
     }
 }

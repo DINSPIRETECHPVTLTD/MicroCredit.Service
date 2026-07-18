@@ -433,7 +433,7 @@ CROSS JOIN
         for (int idx = 0; idx < expenses.Count; idx++)
             expenses[idx].Id = idx + 1;
 
-         List<LedgerReportDto> ledgers = null;
+         List<LedgerReportDto>? ledgers = null;
 
             //Ledger Balance logic
         ledgers = await (
@@ -455,7 +455,7 @@ CROSS JOIN
         return Generate(dtoList, expenses, ledgers);
     }
 
-    public byte[] Generate(List<MemberWiseCollectionResponseDto> data, List<ExpenseResponse> expenses = null, List<LedgerReportDto> ledgers = null)
+    public byte[] Generate(List<MemberWiseCollectionResponseDto> data, List<ExpenseResponse>? expenses = null, List<LedgerReportDto>? ledgers = null)
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Member Wise Collection");
@@ -900,9 +900,11 @@ CROSS JOIN
 
             // Date
             var dateCell = ws.Cell(row, 4);
-            if (i < expenses.Count && expenses[i].PaymentDate.HasValue)
+            if (i < expenses.Count)
             {
-                dateCell.Value = expenses[i].PaymentDate.Value.ToString("dd/MM/yyyy");
+                var paymentDate = expenses[i].PaymentDate;
+                if (paymentDate.HasValue)
+                    dateCell.Value = paymentDate.Value.ToString("dd/MM/yyyy");
             }
             dateCell.Style
                 .Font.SetFontSize(9)
@@ -1035,7 +1037,7 @@ CROSS JOIN
 
             WriteCell(1, l.id);
             WriteCell(2, l.UserName);
-            WriteCell(3, l.Amount,
+            WriteCell(3, l.Amount ?? 0m,
                 isRed: l.Amount < 0);                    // negative amounts in red
 
             // Right-align numeric columns

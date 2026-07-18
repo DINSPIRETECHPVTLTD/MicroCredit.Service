@@ -39,7 +39,7 @@ namespace MicroCredit.Domain.Model.Loan
             public DateTime CollectionStartDate { get; set; }
 
             [Required]
-            public string CollectionTerm { get; set; }
+            public string CollectionTerm { get; set; } = string.Empty;
 
             [Required]
             public int NoOfTerms { get; set; }
