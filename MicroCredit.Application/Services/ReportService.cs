@@ -22,24 +22,25 @@ public class ReportService : IReportService
         return await _unitOfWork.Reports.GetPocsByBranchIdAsync(branchId);
     }
 
-    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdAsync(int branchId, int pocId)
+    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdAsync(int branchId, int pocId, DateTime? scheduleDate = null)
     {
-        return await _unitOfWork.Reports.GetMembersByPocIdAsync(branchId, pocId);
+        return await _unitOfWork.Reports.GetMembersByPocIdAsync(branchId, pocId, scheduleDate);
     }
 
-    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdsAsync(int branchId, IReadOnlyList<int> pocIds)
+    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdsAsync(int branchId, IReadOnlyList<int> pocIds, DateTime? scheduleDate = null)
     {
-        return await _unitOfWork.Reports.GetMembersByPocIdsAsync(branchId, pocIds);
+        return await _unitOfWork.Reports.GetMembersByPocIdsAsync(branchId, pocIds, scheduleDate);
     }
 
     public async Task<StaffSchedulesReportResponseDto> GetStaffSchedulesReportByBranchAsync(
         int branchId,
+        DateTime? scheduleDate = null,
         CancellationToken cancellationToken = default)
     {
         // DbContext is scoped per request — queries must not run concurrently on the same instance.
         var staffList = await _unitOfWork.Reports.GetPocCollectionStaffByBranchAsync(branchId, cancellationToken);
         var pocList = await _unitOfWork.Reports.GetStaffReportPocsByBranchAsync(branchId, cancellationToken);
-        var memberList = await _unitOfWork.Reports.GetStaffReportMembersByBranchAsync(branchId, cancellationToken);
+        var memberList = await _unitOfWork.Reports.GetStaffReportMembersByBranchAsync(branchId, scheduleDate, cancellationToken);
 
         var membersByPoc = memberList
             .GroupBy(m => m.PocId)

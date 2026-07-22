@@ -55,7 +55,10 @@ public class ReportController : ControllerBase
     }
 
     [HttpGet("members-by-poc/{branchId:int}/{pocId:int}")]
-    public async Task<IActionResult> GetMembersByPocId(int branchId, int pocId)
+    public async Task<IActionResult> GetMembersByPocId(
+        int branchId,
+        int pocId,
+        [FromQuery] DateTime? scheduleDate = null)
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
@@ -71,18 +74,19 @@ public class ReportController : ControllerBase
         if (branchId <= 0 || pocId <= 0)
             return BadRequest("branchId and pocId must be greater than 0.");
 
-        var data = await _reportService.GetMembersByPocIdAsync(branchId, pocId);
+        var data = await _reportService.GetMembersByPocIdAsync(branchId, pocId, scheduleDate);
         return Ok(data ?? new List<ReportMembersByPocResponseDto>());
     }
 
     /// <summary>
-    /// Bulk endpoint: returns members due today/tomorrow for multiple POCs in a single request.
+    /// Bulk endpoint: returns members with unpaid schedules for the selected day (defaults to today).
     /// </summary>
     [HttpPost("members-by-pocs/{branchId:int}")]
     public async Task<IActionResult> GetMembersByPocIds(
         int branchId,
         [FromBody] int[] pocIds,
-        CancellationToken cancellationToken)
+        [FromQuery] DateTime? scheduleDate = null,
+        CancellationToken cancellationToken = default)
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
@@ -105,15 +109,18 @@ public class ReportController : ControllerBase
         if (distinctPocIds.Length == 0)
             return BadRequest("pocIds must contain valid positive ids.");
 
-        var data = await _reportService.GetMembersByPocIdsAsync(branchId, distinctPocIds);
+        var data = await _reportService.GetMembersByPocIdsAsync(branchId, distinctPocIds, scheduleDate);
         return Ok(data ?? new List<ReportMembersByPocResponseDto>());
     }
 
     /// <summary>
-    /// Hierarchical staff schedules report: Staff → POC → Member (7-day schedule window).
+    /// Hierarchical staff schedules report: Staff → POC → Member for the selected day (defaults to today).
     /// </summary>
     [HttpGet("staff-schedules-report/{branchId:int}")]
-    public async Task<IActionResult> GetStaffSchedulesReport(int branchId, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetStaffSchedulesReport(
+        int branchId,
+        [FromQuery] DateTime? scheduleDate = null,
+        CancellationToken cancellationToken = default)
     {
         if (_userContext.UserId == 0 || _userContext.OrgId == 0)
             return Unauthorized();
@@ -130,7 +137,7 @@ public class ReportController : ControllerBase
         if (branchId <= 0)
             return BadRequest("branchId must be greater than 0.");
 
-        var data = await _reportService.GetStaffSchedulesReportByBranchAsync(branchId, cancellationToken);
+        var data = await _reportService.GetStaffSchedulesReportByBranchAsync(branchId, scheduleDate, cancellationToken);
         return Ok(data);
     }
 

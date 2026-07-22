@@ -45,9 +45,8 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                   && b.Id == branchId
                   && ls.Status == LoanSchedulerStatus.NotPaid // Only include Not Paid
                   && (!centerId.HasValue || c.Id == centerId.Value)
-                  && (!pocId.HasValue
-                      || _context.POCs.Any(p =>
-                          p.Id == pocId.Value && p.CenterId == c.Id && !p.IsDeleted))
+                  // Filter by the member's assigned POC (not merely "POC exists in center").
+                  && (!pocId.HasValue || m.POCId == pocId.Value)
             select new RecoveryPostingSchedulerResponse
             {
                 LoanId = l.Id,
