@@ -31,7 +31,6 @@ public class ReportRepository : IReportRepository
                   && !p.IsDeleted
                   && !l.IsDeleted
                   && l.Status == "Active"
-                  && ls.Status != LoanSchedulerStatus.Paid
                   && c.BranchId == branchId
             group m by new
             {
@@ -58,8 +57,8 @@ public class ReportRepository : IReportRepository
     }
 
     /// <summary>
-    /// Members under a POC with unpaid schedulers for the selected day (defaults to today);
-    /// branch via member center, active loans only.
+    /// Members under a POC with schedulers for the selected day (defaults to today);
+    /// branch via member center, active loans only — all EMI statuses included.
     /// </summary>
     public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdAsync(
         int branchId,
@@ -82,7 +81,6 @@ public class ReportRepository : IReportRepository
                   && l.Status == "Active"
                   && c.BranchId == branchId
                   && p.Id == pocId
-                  && ls.Status != LoanSchedulerStatus.Paid
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
             select new ReportMembersByPocResponseDto
@@ -137,7 +135,6 @@ public class ReportRepository : IReportRepository
                   && l.Status == "Active"
                   && c.BranchId == branchId
                   && distinctPocIds.Contains(p.Id)
-                  && ls.Status != LoanSchedulerStatus.Paid
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
             select new ReportMembersByPocResponseDto
@@ -243,7 +240,6 @@ public class ReportRepository : IReportRepository
                   && !b.IsDeleted
                   && b.Id == branchId
                   && l.Status == "Active"
-                  && ls.Status != LoanSchedulerStatus.Paid
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
             orderby m.POCId, m.Id, ls.ScheduleDate

@@ -79,7 +79,7 @@ public class ReportController : ControllerBase
     }
 
     /// <summary>
-    /// Bulk endpoint: returns members with unpaid schedules for the selected day (defaults to today).
+    /// Bulk endpoint: returns members with schedules for the selected day (defaults to today; all EMI statuses).
     /// </summary>
     [HttpPost("members-by-pocs/{branchId:int}")]
     public async Task<IActionResult> GetMembersByPocIds(
