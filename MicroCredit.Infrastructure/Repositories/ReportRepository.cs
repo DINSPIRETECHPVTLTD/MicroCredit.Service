@@ -58,12 +58,17 @@ public class ReportRepository : IReportRepository
     }
 
     /// <summary>
-    /// Members under a POC with unpaid schedulers in the 7-day window; branch via member center, active loans only.
+    /// Members under a POC with unpaid schedulers for the selected day (defaults to today);
+    /// branch via member center, active loans only.
     /// </summary>
-    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdAsync(int branchId, int pocId)
+    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdAsync(
+        int branchId,
+        int pocId,
+        DateTime? scheduleDate = null)
     {
-        var windowStart = DateTime.Today;
-        var windowEndExclusive = DateTime.Today.AddDays(7);
+        var day = (scheduleDate ?? DateTime.Today).Date;
+        var windowStart = day;
+        var windowEndExclusive = day.AddDays(1);
 
         var query =
             from m in _context.Members
@@ -106,13 +111,17 @@ public class ReportRepository : IReportRepository
             .ToListAsync();
     }
 
-    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdsAsync(int branchId, IReadOnlyList<int> pocIds)
+    public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdsAsync(
+        int branchId,
+        IReadOnlyList<int> pocIds,
+        DateTime? scheduleDate = null)
     {
         if (pocIds == null || pocIds.Count == 0)
             return new List<ReportMembersByPocResponseDto>();
 
-        var windowStart = DateTime.Today;
-        var windowEndExclusive = DateTime.Today.AddDays(7);
+        var day = (scheduleDate ?? DateTime.Today).Date;
+        var windowStart = day;
+        var windowEndExclusive = day.AddDays(1);
 
         var distinctPocIds = pocIds.Distinct().ToList();
 
@@ -214,10 +223,14 @@ public class ReportRepository : IReportRepository
         .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<StaffReportMemberRowDto>> GetStaffReportMembersByBranchAsync(int branchId, CancellationToken cancellationToken = default)
+    public async Task<List<StaffReportMemberRowDto>> GetStaffReportMembersByBranchAsync(
+        int branchId,
+        DateTime? scheduleDate = null,
+        CancellationToken cancellationToken = default)
     {
-        var windowStart = DateTime.Today;
-        var windowEndExclusive = DateTime.Today.AddDays(7);
+        var day = (scheduleDate ?? DateTime.Today).Date;
+        var windowStart = day;
+        var windowEndExclusive = day.AddDays(1);
 
         return await (
             from m in _context.Members
