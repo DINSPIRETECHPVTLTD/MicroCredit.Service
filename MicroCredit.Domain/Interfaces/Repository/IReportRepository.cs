@@ -15,6 +15,11 @@ public interface IReportRepository
     Task<List<StaffReportMemberRowDto>> GetStaffReportMembersByBranchAsync(int branchId, DateTime? scheduleDate = null, CancellationToken cancellationToken = default);
     Task<ReportSummaryResponseDto> GetSummaryAsync(CancellationToken cancellationToken = default);
     Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId);
+    Task<UserLedgerDashboardResponseDto> GetUserLedgerDashboardAsync(
+        int userId,
+        int orgId,
+        DateTime? paymentDate = null,
+        CancellationToken cancellationToken = default);
     byte[] Generate(List<MemberWiseCollectionResponseDto> data, List<ExpenseResponse>? expenses = null, List<LedgerReportDto>? ledgers = null);
     public void GenerateRepaymentSheet(XLWorkbook wb, List<MemberWiseCollectionResponseDto> data);
     public void GenerateExpensesSheet(XLWorkbook wb, List<ExpenseResponse> expenses);

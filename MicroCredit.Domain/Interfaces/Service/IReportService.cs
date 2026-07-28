@@ -11,4 +11,9 @@ public interface IReportService
     Task<StaffSchedulesReportResponseDto> GetStaffSchedulesReportByBranchAsync(int branchId, DateTime? scheduleDate = null, CancellationToken cancellationToken = default);
     Task<ReportSummaryResponseDto> GetSummaryAsync(CancellationToken cancellationToken = default);
     Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId);
+    Task<UserLedgerDashboardResponseDto> GetUserLedgerDashboardAsync(
+        int userId,
+        int orgId,
+        DateTime? paymentDate = null,
+        CancellationToken cancellationToken = default);
 }
