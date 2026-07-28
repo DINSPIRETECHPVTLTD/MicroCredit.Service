@@ -97,4 +97,13 @@ public class ReportService : IReportService
     {
         return await _unitOfWork.Reports.GetMemberWiseCollectionSheet(orgId, branchId);
     }
+
+    public async Task<UserLedgerDashboardResponseDto> GetUserLedgerDashboardAsync(
+        int userId,
+        int orgId,
+        DateTime? paymentDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        return await _unitOfWork.Reports.GetUserLedgerDashboardAsync(userId, orgId, paymentDate, cancellationToken);
+    }
 }

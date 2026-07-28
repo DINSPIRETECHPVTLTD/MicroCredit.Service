@@ -318,6 +318,127 @@ CROSS JOIN
         return result ?? new ReportSummaryResponseDto();
     }
 
+    public async Task<UserLedgerDashboardResponseDto> GetUserLedgerDashboardAsync(
+        int userId,
+        int orgId,
+        DateTime? paymentDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.OrgId == orgId, cancellationToken);
+
+        if (user == null)
+            throw new InvalidOperationException("User not found in organization.");
+
+        var userFullName = string.Join(
+            " ",
+            new[] { user.FirstName, user.MiddleName, user.LastName }
+                .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+
+        var ledger = await _context.Ledgers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(l => l.UserId == userId, cancellationToken);
+
+        var currentBalance = ledger?.Amount ?? 0m;
+
+        var txBase = _context.LedgerTransactions.AsNoTracking()
+            .Where(lt => lt.PaidFromUserId == userId || lt.PaidToUserId == userId);
+
+        if (paymentDate.HasValue)
+        {
+            var day = paymentDate.Value.Date;
+            var windowEnd = day.AddDays(1);
+            txBase = txBase.Where(lt => lt.PaymentDate >= day && lt.PaymentDate < windowEnd);
+        }
+
+        var rawTransactions = await (
+            from lt in txBase
+            join fromUser in _context.Users on lt.PaidFromUserId equals fromUser.Id into fromJoin
+            from fromUser in fromJoin.DefaultIfEmpty()
+            join toUser in _context.Users on lt.PaidToUserId equals toUser.Id into toJoin
+            from toUser in toJoin.DefaultIfEmpty()
+            orderby lt.CreatedDate descending
+            select new
+            {
+                lt.Id,
+                lt.PaidFromUserId,
+                lt.PaidToUserId,
+                FromFirst = fromUser != null ? fromUser.FirstName : null,
+                FromMiddle = fromUser != null ? fromUser.MiddleName : null,
+                FromLast = fromUser != null ? fromUser.LastName : null,
+                ToFirst = toUser != null ? toUser.FirstName : null,
+                ToMiddle = toUser != null ? toUser.MiddleName : null,
+                ToLast = toUser != null ? toUser.LastName : null,
+                lt.Amount,
+                lt.PaymentDate,
+                lt.CreatedDate,
+                lt.TransactionType,
+                lt.Comments,
+            }
+        ).ToListAsync(cancellationToken);
+
+        static string FormatUserName(string? first, string? middle, string? last)
+        {
+            return string.Join(
+                " ",
+                new[] { first, middle, last }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+        }
+
+        var transactions = rawTransactions.Select(lt =>
+        {
+            var isCredit = lt.PaidToUserId == userId;
+            var isDebit = lt.PaidFromUserId == userId;
+            var direction = isCredit && !isDebit
+                ? "Credit"
+                : isDebit && !isCredit
+                    ? "Debit"
+                    : isCredit
+                        ? "Credit"
+                        : "Debit";
+
+            return new UserLedgerTransactionRowDto
+            {
+                Id = lt.Id,
+                PaidFromUserId = lt.PaidFromUserId,
+                PaidToUserId = lt.PaidToUserId,
+                PaidFromUserName = lt.PaidFromUserId.HasValue
+                    ? FormatUserName(lt.FromFirst, lt.FromMiddle, lt.FromLast)
+                    : null,
+                PaidToUserName = lt.PaidToUserId.HasValue
+                    ? FormatUserName(lt.ToFirst, lt.ToMiddle, lt.ToLast)
+                    : null,
+                Amount = lt.Amount,
+                PaymentDate = lt.PaymentDate,
+                CreatedDate = lt.CreatedDate,
+                TransactionType = lt.TransactionType,
+                Comments = lt.Comments,
+                Direction = direction,
+            };
+        }).ToList();
+
+        var totalCredits = transactions
+            .Where(t => t.Direction == "Credit")
+            .Sum(t => t.Amount);
+        var totalDebits = transactions
+            .Where(t => t.Direction == "Debit")
+            .Sum(t => t.Amount);
+
+        return new UserLedgerDashboardResponseDto
+        {
+            UserId = userId,
+            UserFullName = userFullName,
+            CurrentBalance = currentBalance,
+            Summary = new UserLedgerDashboardSummaryDto
+            {
+                TotalCredits = totalCredits,
+                TotalDebits = totalDebits,
+                TransactionCount = transactions.Count,
+            },
+            Transactions = transactions,
+        };
+    }
+
     public async Task<byte[]> GetMemberWiseCollectionSheet(int orgId, int? branchId)
     {
         var rawData = await (

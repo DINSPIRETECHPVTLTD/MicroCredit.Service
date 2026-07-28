@@ -159,6 +159,38 @@ public class ReportController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Logged-in user's ledger balance and transactions (scoped by JWT UserId).
+    /// Optional paymentDate filters transactions to that calendar day.
+    /// </summary>
+    [HttpGet("user-ledger-dashboard")]
+    public async Task<IActionResult> GetUserLedgerDashboard(
+        [FromQuery] DateTime? paymentDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (_userContext.UserId == 0 || _userContext.OrgId == 0)
+            return Unauthorized();
+
+        try
+        {
+            var data = await _reportService.GetUserLedgerDashboardAsync(
+                _userContext.UserId,
+                _userContext.OrgId,
+                paymentDate,
+                cancellationToken);
+            return Ok(data);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while fetching user ledger dashboard for UserId={UserId}.", _userContext.UserId);
+            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while fetching user ledger dashboard.");
+        }
+    }
+
     [HttpGet("MemberWiseCollectionSheet")]
     public async Task<IActionResult> GetMemberWiseCollectionsheet()
     {
