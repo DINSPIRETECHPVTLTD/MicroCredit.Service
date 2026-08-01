@@ -43,10 +43,10 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                   && !b.IsDeleted
                   && b.OrgId == orgId
                   && b.Id == branchId
-                  && ls.Status == LoanSchedulerStatus.NotPaid // Only include Not Paid
+                  && ls.Status == LoanSchedulerStatus.NotPaid
                   && (!centerId.HasValue || c.Id == centerId.Value)
-                  // Filter by the member's assigned POC (not merely "POC exists in center").
                   && (!pocId.HasValue || m.POCId == pocId.Value)
+            orderby ls.InstallmentNo, ls.SubInstallmentSequence
             select new RecoveryPostingSchedulerResponse
             {
                 LoanId = l.Id,
@@ -58,6 +58,11 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                 LoanSchedulerId = ls.LoanSchedulerId,
                 SchedulerLoanId = ls.LoanId,
                 InstallmentNo = ls.InstallmentNo,
+                SubInstallmentSequence = ls.SubInstallmentSequence,
+                ParentLoanSchedulerId = ls.ParentLoanSchedulerId,
+                InstallmentLabel = ls.SubInstallmentSequence > 0
+                    ? ls.InstallmentNo.ToString() + "_" + ls.SubInstallmentSequence.ToString()
+                    : ls.InstallmentNo.ToString(),
                 ScheduleDate = ls.ScheduleDate,
                 PaymentDate = ls.PaymentDate,
                 ActualEmiAmount = ls.ActualEmiAmount,
@@ -116,6 +121,8 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                 LoanSchedulerId = ls.LoanSchedulerId,
                 LoanId = ls.LoanId,
                 InstallmentNo = ls.InstallmentNo,
+                SubInstallmentSequence = ls.SubInstallmentSequence,
+                ParentLoanSchedulerId = ls.ParentLoanSchedulerId,
                 ScheduleDate = ls.ScheduleDate,
                 Status = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
                     : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
@@ -126,6 +133,7 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ActualPrincipalAmount = ls.ActualPrincipalAmount,
                 ActualInterestAmount = ls.ActualInterestAmount,
+                SavingAmount = ls.SavingAmount,
             };
 
         return await query
@@ -141,13 +149,27 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
         var id = await _context.LoanSchedulers
             .Where(ls =>
                 ls.LoanId == loanId
+                && ls.SubInstallmentSequence == 0
                 && ls.InstallmentNo > afterInstallmentNo
                 && ls.Status == LoanSchedulerStatus.NotPaid)
             .OrderBy(ls => ls.InstallmentNo)
+            .ThenBy(ls => ls.SubInstallmentSequence)
             .Select(ls => ls.LoanSchedulerId)
             .FirstOrDefaultAsync(cancellationToken);
 
         return id == 0 ? null : id;
+    }
+
+    public async Task<int> GetNextSubInstallmentSequenceAsync(
+        int loanId,
+        int installmentNo,
+        CancellationToken cancellationToken = default)
+    {
+        var maxSequence = await _context.LoanSchedulers
+            .Where(ls => ls.LoanId == loanId && ls.InstallmentNo == installmentNo)
+            .MaxAsync(ls => (int?)ls.SubInstallmentSequence, cancellationToken);
+
+        return (maxSequence ?? 0) + 1;
     }
 
     public async Task ApplyFullRecoveryPaymentAsync(
@@ -187,6 +209,10 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
         decimal amountPaid,
         decimal principalPaid,
         decimal interestPaid,
+        decimal actualEmiPaid,
+        decimal actualPrincipalPaid,
+        decimal actualInterestPaid,
+        decimal? savingPaid,
         int collectedBy,
         string? paymentMode,
         string? comments,
@@ -201,6 +227,10 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                     .SetProperty(ls => ls.PaymentAmount, amountPaid)
                     .SetProperty(ls => ls.PrincipalAmount, principalPaid)
                     .SetProperty(ls => ls.InterestAmount, interestPaid)
+                    .SetProperty(ls => ls.ActualEmiAmount, actualEmiPaid)
+                    .SetProperty(ls => ls.ActualPrincipalAmount, actualPrincipalPaid)
+                    .SetProperty(ls => ls.ActualInterestAmount, actualInterestPaid)
+                    .SetProperty(ls => ls.SavingAmount, savingPaid)
                     .SetProperty(ls => ls.CollectedBy, collectedBy)
                     .SetProperty(ls => ls.PaymentMode, paymentMode)
                     .SetProperty(ls => ls.Comments, comments)
@@ -209,6 +239,36 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
 
         if (rows == 0)
             throw new InvalidOperationException($"LoanScheduler {loanSchedulerId} could not be updated.");
+    }
+
+    public async Task<int> CreatePartialRemainderSchedulerAsync(
+        int loanId,
+        DateTime scheduleDate,
+        int installmentNo,
+        int subInstallmentSequence,
+        int parentLoanSchedulerId,
+        int createdBy,
+        decimal actualEmiAmount,
+        decimal actualPrincipalAmount,
+        decimal actualInterestAmount,
+        decimal? savingAmount,
+        CancellationToken cancellationToken = default)
+    {
+        var schedule = LoanScheduler.CreatePartialRemainder(
+            loanId,
+            scheduleDate,
+            installmentNo,
+            subInstallmentSequence,
+            parentLoanSchedulerId,
+            createdBy,
+            actualEmiAmount,
+            actualPrincipalAmount,
+            actualInterestAmount,
+            savingAmount);
+
+        await _context.LoanSchedulers.AddAsync(schedule, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        return schedule.LoanSchedulerId;
     }
 
     public async Task ApplyOverdueRecoveryAsync(

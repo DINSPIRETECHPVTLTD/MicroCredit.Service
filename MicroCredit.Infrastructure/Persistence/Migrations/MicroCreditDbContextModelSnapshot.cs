@@ -402,6 +402,9 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
                     b.Property<int>("InstallmentNo")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ParentLoanSchedulerId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("InterestAmount")
                         .HasColumnType("decimal(18,2)");
 
@@ -432,6 +435,11 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<int>("SubInstallmentSequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.HasKey("LoanSchedulerId");
 
                     b.HasIndex("CollectedBy");
@@ -439,6 +447,10 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("LoanId");
+
+                    b.HasIndex("ParentLoanSchedulerId");
+
+                    b.HasIndex("LoanId", "InstallmentNo", "SubInstallmentSequence");
 
                     b.ToTable("LoanSchedulers", "dinspire_sa");
                 });
@@ -1157,11 +1169,18 @@ namespace MicroCredit.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("MicroCredit.Domain.Entities.LoanScheduler", "ParentLoanScheduler")
+                        .WithMany()
+                        .HasForeignKey("ParentLoanSchedulerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("CollectedByUser");
 
                     b.Navigation("CreatedByUser");
 
                     b.Navigation("Loan");
+
+                    b.Navigation("ParentLoanScheduler");
                 });
 
             modelBuilder.Entity("MicroCredit.Domain.Entities.Member", b =>

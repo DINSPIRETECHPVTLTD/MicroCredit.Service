@@ -24,6 +24,16 @@ public class LoanSchedulerConfiguration : IEntityTypeConfiguration<LoanScheduler
         builder.Property(x => x.InterestAmount).HasColumnType("decimal(18,2)");
 
         builder.Property(x => x.InstallmentNo).IsRequired();
+        builder.Property(x => x.SubInstallmentSequence).IsRequired().HasDefaultValue(0);
+        builder.Property(x => x.ParentLoanSchedulerId);
+
+        builder.HasIndex(x => new { x.LoanId, x.InstallmentNo, x.SubInstallmentSequence });
+
+        builder.HasOne(x => x.ParentLoanScheduler)
+            .WithMany()
+            .HasForeignKey(x => x.ParentLoanSchedulerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(x => x.Status)
             .HasConversion(
                 status => status.ToDbValue(),

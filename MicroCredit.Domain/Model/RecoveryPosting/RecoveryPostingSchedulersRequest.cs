@@ -52,9 +52,12 @@ public class RecoveryPostingSchedulerSnapshot
     public int LoanSchedulerId { get; set; }
     public int LoanId { get; set; }
     public int InstallmentNo { get; set; }
+    public int SubInstallmentSequence { get; set; }
+    public int? ParentLoanSchedulerId { get; set; }
     public DateTime ScheduleDate { get; set; }
     public string Status { get; set; } = "";
     public decimal ActualEmiAmount { get; set; }
     public decimal ActualPrincipalAmount { get; set; }
     public decimal ActualInterestAmount { get; set; }
+    public decimal? SavingAmount { get; set; }
 }

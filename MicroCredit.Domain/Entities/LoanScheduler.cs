@@ -41,6 +41,12 @@ public class LoanScheduler
     [Required]
     public int InstallmentNo { get; private set; }
 
+    /// <summary>0 = original EMI slot; 1+ = remainder after partial (display as InstallmentNo_SubInstallmentSequence).</summary>
+    public int SubInstallmentSequence { get; private set; }
+
+    /// <summary>When this row is a partial remainder, points to the row that was partially paid. Integer FK only.</summary>
+    public int? ParentLoanSchedulerId { get; private set; }
+
     [Required]
     [StringLength(20)]
     public LoanSchedulerStatus Status { get; private set; } = LoanSchedulerStatus.NotPaid;
@@ -59,7 +65,6 @@ public class LoanScheduler
     [Required]
     public DateTime CreatedDate { get; private set; }
 
-    // Navigation
     [ForeignKey("LoanId")]
     public virtual Loan Loan { get; private set; } = null!;
 
@@ -69,7 +74,10 @@ public class LoanScheduler
     [ForeignKey("CollectedBy")]
     public virtual User? CollectedByUser { get; private set; }
 
-    private LoanScheduler() { } // EF
+    [ForeignKey(nameof(ParentLoanSchedulerId))]
+    public virtual LoanScheduler? ParentLoanScheduler { get; private set; }
+
+    private LoanScheduler() { }
 
     public LoanScheduler(int loanId, DateTime scheduleDate, decimal paymentAmount, decimal principalAmount,
         decimal interestAmount, int installmentNo, int createdBy, decimal actualEmiAmount = 0, decimal actualPrincipalAmount = 0,
@@ -88,7 +96,45 @@ public class LoanScheduler
         ActualPrincipalAmount = actualPrincipalAmount;
         ActualInterestAmount = actualInterestAmount;
         SavingAmount = savingAmount;
+        SubInstallmentSequence = 0;
     }
+
+    /// <summary>
+    /// Creates a Not Paid remainder row after a partial payment, using the same constructor as EMI generation.
+    /// Supports recursive partials (6 → 6_1 → 6_2).
+    /// </summary>
+    public static LoanScheduler CreatePartialRemainder(
+        int loanId,
+        DateTime scheduleDate,
+        int installmentNo,
+        int subInstallmentSequence,
+        int parentLoanSchedulerId,
+        int createdBy,
+        decimal actualEmiAmount,
+        decimal actualPrincipalAmount,
+        decimal actualInterestAmount,
+        decimal? savingAmount)
+    {
+        var schedule = new LoanScheduler(
+            loanId: loanId,
+            scheduleDate: scheduleDate,
+            paymentAmount: 0,
+            principalAmount: 0,
+            interestAmount: 0,
+            installmentNo: installmentNo,
+            createdBy: createdBy,
+            actualEmiAmount: Math.Round(actualEmiAmount, 2),
+            actualPrincipalAmount: Math.Round(actualPrincipalAmount, 2),
+            actualInterestAmount: Math.Round(actualInterestAmount, 2),
+            savingAmount: savingAmount);
+
+        schedule.ParentLoanSchedulerId = parentLoanSchedulerId;
+        schedule.SubInstallmentSequence = subInstallmentSequence;
+        return schedule;
+    }
+
+    public string GetInstallmentLabel()
+        => LoanSchedulerInstallmentHelper.FormatInstallmentLabel(InstallmentNo, SubInstallmentSequence);
 
     public void RecordPayment(decimal actualEmiAmount, decimal actualPrincipalAmount, decimal actualInterestAmount,
         int collectedBy, string? paymentMode = null, decimal? savingAmount = null, string? comments = null)
@@ -104,13 +150,25 @@ public class LoanScheduler
         Status = LoanSchedulerStatus.Paid;
     }
 
-    public void RecordPartialPayment(decimal amountPaid, decimal actualPrincipalAmount, decimal actualInterestAmount,
-        int collectedBy, string? paymentMode = null, string? comments = null)
+    public void RecordPartialPayment(
+        decimal amountPaid,
+        decimal principalPaid,
+        decimal interestPaid,
+        decimal actualPrincipalAmount,
+        decimal actualInterestAmount,
+        int collectedBy,
+        string? paymentMode = null,
+        decimal? savingAmount = null,
+        string? comments = null)
     {
         PaymentDate = DateTime.UtcNow;
+        PaymentAmount = amountPaid;
+        PrincipalAmount = principalPaid;
+        InterestAmount = interestPaid;
         ActualEmiAmount = amountPaid;
         ActualPrincipalAmount = actualPrincipalAmount;
         ActualInterestAmount = actualInterestAmount;
+        SavingAmount = savingAmount;
         CollectedBy = collectedBy;
         PaymentMode = paymentMode;
         Comments = comments;

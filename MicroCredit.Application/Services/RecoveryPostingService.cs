@@ -145,6 +145,7 @@ public class RecoveryPostingService : IRecoveryPostingService
         var ordered = snapshots
             .OrderBy(e => e.LoanId)
             .ThenBy(e => e.InstallmentNo)
+            .ThenBy(e => e.SubInstallmentSequence)
             .ToList();
 
         var loanIds = ordered.Select(x => x.LoanId).Distinct().ToList();
@@ -277,39 +278,50 @@ public class RecoveryPostingService : IRecoveryPostingService
                     }
                     else
                     {
+                        var dueSaving = row.SavingAmount;
+                        var split = EmiAmountSplitter.SplitPartialPayment(
+                            dueEmi,
+                            dueP,
+                            dueI,
+                            payment,
+                            dueSaving);
+
+                        if (split.RemainEmi <= 0)
+                        {
+                            throw new InvalidOperationException(
+                                $"LoanScheduler {row.LoanSchedulerId}: partial payment must leave a positive remainder to create a sub-installment row.");
+                        }
+
                         await _unitOfWork.RecoveryPostings.ApplyPartialRecoveryPaymentAsync(
                             row.LoanSchedulerId,
                             payment,
                             pr,
                             ir,
+                            split.PaidEmi,
+                            split.PaidPrincipal,
+                            split.PaidInterest,
+                            split.PaidSaving,
                             request.CollectedBy,
                             line.PaymentMode,
                             line.Comments,
                             cancellationToken);
 
-                        var shortfallP = dueP - pr;
-                        var shortfallI = dueI - ir;
-                        if (shortfallP < 0 || shortfallI < 0)
-                        {
-                            throw new InvalidOperationException(
-                                $"LoanScheduler {row.LoanSchedulerId}: PrincipalAmount and InterestAmount do not match the scheduled split for a partial payment.");
-                        }
-
-                        var nextId = await _unitOfWork.RecoveryPostings.GetNextUnpaidLoanSchedulerIdAsync(
+                        var nextSubSequence = await _unitOfWork.RecoveryPostings.GetNextSubInstallmentSequenceAsync(
                             row.LoanId,
                             row.InstallmentNo,
                             cancellationToken);
 
-                        if (nextId == null)
-                        {
-                            throw new InvalidOperationException(
-                                $"LoanScheduler {row.LoanSchedulerId}: there is no next unpaid installment to carry the shortfall to.");
-                        }
-
-                        await _unitOfWork.RecoveryPostings.AddCarryForwardToScheduleAsync(
-                            nextId.Value,
-                            shortfallP,
-                            shortfallI,
+                        await _unitOfWork.RecoveryPostings.CreatePartialRemainderSchedulerAsync(
+                            row.LoanId,
+                            row.ScheduleDate,
+                            row.InstallmentNo,
+                            nextSubSequence,
+                            row.LoanSchedulerId,
+                            userContext.UserId,
+                            split.RemainEmi,
+                            split.RemainPrincipal,
+                            split.RemainInterest,
+                            split.RemainSaving,
                             cancellationToken);
                     }
                 }

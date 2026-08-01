@@ -16,6 +16,9 @@ public class RecoveryPostingSchedulerResponse
     public int SchedulerLoanId { get; set; }
 
     public int InstallmentNo { get; set; }
+    public int SubInstallmentSequence { get; set; }
+    public int? ParentLoanSchedulerId { get; set; }
+    public string InstallmentLabel { get; set; } = string.Empty;
     public DateTime ScheduleDate { get; set; }
     public DateTime? PaymentDate { get; set; }
 

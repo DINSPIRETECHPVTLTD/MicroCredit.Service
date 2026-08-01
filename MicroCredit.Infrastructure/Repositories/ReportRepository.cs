@@ -242,7 +242,7 @@ public class ReportRepository : IReportRepository
                   && l.Status == "Active"
                   && ls.ScheduleDate >= windowStart
                   && ls.ScheduleDate < windowEndExclusive
-            orderby m.POCId, m.Id, ls.ScheduleDate
+            orderby m.POCId, m.Id, ls.InstallmentNo, ls.SubInstallmentSequence
             select new StaffReportMemberRowDto
             {
                 MemberId = m.Id,
@@ -472,6 +472,8 @@ CROSS JOIN
                     PocLast = p.LastName,
                     CenterName = c.Name,
                     LsStatus = ls.Status,
+                    LsInstallmentNo = ls.InstallmentNo,
+                    LsSubInstallmentSequence = ls.SubInstallmentSequence,
                     LsActualEmiAmount = ls.ActualEmiAmount,
                     LsActualPrincipalAmount = ls.ActualPrincipalAmount,
                     LsPrincipalAmount = ls.PrincipalAmount,
@@ -506,8 +508,8 @@ CROSS JOIN
             {
                 var unpaid = g.Where(x => x.LsStatus == LoanSchedulerStatus.NotPaid).ToList();
                 var paid = g.Where(x => x.LsStatus == LoanSchedulerStatus.Paid || x.LsStatus == LoanSchedulerStatus.Partial).ToList();
-                var weekly = g.Select(x => x.LsActualEmiAmount).FirstOrDefault();
-                var outstanding = unpaid.Count;
+                var weekly = g.Where(x => x.LsSubInstallmentSequence == 0).Select(x => x.LsActualEmiAmount).FirstOrDefault();
+                var outstanding = unpaid.Select(x => x.LsInstallmentNo).Distinct().Count();
                 var principleCollected = paid.Sum(x => x.LsPrincipalAmount);
                 var interestCollected = paid.Sum(x => x.LsInterestAmount);
                 var collected = paid.Sum(x => x.LsPaymentAmount);

@@ -4,9 +4,11 @@ using MicroCredit.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace MicroCredit.Infrastructure.Repositories;
+
 public class LoanSchedulersRepository : ILoanSchedulersRepository
 {
     private readonly MicroCreditDbContext _context;
+
     public LoanSchedulersRepository(MicroCreditDbContext context)
     {
         _context = context;
@@ -15,12 +17,7 @@ public class LoanSchedulersRepository : ILoanSchedulersRepository
     public async Task<LoanScheduler?> GetByLoanId(int Loanid, CancellationToken cancellationToken)
     {
         var scheduler = await _context.LoanSchedulers
-        .FirstOrDefaultAsync(ls => ls.LoanId == Loanid, cancellationToken);
-
-        if (scheduler == null)
-        {
-            return null;
-        }
+            .FirstOrDefaultAsync(ls => ls.LoanId == Loanid, cancellationToken);
 
         return scheduler;
     }
@@ -30,15 +27,21 @@ public class LoanSchedulersRepository : ILoanSchedulersRepository
         await _context.LoanSchedulers.AddRangeAsync(schedules, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
     }
-    
+
+    public async Task AddAsync(LoanScheduler schedule, CancellationToken cancellationToken = default)
+    {
+        await _context.LoanSchedulers.AddAsync(schedule, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<IEnumerable<LoanScheduler>> GetLoanSchedulersByIdAsync(int Loanid, CancellationToken cancellationToken)
     {
-        var schedulers = await _context.LoanSchedulers.Where(ls => ls.LoanId == Loanid).ToListAsync(cancellationToken);
+        var schedulers = await _context.LoanSchedulers
+            .Where(ls => ls.LoanId == Loanid)
+            .OrderBy(ls => ls.InstallmentNo)
+            .ThenBy(ls => ls.SubInstallmentSequence)
+            .ToListAsync(cancellationToken);
 
-        if (schedulers == null)
-        {
-            throw new Exception($"LoanSchedule with ID {Loanid} not found.");
-        }
         return schedulers;
     }
 
@@ -56,10 +59,8 @@ public class LoanSchedulersRepository : ILoanSchedulersRepository
                   && !loan.IsDeleted
                   && schedule.Status == LoanSchedulerStatus.NotPaid
                   && schedule.ScheduleDate.Date >= fromDate.Date
-            orderby schedule.LoanId, schedule.InstallmentNo
+            orderby schedule.LoanId, schedule.InstallmentNo, schedule.SubInstallmentSequence
             select schedule
         ).ToListAsync(cancellationToken);
     }
-
-
 }

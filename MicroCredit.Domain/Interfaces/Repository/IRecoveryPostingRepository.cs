@@ -23,6 +23,11 @@ public interface IRecoveryPostingRepository
         int afterInstallmentNo,
         CancellationToken cancellationToken = default);
 
+    Task<int> GetNextSubInstallmentSequenceAsync(
+        int loanId,
+        int installmentNo,
+        CancellationToken cancellationToken = default);
+
     Task ApplyFullRecoveryPaymentAsync(
         int loanSchedulerId,
         decimal paymentEmi,
@@ -38,9 +43,26 @@ public interface IRecoveryPostingRepository
         decimal amountPaid,
         decimal principalPaid,
         decimal interestPaid,
+        decimal actualEmiPaid,
+        decimal actualPrincipalPaid,
+        decimal actualInterestPaid,
+        decimal? savingPaid,
         int collectedBy,
         string? paymentMode,
         string? comments,
+        CancellationToken cancellationToken = default);
+
+    Task<int> CreatePartialRemainderSchedulerAsync(
+        int loanId,
+        DateTime scheduleDate,
+        int installmentNo,
+        int subInstallmentSequence,
+        int parentLoanSchedulerId,
+        int createdBy,
+        decimal actualEmiAmount,
+        decimal actualPrincipalAmount,
+        decimal actualInterestAmount,
+        decimal? savingAmount,
         CancellationToken cancellationToken = default);
 
     Task ApplyOverdueRecoveryAsync(

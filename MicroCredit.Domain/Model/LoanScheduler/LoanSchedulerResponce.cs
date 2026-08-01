@@ -15,12 +15,12 @@ public class LoanSchedulerResponce
     public decimal InterestAmount { get; set; }
    
     public int InstallmentNo { get; set; }
-    public string Status { get; set; } = "Not Paid"; // Paid, Partial, Not Paid
+    public int SubInstallmentSequence { get; set; }
+    public int? ParentLoanSchedulerId { get; set; }
+    /// <summary>Display-only label (e.g. "6" or "6_1"). Never used as a database identifier.</summary>
+    public string InstallmentLabel { get; set; } = string.Empty;
+    public string Status { get; set; } = "Not Paid";
     public string? PaymentMode { get; set; }
    
     public string? Comments { get;  set; }
-   
-    
-
 }
-   
