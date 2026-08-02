@@ -19,7 +19,9 @@ namespace MicroCredit.Domain.Model.Report
         public decimal asOnOutStanding { get; set; }
         public string collectionDay { get; set; } = string.Empty;
         public string attendStaff { get; set; } = string.Empty;
+        public string poc { get; set; } = string.Empty;
         public string centerName { get; set; } = string.Empty;
+        public string loanStatus { get; set; } = string.Empty;
         public DateTime? disbursementDate { get; set; }
         public decimal principleCollected { get; set; }
         public decimal interestCollected { get; set; }

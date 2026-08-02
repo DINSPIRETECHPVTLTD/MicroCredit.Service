@@ -500,7 +500,7 @@ CROSS JOIN
                 x.PhoneNumber,
                 x.PocFirst,
                 x.PocMiddle,
-                x.PocLast
+                x.PocLast,
             })
             .Select(g =>
             {
@@ -526,6 +526,110 @@ CROSS JOIN
                     weeklyDueAmount = weekly,
                     asOnOutStanding = outstanding * weekly,
                     collectionDay = g.Key.CollectionStartDate?.DayOfWeek.ToString() ?? string.Empty,
+                    poc = $"{g.Key.PocFirst} {g.Key.PocMiddle} {g.Key.PocLast}".Trim(),
+                    attendStaff = $"{g.Key.PocFirst} {g.Key.PocMiddle} {g.Key.PocLast}".Trim(),
+                    centerName = g.Key.CenterName,
+                    disbursementDate = g.Key.DisbursementDate,
+                    principleCollected = principleCollected,
+                    interestCollected = interestCollected,
+                    collected = collected,
+                    toBeCollected = toBeCollected,
+                    osBalance = osBalance,
+                };
+            })
+            .OrderBy(x => x.centerName)
+            .ThenBy(x => x.memberId)
+            .ToList();
+
+
+        //Closed Loans Data
+
+        var closedRawData = await (
+                from m in _context.Members
+                join p in _context.POCs on m.POCId equals p.Id
+                join c in _context.Centers on p.CenterId equals c.Id
+                join b in _context.Branches on c.BranchId equals b.Id
+                join l in _context.Loans on m.Id equals l.MemberId
+                join ls in _context.LoanSchedulers on l.Id equals ls.LoanId
+                where !m.IsDeleted
+                   && !p.IsDeleted
+                   && b.OrgId == orgId
+                   && l.Status == "Closed"
+                select new
+                {
+                    m.Id,
+                    m.FirstName,
+                    m.MiddleName,
+                    m.LastName,
+                    m.GuardianFirstName,
+                    m.GuardianMiddleName,
+                    m.GuardianLastName,
+                    m.Address1,
+                    m.City,
+                    m.PhoneNumber,
+                    l.LoanAmount,
+                    l.DisbursementDate,
+                    l.CollectionStartDate,
+                    PocFirst = p.FirstName,
+                    PocMiddle = p.MiddleName,
+                    PocLast = p.LastName,
+                    CenterName = c.Name,
+                    LsStatus = ls.Status,
+                    LsActualEmiAmount = ls.ActualEmiAmount,
+                    LsActualPrincipalAmount = ls.ActualPrincipalAmount,
+                    LsPrincipalAmount = ls.PrincipalAmount,
+                    LsActualInterestAmount = ls.ActualInterestAmount,
+                    LsInterestAmount = ls.InterestAmount,
+                    LsPaymentAmount = ls.PaymentAmount,
+                }
+            ).AsNoTracking().ToListAsync();
+
+        var dtoClosedList = closedRawData
+            .GroupBy(x => new
+            {
+                x.Id,
+                x.CenterName,
+                x.LoanAmount,
+                x.DisbursementDate,
+                x.CollectionStartDate,
+                x.FirstName,
+                x.MiddleName,
+                x.LastName,
+                x.GuardianFirstName,
+                x.GuardianMiddleName,
+                x.GuardianLastName,
+                x.Address1,
+                x.City,
+                x.PhoneNumber,
+                x.PocFirst,
+                x.PocMiddle,
+                x.PocLast,
+            })
+            .Select(g =>
+            {
+                var unpaid = g.Where(x => x.LsStatus == LoanSchedulerStatus.NotPaid).ToList();
+                var paid = g.Where(x => x.LsStatus == LoanSchedulerStatus.Paid || x.LsStatus == LoanSchedulerStatus.Partial).ToList();
+                var weekly = g.Select(x => x.LsActualEmiAmount).FirstOrDefault();
+                var outstanding = unpaid.Count;
+                var principleCollected = paid.Sum(x => x.LsPrincipalAmount);
+                var interestCollected = paid.Sum(x => x.LsInterestAmount);
+                var collected = paid.Sum(x => x.LsPaymentAmount);
+                var toBeCollected = g.Sum(x => x.LsActualEmiAmount);
+                var osBalance = toBeCollected - collected;
+
+                return new MemberWiseCollectionResponseDto
+                {
+                    memberId = g.Key.Id,
+                    memberName = $"{g.Key.FirstName} {g.Key.MiddleName} {g.Key.LastName}".Trim(),
+                    guardianName = $"{g.Key.GuardianFirstName} {g.Key.GuardianMiddleName} {g.Key.GuardianLastName}".Trim(),
+                    address = $"{g.Key.Address1} {g.Key.City}".Trim(),
+                    phoneNumber = g.Key.PhoneNumber,
+                    loanAmount = g.Key.LoanAmount,
+                    outstandingWeeks = outstanding,
+                    weeklyDueAmount = weekly,
+                    asOnOutStanding = outstanding * weekly,
+                    collectionDay = g.Key.CollectionStartDate?.DayOfWeek.ToString() ?? string.Empty,
+                    poc = $"{g.Key.PocFirst} {g.Key.PocMiddle} {g.Key.PocLast}".Trim(),
                     attendStaff = $"{g.Key.PocFirst} {g.Key.PocMiddle} {g.Key.PocLast}".Trim(),
                     centerName = g.Key.CenterName,
                     disbursementDate = g.Key.DisbursementDate,
@@ -582,10 +686,10 @@ CROSS JOIN
         for (int idx = 0; idx < ledgers.Count; idx++)
             ledgers[idx].id = idx + 1;
 
-        return Generate(dtoList, expenses, ledgers);
+        return Generate(dtoList, expenses, ledgers, dtoClosedList);
     }
 
-    public byte[] Generate(List<MemberWiseCollectionResponseDto> data, List<ExpenseResponse>? expenses = null, List<LedgerReportDto>? ledgers = null)
+    public byte[] Generate(List<MemberWiseCollectionResponseDto> data, List<ExpenseResponse>? expenses = null, List<LedgerReportDto>? ledgers = null, List<MemberWiseCollectionResponseDto>? closedData = null)
     {
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Member Wise Collection");
@@ -602,12 +706,12 @@ CROSS JOIN
             "Member Code", "Member Name", "Guardian Name", "Village",
             "Contact No", "Loan Amount", "Outstanding Weeks",
             "Weekly Due Amount", "As On Outstanding",
-            "Collection Day", "Attend Staff"
+            "Collection Day", "POC", "Attend Staff"
         ];
-        int[] colWidths = [13, 24, 24, 34, 14, 13, 14, 16, 16, 14, 16];
+        int[] colWidths = [13, 24, 24, 34, 14, 13, 14, 16, 16, 14, 16, 16];
 
         int row = 1;
-        var titleRange = ws.Range(row, 1, row, 11);
+        var titleRange = ws.Range(row, 1, row, 12);
         titleRange.Merge();
         titleRange.Value = "Member Wise Collection Sheet";
         titleRange.Style
@@ -645,28 +749,28 @@ CROSS JOIN
         {
             int dayBlockStart = row + 1;
 
-            var byCentre = dayGroup
-                .GroupBy(x => x.centerName)
+            var byPoc = dayGroup
+                .GroupBy(x => x.poc)
                 .OrderBy(g => g.Key);
 
             // ── CHANGE 2: Added memberRowRanges to track only member rows ─
             // This is new — used to build day total formula without centre headers
             var memberRowRanges = new List<(int start, int end)>();
 
-            foreach (var centreGroup in byCentre)
+            foreach (var centreGroup in byPoc)
             {
                 row++;
                 int centreHeaderRow = row;
 
                 var centreRange = ws.Range(row, 1, row, 5);
                 centreRange.Merge();
-                centreRange.Value = centreGroup.Key;
+                centreRange.Value = $"POC Name: " + centreGroup.Key;
                 centreRange.Style
                     .Font.SetBold(true).Font.SetFontSize(10).Font.SetFontColor(groupFont)
                     .Fill.SetBackgroundColor(groupFill)
                     .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
 
-                for (int col = 6; col <= 11; col++)
+                for (int col = 6; col <= 12; col++)
                 {
                     ws.Cell(row, col).Style
                         .Fill.SetBackgroundColor(groupFill)
@@ -687,7 +791,7 @@ CROSS JOIN
                         m.memberId,         m.memberName,      m.guardianName,
                         m.address,          m.phoneNumber,     m.loanAmount,
                         m.outstandingWeeks, m.weeklyDueAmount, m.asOnOutStanding,
-                        m.collectionDay,    m.attendStaff
+                        m.collectionDay,    m.poc, m.attendStaff
                     ];
 
                     for (int col = 1; col <= values.Length; col++)
@@ -797,6 +901,8 @@ CROSS JOIN
 
         GenerateRepaymentSheet(wb, data);
 
+        GenerateClosedLoansSheet(wb, closedData);
+
         if (expenses != null && expenses.Count > 0)
             GenerateExpensesSheet(wb, expenses);
 
@@ -821,7 +927,7 @@ CROSS JOIN
 
         string[] rowLabels =
         [
-            "Repayment Sheet",      // row 1 - title
+        "Repayment Sheet",      // row 1 - title
         "Principle Collected",  // row 2
         "Interest Collected",   // row 3
         "",                     // row 4 - spacer
@@ -829,17 +935,10 @@ CROSS JOIN
         "Member name",          // row 6
         "Village",              // row 7
         "Disb date",            // row 8
-        "B/F Loan Amount",      // row 9
-        "1 St Loan",            // row 10
-        "Fully Payments",       // row 11
-        "",                     // row 12 - spacer
-        "As On Loan",           // row 13
-        "",                     // row 14 - spacer
-        "B/F OS",               // row 15
-        "",                     // row 16 - spacer
-        "Tobe collected",       // row 17
-        "Collected",            // row 28
-        "O/s balance",          // row 21
+        "1 St Loan",            // row 9
+        "Tobe collected",       // row 10
+        "Collected",            // row 11
+        "O/s balance",          // row 12
         ];
 
         int totalCols = data.Count + 1; // col A labels + one col per member
@@ -867,9 +966,6 @@ CROSS JOIN
                 .Fill.SetBackgroundColor(headerFill)
                 .Border.SetOutsideBorder(XLBorderStyleValues.Thin)
                 .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
-
-            if (rowLabels[r - 1] == "B/F OS")
-                cell.Style.Font.SetFontColor(redFont);
         }
 
         ws.Column(1).Width = 20;
@@ -911,19 +1007,10 @@ CROSS JOIN
             WriteCell(6, m.memberName);
             WriteCell(7, m.address);
             WriteCell(8, m.disbursementDate?.ToString("dd.MM.yyyy") ?? "");
-            WriteCell(9, (decimal)0);
-            WriteCell(10, m.loanAmount);
-            WriteCell(11, (decimal)0);
-            WriteCell(12, (decimal)0);
-            WriteCell(13, (decimal)0);
-            WriteCell(14, "");
-            WriteCell(15, m.loanAmount, isBold: true);
-            WriteCell(16, "");
-            WriteCell(17, (decimal)0, isRed: true);
-            WriteCell(18, "");
-            WriteCell(19, m.toBeCollected);
-            WriteCell(20, m.collected);
-            WriteCell(21, m.osBalance, isBold: true);
+            WriteCell(9, m.loanAmount);
+            WriteCell(10, m.toBeCollected);
+            WriteCell(11, m.collected);
+            WriteCell(12, m.osBalance, isBold: true);
 
             colIndex++;
         }
@@ -1103,8 +1190,8 @@ CROSS JOIN
         ws.Column(1).Width = 6;    // Sl.N
         ws.Column(2).Width = 28;   // User Name
         ws.Column(3).Width = 18;   // Amount
-        ws.Column(4).Width = 18;   // Insurance Amount
-        ws.Column(5).Width = 18;   // Claimed Amount
+        //ws.Column(4).Width = 18;   // Insurance Amount
+        //ws.Column(5).Width = 18;   // Claimed Amount
 
         // ── Title row ─────────────────────────────────────────────
         int row = 1;
@@ -1205,5 +1292,110 @@ CROSS JOIN
 
         ws.Row(row).Height = 18;
         ws.SheetView.FreezeRows(2);
+    }
+
+    public void GenerateClosedLoansSheet(XLWorkbook wb, List<MemberWiseCollectionResponseDto> closedData)
+    {
+        var ws = wb.Worksheets.Add("Closed Loans sheet");
+
+        var titleFill = XLColor.FromHtml("#1F4E79");
+        var headerFill = XLColor.FromHtml("#D6E4F0");
+        var altFill = XLColor.FromHtml("#EBF5FB");
+        var redFont = XLColor.FromHtml("#FF0000");
+        var boldBlue = XLColor.FromHtml("#1F4E79");
+
+        string[] rowLabels =
+        [
+            "Repayment Sheet",      // row 1 - title
+        "Principle Collected",  // row 2
+        "Interest Collected",   // row 3
+        "",                     // row 4 - spacer
+        "Member code",          // row 5
+        "Member name",          // row 6
+        "Village",              // row 7
+        "Disb date",            // row 8
+        "1 St Loan",            // row 9
+        "Tobe collected",       // row 10
+        "Collected",            // row 11
+        "O/s balance",          // row 12
+        ];
+
+
+        int totalCols = closedData.Count + 1; // col A labels + one col per member
+
+        // ── Title row — merge FIRST before writing anything else ──────
+        var titleMerge = ws.Range(1, 1, 1, totalCols);
+        titleMerge.Merge();
+        ws.Cell(1, 1).Value = "Closed Loans Sheet";
+        ws.Cell(1, 1).Style
+            .Font.SetBold(true).Font.SetFontSize(12).Font.SetFontColor(XLColor.White)
+            .Fill.SetBackgroundColor(titleFill)
+            .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center)
+            .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
+        ws.Row(1).Height = 24;
+
+        // ── Row labels in col A ───────────────────────────────────────
+        for (int r = 2; r <= rowLabels.Length; r++) // ← start from row 2, row 1 is title
+        {
+            var cell = ws.Cell(r, 1);
+            cell.Value = rowLabels[r - 1];
+            cell.Style
+                .Font.SetBold(true)
+                .Font.SetFontSize(9)
+                .Font.SetFontColor(boldBlue)
+                .Fill.SetBackgroundColor(headerFill)
+                .Border.SetOutsideBorder(XLBorderStyleValues.Thin)
+                .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
+        }
+
+        ws.Column(1).Width = 20;
+
+        // ── Write each member as a column ─────────────────────────────
+        int colIndex = 2;
+        foreach (var m in closedData)
+        {
+            ws.Column(colIndex).Width = 14;
+
+            // Style title cell for this column (already merged, just style)
+            ws.Cell(1, colIndex).Style
+                .Fill.SetBackgroundColor(titleFill)
+                .Border.SetOutsideBorder(XLBorderStyleValues.Thin);
+
+            void WriteCell(int rowNum, object value, bool isRed = false, bool isBold = false)
+            {
+                var cell = ws.Cell(rowNum, colIndex);
+                cell.Value = XLCellValue.FromObject(value);
+                cell.Style
+                    .Font.SetFontSize(9)
+                    .Font.SetBold(isBold)
+                    .Fill.SetBackgroundColor(colIndex % 2 == 0 ? altFill : XLColor.White)
+                    .Border.SetOutsideBorder(XLBorderStyleValues.Thin)
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center)
+                    .Alignment.SetVertical(XLAlignmentVerticalValues.Center);
+
+                if (isRed)
+                    cell.Style.Font.SetFontColor(redFont);
+
+                if (value is decimal or int or double)
+                    cell.Style.NumberFormat.SetFormat("#,##0.00");
+            }
+
+            WriteCell(2, m.principleCollected);
+            WriteCell(3, m.interestCollected);
+            WriteCell(4, "");
+            WriteCell(5, $"NM{m.memberId:D4}");
+            WriteCell(6, m.memberName);
+            WriteCell(7, m.address);
+            WriteCell(8, m.disbursementDate?.ToString("dd.MM.yyyy") ?? "");
+            WriteCell(9, m.loanAmount);
+            WriteCell(10, m.toBeCollected);
+            WriteCell(11, m.collected);
+            WriteCell(12, m.osBalance, isBold: true);
+
+            colIndex++;
+        }
+
+        // ── Freeze: row 1 (title) + col A (labels) ────────────────────
+        ws.SheetView.Freeze(1, 1); // ← single call freezes both row and column
     }
 }
