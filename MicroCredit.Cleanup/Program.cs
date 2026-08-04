@@ -23,10 +23,46 @@ async Task<long> Count(string table)
     return (long)(await cmd.ExecuteScalarAsync())!;
 }
 
-Console.WriteLine("\n=== BEFORE ===");
-foreach (var t in new[] { "LoanSchedulers", "MemberMembershipFees", "LedgerTransactions", "Ledgers",
+/// <summary>
+/// Reseed identity so the next insert continues from MAX(id)+1.
+/// Empty tables reseed to 0 → next Id = 1.
+/// </summary>
+async Task ReseedIdentity(string table, string identityColumn = "Id")
+{
+    using var cmd = conn.CreateCommand();
+    cmd.CommandTimeout = 120;
+    // RESEED to current MAX so next identity is MAX+1; empty table → 0 → next = 1
+    cmd.CommandText = $@"
+DECLARE @max BIGINT = (SELECT ISNULL(MAX([{identityColumn}]), 0) FROM [{table}]);
+DBCC CHECKIDENT ('{table}', RESEED, @max);";
+    await cmd.ExecuteNonQueryAsync();
+    Console.WriteLine($"  [{table}] identity reseeded (next {identityColumn} = {(await MaxId(table, identityColumn)) + 1})");
+}
+
+async Task<long> MaxId(string table, string identityColumn)
+{
+    using var cmd = conn.CreateCommand();
+    cmd.CommandText = $"SELECT ISNULL(MAX([{identityColumn}]), 0) FROM [{table}]";
+    return Convert.ToInt64(await cmd.ExecuteScalarAsync());
+}
+
+var tables = new[]
+{
+    "LoanSchedulers", "MemberMembershipFees", "LedgerTransactions", "Ledgers",
     "Loans", "Investments", "Members", "POCs", "Centers", "Branchs",
-    "Insurance_Claim_Financial_Summary", "PaymentTerms", "Users" })
+    "Insurance_Claim_Financial_Summary", "PaymentTerms", "Users"
+};
+
+// Identity column overrides (most tables use Id)
+var identityColumns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+{
+    ["LoanSchedulers"] = "LoanSchedulerId",
+    ["Insurance_Claim_Financial_Summary"] = "SummaryId",
+    ["PaymentTerms"] = "PaymentTermId",
+};
+
+Console.WriteLine("\n=== BEFORE ===");
+foreach (var t in tables)
     Console.WriteLine($"  {t}: {await Count(t)}");
 
 Console.WriteLine("\n=== CLEANUP ===");
@@ -63,10 +99,15 @@ for (int i = 0; i < 10; i++)
     }
 }
 
+Console.WriteLine("\n=== RESEED IDENTITY ===");
+foreach (var t in tables)
+{
+    var col = identityColumns.GetValueOrDefault(t, "Id");
+    await ReseedIdentity(t, col);
+}
+
 Console.WriteLine("\n=== AFTER ===");
-foreach (var t in new[] { "LoanSchedulers", "MemberMembershipFees", "LedgerTransactions", "Ledgers",
-    "Loans", "Investments", "Members", "POCs", "Centers", "Branchs",
-    "Insurance_Claim_Financial_Summary", "PaymentTerms", "Users" })
+foreach (var t in tables)
     Console.WriteLine($"  {t}: {await Count(t)}");
 
 Console.WriteLine("\nDone.");
