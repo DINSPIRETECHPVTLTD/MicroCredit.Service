@@ -244,15 +244,23 @@ public class RecoveryPostingService : IRecoveryPostingService
 
                     if (nextId == null)
                     {
-                        throw new InvalidOperationException(
-                            $"LoanScheduler {row.LoanSchedulerId}: there is no next unpaid installment to carry overdue amount to.");
+                        // Last EMI (or no later unpaid row): create a new Not Paid installment
+                        // with the same overdue dues so collection can continue.
+                        nextId = await EnsureNextCarryForwardScheduleAsync(
+                            row,
+                            dueP,
+                            dueI,
+                            request.CollectedBy,
+                            cancellationToken);
                     }
-
-                    await _unitOfWork.RecoveryPostings.AddCarryForwardToScheduleAsync(
-                        nextId.Value,
-                        dueP,
-                        dueI,
-                        cancellationToken);
+                    else
+                    {
+                        await _unitOfWork.RecoveryPostings.AddCarryForwardToScheduleAsync(
+                            nextId.Value,
+                            dueP,
+                            dueI,
+                            cancellationToken);
+                    }
                 }
                 else
                 {
@@ -302,15 +310,21 @@ public class RecoveryPostingService : IRecoveryPostingService
 
                         if (nextId == null)
                         {
-                            throw new InvalidOperationException(
-                                $"LoanScheduler {row.LoanSchedulerId}: there is no next unpaid installment to carry the shortfall to.");
+                            nextId = await EnsureNextCarryForwardScheduleAsync(
+                                row,
+                                shortfallP,
+                                shortfallI,
+                                request.CollectedBy,
+                                cancellationToken);
                         }
-
-                        await _unitOfWork.RecoveryPostings.AddCarryForwardToScheduleAsync(
-                            nextId.Value,
-                            shortfallP,
-                            shortfallI,
-                            cancellationToken);
+                        else
+                        {
+                            await _unitOfWork.RecoveryPostings.AddCarryForwardToScheduleAsync(
+                                nextId.Value,
+                                shortfallP,
+                                shortfallI,
+                                cancellationToken);
+                        }
                     }
                 }
 
@@ -411,5 +425,72 @@ public class RecoveryPostingService : IRecoveryPostingService
         if (string.Equals(s, StatusOverdue, StringComparison.OrdinalIgnoreCase))
             return StatusOverdue;
         return null;
+    }
+
+    /// <summary>
+    /// When overdue/shortfall has no next unpaid EMI, create one on the next collection date
+    /// with the carried-forward principal/interest amounts.
+    /// </summary>
+    private async Task<int> EnsureNextCarryForwardScheduleAsync(
+        RecoveryPostingSchedulerSnapshot row,
+        decimal carryPrincipal,
+        decimal carryInterest,
+        int createdBy,
+        CancellationToken cancellationToken)
+    {
+        if (carryPrincipal < 0 || carryInterest < 0)
+        {
+            throw new InvalidOperationException(
+                $"LoanScheduler {row.LoanSchedulerId}: carry-forward amounts cannot be negative.");
+        }
+
+        if (carryPrincipal == 0 && carryInterest == 0)
+        {
+            throw new InvalidOperationException(
+                $"LoanScheduler {row.LoanSchedulerId}: nothing to carry forward onto a new installment.");
+        }
+
+        var collectionTerm = await _unitOfWork.RecoveryPostings.GetLoanCollectionTermAsync(
+            row.LoanId,
+            cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(collectionTerm))
+        {
+            throw new InvalidOperationException(
+                $"Loan {row.LoanId}: CollectionTerm is required to create the next installment after overdue.");
+        }
+
+        var nextScheduleDate = CalculateNextPaymentDate(row.ScheduleDate, collectionTerm);
+        var newId = await _unitOfWork.RecoveryPostings.CreateNextCarryForwardScheduleAsync(
+            row.LoanId,
+            nextScheduleDate,
+            carryPrincipal,
+            carryInterest,
+            createdBy,
+            cancellationToken);
+
+        _logger.LogInformation(
+            "Created next carry-forward installment {NewLoanSchedulerId} for Loan {LoanId} after LoanScheduler {SourceLoanSchedulerId} (InstallmentNo {InstallmentNo}).",
+            newId,
+            row.LoanId,
+            row.LoanSchedulerId,
+            row.InstallmentNo);
+
+        return newId;
+    }
+
+    private static DateTime CalculateNextPaymentDate(DateTime currentDate, string collectionTerm)
+    {
+        return collectionTerm.Trim().ToLowerInvariant() switch
+        {
+            "daily" => currentDate.AddDays(1),
+            "weekly" => currentDate.AddDays(7),
+            "biweekly" or "bi-weekly" => currentDate.AddDays(14),
+            "monthly" => currentDate.AddMonths(1),
+            "quarterly" => currentDate.AddMonths(3),
+            "half-yearly" or "semi-annual" => currentDate.AddMonths(6),
+            "yearly" or "annual" => currentDate.AddYears(1),
+            _ => currentDate.AddDays(7), // Default to weekly
+        };
     }
 }

@@ -254,4 +254,61 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
         if (rows == 0)
             throw new InvalidOperationException($"LoanScheduler {loanSchedulerId} could not be updated for carry-forward.");
     }
+
+    public async Task<string?> GetLoanCollectionTermAsync(
+        int loanId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Loans
+            .AsNoTracking()
+            .Where(l => l.Id == loanId && !l.IsDeleted)
+            .Select(l => l.CollectionTerm)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<int> CreateNextCarryForwardScheduleAsync(
+        int loanId,
+        DateTime scheduleDate,
+        decimal actualPrincipalAmount,
+        decimal actualInterestAmount,
+        int createdBy,
+        CancellationToken cancellationToken = default)
+    {
+        var maxInstallmentNo = await _context.LoanSchedulers
+            .Where(ls => ls.LoanId == loanId)
+            .Select(ls => (int?)ls.InstallmentNo)
+            .MaxAsync(cancellationToken) ?? 0;
+
+        var principal = Math.Round(actualPrincipalAmount, 2);
+        var interest = Math.Round(actualInterestAmount, 2);
+        var schedule = new LoanScheduler(
+            loanId: loanId,
+            scheduleDate: scheduleDate.Date,
+            paymentAmount: 0,
+            principalAmount: 0,
+            interestAmount: 0,
+            installmentNo: maxInstallmentNo + 1,
+            createdBy: createdBy,
+            actualEmiAmount: Math.Round(principal + interest, 2),
+            actualPrincipalAmount: principal,
+            actualInterestAmount: interest,
+            savingAmount: 0);
+
+        await _context.LoanSchedulers.AddAsync(schedule, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var loanRows = await _context.Loans
+            .Where(l => l.Id == loanId && !l.IsDeleted)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(l => l.NoOfTerms, l => l.NoOfTerms + 1),
+                cancellationToken);
+
+        if (loanRows == 0)
+            throw new InvalidOperationException($"Loan {loanId} could not be updated when creating next installment.");
+
+        if (schedule.LoanSchedulerId <= 0)
+            throw new InvalidOperationException($"Failed to create next installment for Loan {loanId}.");
+
+        return schedule.LoanSchedulerId;
+    }
 }

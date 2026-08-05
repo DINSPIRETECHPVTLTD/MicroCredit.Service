@@ -54,4 +54,21 @@ public interface IRecoveryPostingRepository
         decimal shortfallPrincipal,
         decimal shortfallInterest,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new Not Paid installment after the last schedule so overdue/shortfall
+    /// amounts can be carried forward. Also increments Loan.NoOfTerms.
+    /// Returns the new LoanSchedulerId.
+    /// </summary>
+    Task<int> CreateNextCarryForwardScheduleAsync(
+        int loanId,
+        DateTime scheduleDate,
+        decimal actualPrincipalAmount,
+        decimal actualInterestAmount,
+        int createdBy,
+        CancellationToken cancellationToken = default);
+
+    Task<string?> GetLoanCollectionTermAsync(
+        int loanId,
+        CancellationToken cancellationToken = default);
 }
