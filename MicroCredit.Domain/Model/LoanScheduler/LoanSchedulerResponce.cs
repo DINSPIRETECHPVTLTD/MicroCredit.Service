@@ -1,3 +1,5 @@
+using MicroCredit.Domain.Common;
+
 namespace MicroCredit.Domain.Model.LoanScheduler;
 
 public class LoanSchedulerResponce
@@ -15,6 +17,11 @@ public class LoanSchedulerResponce
     public decimal InterestAmount { get; set; }
    
     public int InstallmentNo { get; set; }
+    public int? ParentLoanSchedulerId { get; set; }
+    public int SubInstallmentSequence { get; set; }
+    public string InstallmentLabel =>
+        LoanSchedulerCollectionRules.FormatInstallmentLabel(InstallmentNo, SubInstallmentSequence);
+
     public string Status { get; set; } = "Not Paid"; // Paid, Partial, Not Paid
     public string? PaymentMode { get; set; }
    

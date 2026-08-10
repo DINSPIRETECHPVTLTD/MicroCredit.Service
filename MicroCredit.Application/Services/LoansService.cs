@@ -88,8 +88,11 @@ public class LoansService : ILoansService
             throw new InvalidOperationException("Loan is already claimed.");
 
         var schedulers = (await _unitOfWork.LoanSchedulers.GetLoanSchedulersByIdAsync(loanId, cancellationToken)).ToList();
+        // Claim outstanding base EMIs only — payment-history children are not separate claim targets.
         var pendingSchedulers = schedulers
-            .Where(s => s.Status != LoanSchedulerStatus.Paid
+            .Where(s => s.ParentLoanSchedulerId == null
+                        && s.SubInstallmentSequence == 0
+                        && s.Status != LoanSchedulerStatus.Paid
                         && s.Status != LoanSchedulerStatus.Claimed)
             .ToList();
 

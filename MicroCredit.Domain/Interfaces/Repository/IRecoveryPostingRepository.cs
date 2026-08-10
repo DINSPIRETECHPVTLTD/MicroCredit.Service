@@ -1,3 +1,4 @@
+using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Model.RecoveryPosting;
 
 namespace MicroCredit.Domain.Interfaces.Repository;
@@ -33,6 +34,10 @@ public interface IRecoveryPostingRepository
         string? comments,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Retired. Same-row Partial updates are no longer supported.
+    /// Partial posting must shrink the Not Paid base and insert a payment child.
+    /// </summary>
     Task ApplyPartialRecoveryPaymentAsync(
         int loanSchedulerId,
         decimal amountPaid,
@@ -42,6 +47,7 @@ public interface IRecoveryPostingRepository
         string? paymentMode,
         string? comments,
         CancellationToken cancellationToken = default);
+
 
     Task ApplyOverdueRecoveryAsync(
         int loanSchedulerId,
@@ -70,5 +76,58 @@ public interface IRecoveryPostingRepository
 
     Task<string?> GetLoanCollectionTermAsync(
         int loanId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Locks the base LoanScheduler row (UPDLOCK, ROWLOCK) and returns it.</summary>
+    Task<LoanScheduler?> LockAndGetBaseSchedulerAsync(
+        int loanSchedulerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Conditionally shrinks base outstanding after a partial payment.
+    /// Returns rows affected (0 = concurrency conflict).
+    /// </summary>
+    Task<int> TryShrinkBaseForPartialAsync(
+        int loanSchedulerId,
+        decimal expectedActualEmi,
+        decimal expectedActualPrincipal,
+        decimal expectedActualInterest,
+        decimal remainingEmi,
+        decimal remainingPrincipal,
+        decimal remainingInterest,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Conditionally closes base after final settlement (Actual/Payment = 0, Status = Paid).
+    /// Returns rows affected (0 = concurrency conflict).
+    /// </summary>
+    Task<int> TryCloseBaseAfterFinalSettleAsync(
+        int loanSchedulerId,
+        decimal expectedActualEmi,
+        decimal expectedActualPrincipal,
+        decimal expectedActualInterest,
+        CancellationToken cancellationToken = default);
+
+    Task<int> GetNextSubInstallmentSequenceAsync(
+        int parentLoanSchedulerId,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> HasPaymentChildrenAsync(
+        int baseLoanSchedulerId,
+        CancellationToken cancellationToken = default);
+
+    Task<int> InsertPaymentChildAsync(
+        LoanScheduler child,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Counts earlier base rows that block sequential posting:
+    /// Parent null, Seq 0, InstallmentNo &lt; beforeInstallmentNo, and
+    /// (NotPaid with ActualEmi &gt; 0) OR Overdue that has not been carried forward
+    /// (no PaymentDate and/or no later base installment).
+    /// </summary>
+    Task<int> CountBlockingEarlierBasesAsync(
+        int loanId,
+        int beforeInstallmentNo,
         CancellationToken cancellationToken = default);
 }
