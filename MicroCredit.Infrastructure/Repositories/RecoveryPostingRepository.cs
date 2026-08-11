@@ -43,7 +43,9 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                   && !b.IsDeleted
                   && b.OrgId == orgId
                   && b.Id == branchId
-                  && ls.Status == LoanSchedulerStatus.NotPaid // Only include Not Paid
+                  && ls.ParentLoanSchedulerId == null
+                  && ls.SubInstallmentSequence == 0
+                  && ls.Status == LoanSchedulerStatus.NotPaid // Only include Not Paid bases
                   && (!centerId.HasValue || c.Id == centerId.Value)
                   // Filter by the member's assigned POC (not merely "POC exists in center").
                   && (!pocId.HasValue || m.POCId == pocId.Value)
@@ -58,6 +60,8 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                 LoanSchedulerId = ls.LoanSchedulerId,
                 SchedulerLoanId = ls.LoanId,
                 InstallmentNo = ls.InstallmentNo,
+                ParentLoanSchedulerId = ls.ParentLoanSchedulerId,
+                SubInstallmentSequence = ls.SubInstallmentSequence,
                 ScheduleDate = ls.ScheduleDate,
                 PaymentDate = ls.PaymentDate,
                 ActualEmiAmount = ls.ActualEmiAmount,
@@ -104,6 +108,8 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
             join c in _context.Centers on m.CenterId equals c.Id
             join b in _context.Branches on c.BranchId equals b.Id
             where loanSchedulerIds.Contains(ls.LoanSchedulerId)
+                  && ls.ParentLoanSchedulerId == null
+                  && ls.SubInstallmentSequence == 0
                   && l.Status == "Active"
                   && !l.IsDeleted
                   && !m.IsDeleted
@@ -126,6 +132,8 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
                 ActualEmiAmount = ls.ActualEmiAmount,
                 ActualPrincipalAmount = ls.ActualPrincipalAmount,
                 ActualInterestAmount = ls.ActualInterestAmount,
+                ParentLoanSchedulerId = ls.ParentLoanSchedulerId,
+                SubInstallmentSequence = ls.SubInstallmentSequence,
             };
 
         return await query
@@ -192,23 +200,12 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
         string? comments,
         CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
-        var rows = await _context.LoanSchedulers
-            .Where(ls => ls.LoanSchedulerId == loanSchedulerId)
-            .ExecuteUpdateAsync(
-                s => s
-                    .SetProperty(ls => ls.PaymentDate, now)
-                    .SetProperty(ls => ls.PaymentAmount, amountPaid)
-                    .SetProperty(ls => ls.PrincipalAmount, principalPaid)
-                    .SetProperty(ls => ls.InterestAmount, interestPaid)
-                    .SetProperty(ls => ls.CollectedBy, collectedBy)
-                    .SetProperty(ls => ls.PaymentMode, paymentMode)
-                    .SetProperty(ls => ls.Comments, comments)
-                    .SetProperty(ls => ls.Status, LoanSchedulerStatus.Partial),
-                cancellationToken);
-
-        if (rows == 0)
-            throw new InvalidOperationException($"LoanScheduler {loanSchedulerId} could not be updated.");
+        // Legacy same-row Partial + next-EMI shortfall carry is retired.
+        // PostRecoveriesAsync must use TryShrinkBaseForPartialAsync + InsertPaymentChildAsync.
+        await Task.CompletedTask;
+        throw new NotSupportedException(
+            $"ApplyPartialRecoveryPaymentAsync is retired (LoanScheduler {loanSchedulerId}). " +
+            "Use shrink-base + payment-child partial posting.");
     }
 
     public async Task ApplyOverdueRecoveryAsync(
@@ -310,5 +307,140 @@ public class RecoveryPostingRepository : IRecoveryPostingRepository
             throw new InvalidOperationException($"Failed to create next installment for Loan {loanId}.");
 
         return schedule.LoanSchedulerId;
+    }
+
+    public async Task<LoanScheduler?> LockAndGetBaseSchedulerAsync(
+        int loanSchedulerId,
+        CancellationToken cancellationToken = default)
+    {
+        // UPDLOCK + ROWLOCK so concurrent posts serialize on the same base row.
+        return await _context.LoanSchedulers
+            .FromSqlInterpolated($@"
+SELECT *
+FROM [dinspire_sa].[LoanSchedulers] WITH (UPDLOCK, ROWLOCK)
+WHERE [LoanSchedulerId] = {loanSchedulerId}")
+            .AsTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<int> TryShrinkBaseForPartialAsync(
+        int loanSchedulerId,
+        decimal expectedActualEmi,
+        decimal expectedActualPrincipal,
+        decimal expectedActualInterest,
+        decimal remainingEmi,
+        decimal remainingPrincipal,
+        decimal remainingInterest,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.LoanSchedulers
+            .Where(ls =>
+                ls.LoanSchedulerId == loanSchedulerId
+                && ls.Status == LoanSchedulerStatus.NotPaid
+                && ls.ActualEmiAmount == expectedActualEmi
+                && ls.ActualPrincipalAmount == expectedActualPrincipal
+                && ls.ActualInterestAmount == expectedActualInterest)
+            .ExecuteUpdateAsync(
+                s => s
+                    .SetProperty(ls => ls.PaymentDate, (DateTime?)null)
+                    .SetProperty(ls => ls.PaymentAmount, 0m)
+                    .SetProperty(ls => ls.PrincipalAmount, 0m)
+                    .SetProperty(ls => ls.InterestAmount, 0m)
+                    .SetProperty(ls => ls.PaymentMode, (string?)null)
+                    .SetProperty(ls => ls.CollectedBy, (int?)null)
+                    .SetProperty(ls => ls.Comments, (string?)null)
+                    .SetProperty(ls => ls.ActualEmiAmount, remainingEmi)
+                    .SetProperty(ls => ls.ActualPrincipalAmount, remainingPrincipal)
+                    .SetProperty(ls => ls.ActualInterestAmount, remainingInterest)
+                    .SetProperty(ls => ls.Status, LoanSchedulerStatus.NotPaid),
+                cancellationToken);
+    }
+
+    public async Task<int> TryCloseBaseAfterFinalSettleAsync(
+        int loanSchedulerId,
+        decimal expectedActualEmi,
+        decimal expectedActualPrincipal,
+        decimal expectedActualInterest,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.LoanSchedulers
+            .Where(ls =>
+                ls.LoanSchedulerId == loanSchedulerId
+                && ls.Status == LoanSchedulerStatus.NotPaid
+                && ls.ActualEmiAmount == expectedActualEmi
+                && ls.ActualPrincipalAmount == expectedActualPrincipal
+                && ls.ActualInterestAmount == expectedActualInterest)
+            .ExecuteUpdateAsync(
+                s => s
+                    .SetProperty(ls => ls.PaymentDate, (DateTime?)null)
+                    .SetProperty(ls => ls.PaymentAmount, 0m)
+                    .SetProperty(ls => ls.PrincipalAmount, 0m)
+                    .SetProperty(ls => ls.InterestAmount, 0m)
+                    .SetProperty(ls => ls.PaymentMode, (string?)null)
+                    .SetProperty(ls => ls.CollectedBy, (int?)null)
+                    .SetProperty(ls => ls.Comments, (string?)null)
+                    .SetProperty(ls => ls.ActualEmiAmount, 0m)
+                    .SetProperty(ls => ls.ActualPrincipalAmount, 0m)
+                    .SetProperty(ls => ls.ActualInterestAmount, 0m)
+                    .SetProperty(ls => ls.Status, LoanSchedulerStatus.Paid),
+                cancellationToken);
+    }
+
+    public async Task<int> GetNextSubInstallmentSequenceAsync(
+        int parentLoanSchedulerId,
+        CancellationToken cancellationToken = default)
+    {
+        var maxSeq = await _context.LoanSchedulers
+            .Where(ls => ls.ParentLoanSchedulerId == parentLoanSchedulerId)
+            .Select(ls => (int?)ls.SubInstallmentSequence)
+            .MaxAsync(cancellationToken) ?? 0;
+
+        return maxSeq + 1;
+    }
+
+    public async Task<bool> HasPaymentChildrenAsync(
+        int baseLoanSchedulerId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.LoanSchedulers
+            .AnyAsync(ls => ls.ParentLoanSchedulerId == baseLoanSchedulerId, cancellationToken);
+    }
+
+    public async Task<int> InsertPaymentChildAsync(
+        LoanScheduler child,
+        CancellationToken cancellationToken = default)
+    {
+        await _context.LoanSchedulers.AddAsync(child, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        return child.LoanSchedulerId;
+    }
+
+    public async Task<int> CountBlockingEarlierBasesAsync(
+        int loanId,
+        int beforeInstallmentNo,
+        CancellationToken cancellationToken = default)
+    {
+        // Not Paid with remaining Actual blocks. Overdue blocks only when untransferred:
+        // missing PaymentDate (not via overdue post path) or no later base carry destination.
+        // Successful overdue posts set PaymentDate and carry in the same transaction.
+        return await _context.LoanSchedulers
+            .CountAsync(
+                ls =>
+                    ls.LoanId == loanId
+                    && ls.ParentLoanSchedulerId == null
+                    && ls.SubInstallmentSequence == 0
+                    && ls.InstallmentNo < beforeInstallmentNo
+                    && (
+                        (ls.Status == LoanSchedulerStatus.NotPaid && ls.ActualEmiAmount > 0)
+                        || (
+                            ls.Status == LoanSchedulerStatus.Overdue
+                            && (
+                                ls.PaymentDate == null
+                                || !_context.LoanSchedulers.Any(n =>
+                                    n.LoanId == loanId
+                                    && n.ParentLoanSchedulerId == null
+                                    && n.SubInstallmentSequence == 0
+                                    && n.InstallmentNo > ls.InstallmentNo)))),
+                cancellationToken);
     }
 }

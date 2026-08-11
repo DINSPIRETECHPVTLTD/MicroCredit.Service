@@ -20,6 +20,7 @@ public class MicroCreditDbContext : DbContext
     public DbSet<LedgerTransaction> LedgerTransactions => Set<LedgerTransaction>();
     public DbSet<Loan> Loans => Set<Loan>();
     public DbSet<LoanScheduler> LoanSchedulers => Set<LoanScheduler>();
+    public DbSet<RecoveryPostingIdempotency> RecoveryPostingIdempotencies => Set<RecoveryPostingIdempotency>();
     public DbSet<MasterLookup> MasterLookups => Set<MasterLookup>();
     public DbSet<Member> Members => Set<Member>();
     public DbSet<MemberMembershipFee> MemberMembershipFees => Set<MemberMembershipFee>();

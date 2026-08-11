@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using MicroCredit.Domain.Common;
 using MicroCredit.Domain.Entities;
 using MicroCredit.Domain.Interfaces.Repository;
 using MicroCredit.Domain.Model.Loan;
@@ -58,6 +59,17 @@ public class LoanRepository : ILoanRepository
     private static ActiveLoanResponse MapLoanToActiveLoanResponse(Loan loan)
     {
         var schedulers = loan.LoanSchedulers?.ToList() ?? new List<LoanScheduler>();
+        var basesWithChildren = schedulers
+            .Where(s => s.ParentLoanSchedulerId != null)
+            .Select(s => s.ParentLoanSchedulerId!.Value)
+            .ToHashSet();
+
+        var bases = schedulers.Where(LoanSchedulerCollectionRules.IsBase).ToList();
+        var totalPaid = schedulers.Sum(s =>
+            LoanSchedulerCollectionRules.CollectedAmount(
+                s,
+                basesWithChildren.Contains(s.LoanSchedulerId)));
+        var remaining = schedulers.Sum(LoanSchedulerCollectionRules.OutstandingAmount);
 
         return new ActiveLoanResponse
         {
@@ -79,17 +91,11 @@ public class LoanRepository : ILoanRepository
             Status = loan.Status,
             LoanTotalAmount = loan.TotalAmount,
             NoOfTerms =
-                schedulers.Count.ToString() + "/" +
-                schedulers.Count(s => s.Status == LoanSchedulerStatus.Paid),
-            TotalAmountPaid = schedulers
-                .Where(s => s.Status == LoanSchedulerStatus.Paid)
-                .Sum(s => s.PaymentAmount),
+                bases.Count.ToString() + "/" +
+                bases.Count(s => s.Status == LoanSchedulerStatus.Paid),
+            TotalAmountPaid = totalPaid,
             SchedulerTotalAmount = schedulers.Sum(s => s.ActualEmiAmount),
-            RemainingBal =
-                schedulers.Sum(s => s.ActualEmiAmount) -
-                schedulers
-                    .Where(s => s.Status == LoanSchedulerStatus.Paid)
-                    .Sum(s => s.PaymentAmount),
+            RemainingBal = remaining,
         };
     }
 
@@ -100,8 +106,12 @@ public class LoanRepository : ILoanRepository
 
     public async Task<IEnumerable<ActiveLoanResponse>> GetActiveLoansAsync(int branchId, CancellationToken cancellationToken = default)
     {
-        return await _context.Loans
+        var loans = await _context.Loans
             .AsNoTracking()
+            .AsSplitQuery()
+            .Include(loan => loan.Member)
+                .ThenInclude(m => m.POC)
+            .Include(loan => loan.LoanSchedulers)
             .Where(loan =>
                 !loan.IsDeleted &&
                 loan.Member.Center.BranchId == branchId &&
@@ -109,48 +119,22 @@ public class LoanRepository : ILoanRepository
                  loan.Status.Trim().ToUpper() == "PENDING" ||
                  loan.Status.Trim().ToUpper() == "CLAIMED" ||
                  loan.Status.Trim().ToUpper() == "CLOSED"))
-            .Select(loan => new ActiveLoanResponse
-            {
-                LoanId = loan.Id,
-                MemberId = loan.MemberId,
-                MemberCode = loan.Member.MemberCode,
-                FullName = (
-                    loan.Member.FirstName + " " +
-                    (loan.Member.MiddleName == null || loan.Member.MiddleName == ""
-                        ? ""
-                        : loan.Member.MiddleName + " ") +
-                    loan.Member.LastName).Trim(),
-                PocName = (
-                    loan.Member.POC.FirstName + " " +
-                    (loan.Member.POC.MiddleName == null || loan.Member.POC.MiddleName == ""
-                        ? ""
-                        : loan.Member.POC.MiddleName + " ") +
-                    loan.Member.POC.LastName).Trim(),
-                Status = loan.Status,
-                LoanTotalAmount = loan.TotalAmount,
-                NoOfTerms =
-                    loan.LoanSchedulers!.Count().ToString() + "/" +
-                    loan.LoanSchedulers!.Count(scheduler => scheduler.Status == LoanSchedulerStatus.Paid).ToString(),
-                TotalAmountPaid = loan.LoanSchedulers!
-                    .Where(scheduler => scheduler.Status == LoanSchedulerStatus.Paid)
-                    .Sum(scheduler => scheduler.PaymentAmount),
-                SchedulerTotalAmount = loan.LoanSchedulers!
-                    .Sum(scheduler => scheduler.ActualEmiAmount),
-                RemainingBal =
-                    loan.LoanSchedulers!.Sum(scheduler => scheduler.ActualEmiAmount) -
-                    loan.LoanSchedulers!
-                        .Where(scheduler => scheduler.Status == LoanSchedulerStatus.Paid)
-                        .Sum(scheduler => scheduler.PaymentAmount),
-            })
-            .OrderBy(loan => loan.LoanId)
+            .OrderBy(loan => loan.Id)
             .ToListAsync(cancellationToken);
+
+        return loans.Select(MapLoanToActiveLoanResponse).ToList();
     }
 
     public async Task<bool> HasOpenSchedulersAsync(int loanId, CancellationToken cancellationToken = default)
     {
         return await _context.LoanSchedulers
             .AnyAsync(
-                ls => ls.LoanId == loanId && ls.Status != LoanSchedulerStatus.Paid,
+                ls =>
+                    ls.LoanId == loanId
+                    && ls.ParentLoanSchedulerId == null
+                    && ls.SubInstallmentSequence == 0
+                    && ls.Status != LoanSchedulerStatus.Paid
+                    && ls.Status != LoanSchedulerStatus.Claimed,
                 cancellationToken);
     }
 

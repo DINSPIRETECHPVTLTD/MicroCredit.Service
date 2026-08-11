@@ -1,3 +1,5 @@
+using MicroCredit.Domain.Common;
+
 namespace MicroCredit.Domain.Model.RecoveryPosting;
 
 /// <summary>
@@ -16,6 +18,11 @@ public class RecoveryPostingSchedulerResponse
     public int SchedulerLoanId { get; set; }
 
     public int InstallmentNo { get; set; }
+    public int? ParentLoanSchedulerId { get; set; }
+    public int SubInstallmentSequence { get; set; }
+    public string InstallmentLabel =>
+        LoanSchedulerCollectionRules.FormatInstallmentLabel(InstallmentNo, SubInstallmentSequence);
+
     public DateTime ScheduleDate { get; set; }
     public DateTime? PaymentDate { get; set; }
 

@@ -41,6 +41,12 @@ public class LoanScheduler
     [Required]
     public int InstallmentNo { get; private set; }
 
+    /// <summary>Null for base EMI rows; payment children point at the original base scheduler.</summary>
+    public int? ParentLoanSchedulerId { get; private set; }
+
+    /// <summary>0 = base EMI; 1..n = payment transaction order under the base.</summary>
+    public int SubInstallmentSequence { get; private set; }
+
     [Required]
     [StringLength(20)]
     public LoanSchedulerStatus Status { get; private set; } = LoanSchedulerStatus.NotPaid;
@@ -59,7 +65,6 @@ public class LoanScheduler
     [Required]
     public DateTime CreatedDate { get; private set; }
 
-    // Navigation
     [ForeignKey("LoanId")]
     public virtual Loan Loan { get; private set; } = null!;
 
@@ -68,6 +73,9 @@ public class LoanScheduler
 
     [ForeignKey("CollectedBy")]
     public virtual User? CollectedByUser { get; private set; }
+
+    [ForeignKey(nameof(ParentLoanSchedulerId))]
+    public virtual LoanScheduler? ParentLoanScheduler { get; private set; }
 
     private LoanScheduler() { } // EF
 
@@ -88,6 +96,53 @@ public class LoanScheduler
         ActualPrincipalAmount = actualPrincipalAmount;
         ActualInterestAmount = actualInterestAmount;
         SavingAmount = savingAmount;
+        ParentLoanSchedulerId = null;
+        SubInstallmentSequence = 0;
+    }
+
+    /// <summary>Creates a payment-transaction child under the original base EMI.</summary>
+    public static LoanScheduler CreatePaymentChild(
+        LoanScheduler baseScheduler,
+        int subInstallmentSequence,
+        decimal paymentAmount,
+        decimal principalAmount,
+        decimal interestAmount,
+        LoanSchedulerStatus status,
+        int collectedBy,
+        string? paymentMode,
+        string? comments,
+        int createdBy)
+    {
+        if (baseScheduler.ParentLoanSchedulerId != null || baseScheduler.SubInstallmentSequence != 0)
+            throw new InvalidOperationException("Payment children must attach to the original base scheduler.");
+        if (subInstallmentSequence < 1)
+            throw new ArgumentOutOfRangeException(nameof(subInstallmentSequence));
+        if (status != LoanSchedulerStatus.Partial && status != LoanSchedulerStatus.Paid)
+            throw new ArgumentException("Payment child status must be Partial or Paid.", nameof(status));
+
+        var now = DateTime.UtcNow;
+        return new LoanScheduler
+        {
+            LoanId = baseScheduler.LoanId,
+            ScheduleDate = baseScheduler.ScheduleDate,
+            InstallmentNo = baseScheduler.InstallmentNo,
+            ParentLoanSchedulerId = baseScheduler.LoanSchedulerId,
+            SubInstallmentSequence = subInstallmentSequence,
+            PaymentDate = now,
+            PaymentAmount = paymentAmount,
+            PrincipalAmount = principalAmount,
+            InterestAmount = interestAmount,
+            ActualEmiAmount = paymentAmount,
+            ActualPrincipalAmount = principalAmount,
+            ActualInterestAmount = interestAmount,
+            SavingAmount = 0,
+            Status = status,
+            CollectedBy = collectedBy,
+            PaymentMode = paymentMode,
+            Comments = comments,
+            CreatedBy = createdBy,
+            CreatedDate = now
+        };
     }
 
     public void RecordPayment(decimal actualEmiAmount, decimal actualPrincipalAmount, decimal actualInterestAmount,

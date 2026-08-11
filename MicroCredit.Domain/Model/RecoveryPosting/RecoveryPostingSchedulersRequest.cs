@@ -31,6 +31,9 @@ public class RecoveryPostingPostLine
 /// <summary>POST body for saving recovery payments to LoanSchedulers.</summary>
 public class RecoveryPostingPostRequest
 {
+    /// <summary>Required client-generated idempotency key for this post batch.</summary>
+    public Guid ClientRequestId { get; set; }
+
     public int CollectedBy { get; set; }
     public List<RecoveryPostingPostLine> Items { get; set; } = new();
     /// <summary>
@@ -57,4 +60,6 @@ public class RecoveryPostingSchedulerSnapshot
     public decimal ActualEmiAmount { get; set; }
     public decimal ActualPrincipalAmount { get; set; }
     public decimal ActualInterestAmount { get; set; }
+    public int? ParentLoanSchedulerId { get; set; }
+    public int SubInstallmentSequence { get; set; }
 }
