@@ -57,8 +57,9 @@ public class ReportRepository : IReportRepository
     }
 
     /// <summary>
-    /// Members under a POC with schedulers for the selected day (defaults to today);
-    /// branch via member center, active loans only — all EMI statuses included.
+    /// Members under a POC for the selected day (defaults to today).
+    /// Uses PaymentDate when present, otherwise ScheduleDate.
+    /// Partial rows return only the remaining (pending) amount.
     /// </summary>
     public async Task<List<ReportMembersByPocResponseDto>> GetMembersByPocIdAsync(
         int branchId,
@@ -81,8 +82,14 @@ public class ReportRepository : IReportRepository
                   && l.Status == "Active"
                   && c.BranchId == branchId
                   && p.Id == pocId
-                  && ls.ScheduleDate >= windowStart
-                  && ls.ScheduleDate < windowEndExclusive
+                  && (
+                      (ls.PaymentDate != null
+                          && ls.PaymentDate >= windowStart
+                          && ls.PaymentDate < windowEndExclusive)
+                      || (ls.PaymentDate == null
+                          && ls.ScheduleDate >= windowStart
+                          && ls.ScheduleDate < windowEndExclusive)
+                  )
             select new ReportMembersByPocResponseDto
             {
                 PocId = p.Id,
@@ -91,8 +98,13 @@ public class ReportRepository : IReportRepository
                 MembersFullName = ((m.FirstName ?? string.Empty) + " " +
                                    (m.MiddleName ?? string.Empty) + " " +
                                    (m.LastName ?? string.Empty)).Trim(),
-                ActualEmiAmount = ls.ActualEmiAmount,
+                ActualEmiAmount = ls.Status == LoanSchedulerStatus.Partial
+                    ? (ls.ActualEmiAmount - ls.PaymentAmount > 0
+                        ? ls.ActualEmiAmount - ls.PaymentAmount
+                        : 0)
+                    : ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
+                PaymentDate = ls.PaymentDate,
                 LoanSchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
                     : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
                     : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
@@ -135,8 +147,14 @@ public class ReportRepository : IReportRepository
                   && l.Status == "Active"
                   && c.BranchId == branchId
                   && distinctPocIds.Contains(p.Id)
-                  && ls.ScheduleDate >= windowStart
-                  && ls.ScheduleDate < windowEndExclusive
+                  && (
+                      (ls.PaymentDate != null
+                          && ls.PaymentDate >= windowStart
+                          && ls.PaymentDate < windowEndExclusive)
+                      || (ls.PaymentDate == null
+                          && ls.ScheduleDate >= windowStart
+                          && ls.ScheduleDate < windowEndExclusive)
+                  )
             select new ReportMembersByPocResponseDto
             {
                 PocId = p.Id,
@@ -145,8 +163,13 @@ public class ReportRepository : IReportRepository
                 MembersFullName = ((m.FirstName ?? string.Empty) + " " +
                                    (m.MiddleName ?? string.Empty) + " " +
                                    (m.LastName ?? string.Empty)).Trim(),
-                ActualEmiAmount = ls.ActualEmiAmount,
+                ActualEmiAmount = ls.Status == LoanSchedulerStatus.Partial
+                    ? (ls.ActualEmiAmount - ls.PaymentAmount > 0
+                        ? ls.ActualEmiAmount - ls.PaymentAmount
+                        : 0)
+                    : ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
+                PaymentDate = ls.PaymentDate,
                 LoanSchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
                     : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
                     : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
@@ -240,8 +263,14 @@ public class ReportRepository : IReportRepository
                   && !b.IsDeleted
                   && b.Id == branchId
                   && l.Status == "Active"
-                  && ls.ScheduleDate >= windowStart
-                  && ls.ScheduleDate < windowEndExclusive
+                  && (
+                      (ls.PaymentDate != null
+                          && ls.PaymentDate >= windowStart
+                          && ls.PaymentDate < windowEndExclusive)
+                      || (ls.PaymentDate == null
+                          && ls.ScheduleDate >= windowStart
+                          && ls.ScheduleDate < windowEndExclusive)
+                  )
             orderby m.POCId, m.Id, ls.ScheduleDate
             select new StaffReportMemberRowDto
             {
@@ -255,7 +284,12 @@ public class ReportRepository : IReportRepository
                 LoanStatus = l.Status,
                 LoanSchedulerId = ls.LoanSchedulerId,
                 ScheduleDate = ls.ScheduleDate,
-                ActualEmiAmount = ls.ActualEmiAmount,
+                PaymentDate = ls.PaymentDate,
+                ActualEmiAmount = ls.Status == LoanSchedulerStatus.Partial
+                    ? (ls.ActualEmiAmount - ls.PaymentAmount > 0
+                        ? ls.ActualEmiAmount - ls.PaymentAmount
+                        : 0)
+                    : ls.ActualEmiAmount,
                 LoanSchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
                     : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
                     : ls.Status == LoanSchedulerStatus.Partial ? "Partial"

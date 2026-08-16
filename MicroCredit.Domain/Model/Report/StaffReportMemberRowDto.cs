@@ -13,6 +13,7 @@ public class StaffReportMemberRowDto
     public string LoanStatus { get; set; } = string.Empty;
     public int LoanSchedulerId { get; set; }
     public DateTime ScheduleDate { get; set; }
+    public DateTime? PaymentDate { get; set; }
     public decimal ActualEmiAmount { get; set; }
     public string LoanSchedulerStatus { get; set; } = string.Empty;
 }
