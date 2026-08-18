@@ -34,4 +34,10 @@
     <ProjectReference Include="..\MicroCredit.Domain\MicroCredit.Domain.csproj" />
   </ItemGroup>
 
+  <!-- Standalone export tool; has its own .csproj and must not compile into this library -->
+  <ItemGroup>
+    <Compile Remove="Persistence\Scripts\ExportMasterLookups\**" />
+    <None Include="Persistence\Scripts\ExportMasterLookups\**" />
+  </ItemGroup>
+
 </Project>
