@@ -21,5 +21,6 @@ public class StaffSchedulesPocNodeDto
     public int PocId { get; set; }
     public string PocFullName { get; set; } = string.Empty;
     public int CenterId { get; set; }
+    public string CenterName { get; set; } = string.Empty;
     public List<StaffReportMemberRowDto> Members { get; set; } = new();
 }

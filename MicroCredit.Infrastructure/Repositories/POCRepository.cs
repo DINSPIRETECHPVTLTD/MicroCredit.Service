@@ -18,6 +18,7 @@ public class POCRepository : IPOCRepository
     public async Task<POC?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         return await _context.POCs
+            .Include(p => p.Center)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 

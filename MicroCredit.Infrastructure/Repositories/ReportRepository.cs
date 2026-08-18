@@ -38,7 +38,7 @@ public class ReportRepository : IReportRepository
                 p.FirstName,
                 p.MiddleName,
                 p.LastName,
-                CenterName = p.Center.Name,
+                CenterName = c.Name,
             }
             into g
             select new ReportPocCenterResponseDto
@@ -105,6 +105,7 @@ public class ReportRepository : IReportRepository
                     : ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
                 PaymentDate = ls.PaymentDate,
+                CenterName = c.Name,
                 LoanSchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
                     : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
                     : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
@@ -170,6 +171,7 @@ public class ReportRepository : IReportRepository
                     : ls.ActualEmiAmount,
                 ScheduleDate = ls.ScheduleDate,
                 PaymentDate = ls.PaymentDate,
+                CenterName = c.Name,
                 LoanSchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
                     : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
                     : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
@@ -235,6 +237,7 @@ public class ReportRepository : IReportRepository
                                 (u.MiddleName ?? string.Empty) + " " +
                                 (u.LastName ?? string.Empty)).Trim(),
                 CenterId = p.CenterId,
+                CenterName = c.Name,
                 BranchId = b.Id,
                 UserRole = u.Role.ToString(),
             }
@@ -285,6 +288,7 @@ public class ReportRepository : IReportRepository
                 LoanSchedulerId = ls.LoanSchedulerId,
                 ScheduleDate = ls.ScheduleDate,
                 PaymentDate = ls.PaymentDate,
+                CenterName = c.Name,
                 ActualEmiAmount = ls.Status == LoanSchedulerStatus.Partial
                     ? (ls.ActualEmiAmount - ls.PaymentAmount > 0
                         ? ls.ActualEmiAmount - ls.PaymentAmount

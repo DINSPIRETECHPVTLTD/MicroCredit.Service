@@ -79,6 +79,7 @@ public class ReportService : IReportService
                     PocId = poc.PocId,
                     PocFullName = poc.PocFullName,
                     CenterId = poc.CenterId,
+                    CenterName = poc.CenterName,
                     Members = membersByPoc.GetValueOrDefault(poc.PocId) ?? new List<StaffReportMemberRowDto>(),
                 }).ToList(),
             };

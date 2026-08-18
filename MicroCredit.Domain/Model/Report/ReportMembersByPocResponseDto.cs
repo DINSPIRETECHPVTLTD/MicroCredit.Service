@@ -10,5 +10,6 @@ public class ReportMembersByPocResponseDto
     /// <summary>Loan schedule due date (UTC/local per DB). Used with today/tomorrow window filter.</summary>
     public DateTime ScheduleDate { get; set; }
     public DateTime? PaymentDate { get; set; }
+    public string CenterName { get; set; } = string.Empty;
     public string LoanSchedulerStatus { get; set; } = string.Empty;
 }

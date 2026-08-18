@@ -11,6 +11,7 @@ public class StaffReportPocRowDto
     public string PocFullName { get; set; } = string.Empty;
     public string UserFullName { get; set; } = string.Empty;
     public int CenterId { get; set; }
+    public string CenterName { get; set; } = string.Empty;
     public int BranchId { get; set; }
     public string UserRole { get; set; } = string.Empty;
 }
