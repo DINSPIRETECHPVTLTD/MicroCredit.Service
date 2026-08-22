@@ -74,10 +74,7 @@ ORDER BY u.Id, p.Id;
 
 /* =============================================================================
    3) GetStaffReportMembersByBranchAsync — member schedule lines for selected day
-      Date filter:
-        - PaymentDate set  -> match PaymentDate on that day
-        - PaymentDate null -> match ScheduleDate on that day
-      Partial -> ActualEmiAmount = pending (ActualEmiAmount - PaymentAmount)
+      Date filter: ScheduleDate on that day only (PaymentDate is returned, not used to filter)
    ============================================================================= */
 PRINT '';
 PRINT '=== 3) MEMBERS (schedule lines for selected day) ===';
@@ -116,14 +113,8 @@ WHERE m.IsDeleted = 0
   AND b.Id = @BranchId
   AND l.ClosureDate IS NULL
   AND LOWER(l.Status) = N'active'
-  AND (
-        (ls.PaymentDate IS NOT NULL
-         AND ls.PaymentDate >= @WindowStart
-         AND ls.PaymentDate < @WindowEnd)
-     OR (ls.PaymentDate IS NULL
-         AND ls.ScheduleDate >= @WindowStart
-         AND ls.ScheduleDate < @WindowEnd)
-      )
+  AND ls.ScheduleDate >= @WindowStart
+  AND ls.ScheduleDate < @WindowEnd
 ORDER BY m.POCId, m.Id, ls.ScheduleDate;
 
 /* =============================================================================
@@ -181,14 +172,8 @@ LEFT JOIN dinspire_sa.Loans l
    AND LOWER(l.Status) = N'active'
 LEFT JOIN dinspire_sa.LoanSchedulers ls
     ON ls.LoanId = l.Id
-   AND (
-        (ls.PaymentDate IS NOT NULL
-         AND ls.PaymentDate >= @WindowStart
-         AND ls.PaymentDate < @WindowEnd)
-     OR (ls.PaymentDate IS NULL
-         AND ls.ScheduleDate >= @WindowStart
-         AND ls.ScheduleDate < @WindowEnd)
-      )
+   AND ls.ScheduleDate >= @WindowStart
+   AND ls.ScheduleDate < @WindowEnd
 WHERE p.IsDeleted = 0
   AND b.IsDeleted = 0
   AND b.Id = @BranchId

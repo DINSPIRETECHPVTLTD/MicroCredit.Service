@@ -261,14 +261,8 @@ public class ReportRepository : IReportRepository
                   && b.Id == branchId
                   && l.ClosureDate == null
                   && l.Status.ToLower() == "active"
-                  && (
-                      (ls.PaymentDate != null
-                          && ls.PaymentDate >= windowStart
-                          && ls.PaymentDate < windowEndExclusive)
-                      || (ls.PaymentDate == null
-                          && ls.ScheduleDate >= windowStart
-                          && ls.ScheduleDate < windowEndExclusive)
-                  )
+                  && ls.ScheduleDate >= windowStart
+                  && ls.ScheduleDate < windowEndExclusive
             orderby m.POCId, m.Id, ls.ScheduleDate
             select new StaffReportMemberRowDto
             {
