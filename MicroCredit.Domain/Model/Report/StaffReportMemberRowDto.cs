@@ -16,5 +16,6 @@ public class StaffReportMemberRowDto
     public DateTime? PaymentDate { get; set; }
     public string CenterName { get; set; } = string.Empty;
     public decimal ActualEmiAmount { get; set; }
+    public decimal PaymentAmount { get; set; }
     public string LoanSchedulerStatus { get; set; } = string.Empty;
 }

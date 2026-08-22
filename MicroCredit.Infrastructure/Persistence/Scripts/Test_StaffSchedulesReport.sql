@@ -114,7 +114,8 @@ WHERE m.IsDeleted = 0
   AND l.IsDeleted = 0
   AND b.IsDeleted = 0
   AND b.Id = @BranchId
-  AND l.Status = N'Active'
+  AND l.ClosureDate IS NULL
+  AND LOWER(l.Status) = N'active'
   AND (
         (ls.PaymentDate IS NOT NULL
          AND ls.PaymentDate >= @WindowStart
@@ -176,7 +177,8 @@ LEFT JOIN dinspire_sa.Members m
 LEFT JOIN dinspire_sa.Loans l
     ON l.MemberId = m.Id
    AND l.IsDeleted = 0
-   AND l.Status = N'Active'
+   AND l.ClosureDate IS NULL
+   AND LOWER(l.Status) = N'active'
 LEFT JOIN dinspire_sa.LoanSchedulers ls
     ON ls.LoanId = l.Id
    AND (

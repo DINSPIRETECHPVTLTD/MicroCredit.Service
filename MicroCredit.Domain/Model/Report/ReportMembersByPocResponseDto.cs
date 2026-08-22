@@ -7,6 +7,7 @@ public class ReportMembersByPocResponseDto
     public string? MemberCode { get; set; }
     public string MembersFullName { get; set; } = string.Empty;
     public decimal ActualEmiAmount { get; set; }
+    public decimal PaymentAmount { get; set; }
     /// <summary>Loan schedule due date (UTC/local per DB). Used with today/tomorrow window filter.</summary>
     public DateTime ScheduleDate { get; set; }
     public DateTime? PaymentDate { get; set; }

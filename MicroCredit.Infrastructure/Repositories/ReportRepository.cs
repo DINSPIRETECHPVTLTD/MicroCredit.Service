@@ -98,11 +98,8 @@ public class ReportRepository : IReportRepository
                 MembersFullName = ((m.FirstName ?? string.Empty) + " " +
                                    (m.MiddleName ?? string.Empty) + " " +
                                    (m.LastName ?? string.Empty)).Trim(),
-                ActualEmiAmount = ls.Status == LoanSchedulerStatus.Partial
-                    ? (ls.ActualEmiAmount - ls.PaymentAmount > 0
-                        ? ls.ActualEmiAmount - ls.PaymentAmount
-                        : 0)
-                    : ls.ActualEmiAmount,
+                ActualEmiAmount = ls.ActualEmiAmount,
+                PaymentAmount = ls.PaymentAmount,
                 ScheduleDate = ls.ScheduleDate,
                 PaymentDate = ls.PaymentDate,
                 CenterName = c.Name,
@@ -164,11 +161,8 @@ public class ReportRepository : IReportRepository
                 MembersFullName = ((m.FirstName ?? string.Empty) + " " +
                                    (m.MiddleName ?? string.Empty) + " " +
                                    (m.LastName ?? string.Empty)).Trim(),
-                ActualEmiAmount = ls.Status == LoanSchedulerStatus.Partial
-                    ? (ls.ActualEmiAmount - ls.PaymentAmount > 0
-                        ? ls.ActualEmiAmount - ls.PaymentAmount
-                        : 0)
-                    : ls.ActualEmiAmount,
+                ActualEmiAmount = ls.ActualEmiAmount,
+                PaymentAmount = ls.PaymentAmount,
                 ScheduleDate = ls.ScheduleDate,
                 PaymentDate = ls.PaymentDate,
                 CenterName = c.Name,
@@ -265,7 +259,8 @@ public class ReportRepository : IReportRepository
                   && !l.IsDeleted
                   && !b.IsDeleted
                   && b.Id == branchId
-                  && l.Status == "Active"
+                  && l.ClosureDate == null
+                  && l.Status.ToLower() == "active"
                   && (
                       (ls.PaymentDate != null
                           && ls.PaymentDate >= windowStart
@@ -289,11 +284,8 @@ public class ReportRepository : IReportRepository
                 ScheduleDate = ls.ScheduleDate,
                 PaymentDate = ls.PaymentDate,
                 CenterName = c.Name,
-                ActualEmiAmount = ls.Status == LoanSchedulerStatus.Partial
-                    ? (ls.ActualEmiAmount - ls.PaymentAmount > 0
-                        ? ls.ActualEmiAmount - ls.PaymentAmount
-                        : 0)
-                    : ls.ActualEmiAmount,
+                ActualEmiAmount = ls.ActualEmiAmount,
+                PaymentAmount = ls.PaymentAmount,
                 LoanSchedulerStatus = ls.Status == LoanSchedulerStatus.NotPaid ? "Not Paid"
                     : ls.Status == LoanSchedulerStatus.Paid ? "Paid"
                     : ls.Status == LoanSchedulerStatus.Partial ? "Partial"
