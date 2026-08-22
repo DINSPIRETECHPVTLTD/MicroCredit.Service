@@ -13,8 +13,10 @@ public class StaffSchedulesTotalsDto
 {
     /// <summary>EMI due on the selected schedule date, excluding prepaid installments.</summary>
     public decimal TotalScheduleAmount { get; set; }
-    /// <summary>Amount still unpaid (Not Paid / Overdue full EMI, Partial remaining).</summary>
+    /// <summary>Amount still unpaid (Not Paid full EMI, Partial remaining).</summary>
     public decimal TotalPendingAmount { get; set; }
+    /// <summary>EMI marked Overdue on the selected schedule date.</summary>
+    public decimal TotalOverdueAmount { get; set; }
     /// <summary>Collected on the same calendar day as ScheduleDate.</summary>
     public decimal TotalCollectedAmount { get; set; }
     /// <summary>Collected before ScheduleDate.</summary>

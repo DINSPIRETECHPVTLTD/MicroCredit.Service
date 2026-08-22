@@ -96,6 +96,7 @@ public class ReportService : IReportService
     {
         decimal schedule = 0;
         decimal pending = 0;
+        decimal overdue = 0;
         decimal collected = 0;
         decimal preCollected = 0;
         decimal postCollected = 0;
@@ -110,8 +111,11 @@ public class ReportService : IReportService
                 schedule += row.ActualEmiAmount;
 
             var status = row.LoanSchedulerStatus;
-            if (string.Equals(status, "Not Paid", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(status, "Overdue", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(status, "Overdue", StringComparison.OrdinalIgnoreCase))
+            {
+                overdue += row.ActualEmiAmount;
+            }
+            else if (string.Equals(status, "Not Paid", StringComparison.OrdinalIgnoreCase))
             {
                 pending += row.ActualEmiAmount;
             }
@@ -136,6 +140,7 @@ public class ReportService : IReportService
         {
             TotalScheduleAmount = schedule,
             TotalPendingAmount = pending,
+            TotalOverdueAmount = overdue,
             TotalCollectedAmount = collected,
             TotalPreCollectedAmount = preCollected,
             TotalPostCollectedAmount = postCollected,
