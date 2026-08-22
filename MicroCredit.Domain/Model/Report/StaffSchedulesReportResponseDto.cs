@@ -5,7 +5,22 @@ namespace MicroCredit.Domain.Model.Report;
 /// </summary>
 public class StaffSchedulesReportResponseDto
 {
+    public StaffSchedulesTotalsDto Totals { get; set; } = new();
     public List<StaffSchedulesStaffNodeDto> Staff { get; set; } = new();
+}
+
+public class StaffSchedulesTotalsDto
+{
+    /// <summary>EMI due on the selected schedule date, excluding prepaid installments.</summary>
+    public decimal TotalScheduleAmount { get; set; }
+    /// <summary>Amount still unpaid (Not Paid / Overdue full EMI, Partial remaining).</summary>
+    public decimal TotalPendingAmount { get; set; }
+    /// <summary>Collected on the same calendar day as ScheduleDate.</summary>
+    public decimal TotalCollectedAmount { get; set; }
+    /// <summary>Collected before ScheduleDate.</summary>
+    public decimal TotalPreCollectedAmount { get; set; }
+    /// <summary>Collected after ScheduleDate.</summary>
+    public decimal TotalPostCollectedAmount { get; set; }
 }
 
 public class StaffSchedulesStaffNodeDto

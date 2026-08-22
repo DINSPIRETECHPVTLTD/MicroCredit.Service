@@ -85,7 +85,61 @@ public class ReportService : IReportService
             };
         }).ToList();
 
-        return new StaffSchedulesReportResponseDto { Staff = staffNodes };
+        return new StaffSchedulesReportResponseDto
+        {
+            Totals = ComputeStaffScheduleTotals(memberList),
+            Staff = staffNodes,
+        };
+    }
+
+    private static StaffSchedulesTotalsDto ComputeStaffScheduleTotals(IReadOnlyList<StaffReportMemberRowDto> members)
+    {
+        decimal schedule = 0;
+        decimal pending = 0;
+        decimal collected = 0;
+        decimal preCollected = 0;
+        decimal postCollected = 0;
+
+        foreach (var row in members)
+        {
+            var scheduleDay = row.ScheduleDate.Date;
+            var paymentDay = row.PaymentDate?.Date;
+            var isPrepaid = paymentDay.HasValue && paymentDay.Value < scheduleDay;
+
+            if (!isPrepaid)
+                schedule += row.ActualEmiAmount;
+
+            var status = row.LoanSchedulerStatus;
+            if (string.Equals(status, "Not Paid", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(status, "Overdue", StringComparison.OrdinalIgnoreCase))
+            {
+                pending += row.ActualEmiAmount;
+            }
+            else if (string.Equals(status, "Partial", StringComparison.OrdinalIgnoreCase))
+            {
+                var remaining = row.ActualEmiAmount - row.PaymentAmount;
+                pending += remaining > 0 ? remaining : 0;
+            }
+
+            if (!paymentDay.HasValue || row.PaymentAmount <= 0)
+                continue;
+
+            if (paymentDay.Value == scheduleDay)
+                collected += row.PaymentAmount;
+            else if (paymentDay.Value < scheduleDay)
+                preCollected += row.PaymentAmount;
+            else
+                postCollected += row.PaymentAmount;
+        }
+
+        return new StaffSchedulesTotalsDto
+        {
+            TotalScheduleAmount = schedule,
+            TotalPendingAmount = pending,
+            TotalCollectedAmount = collected,
+            TotalPreCollectedAmount = preCollected,
+            TotalPostCollectedAmount = postCollected,
+        };
     }
 
     public async Task<ReportSummaryResponseDto> GetSummaryAsync(CancellationToken cancellationToken = default)
